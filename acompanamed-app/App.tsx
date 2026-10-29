@@ -348,11 +348,11 @@ export default function App() {
         <View style={styles.headerTitleGroup}>
           <Text style={styles.appNameLabel}>AcompañaMed</Text>
           <Text style={styles.patientSubLabel}>
-            Paciente: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Don Manuel (74 años)</Text>
+            Paciente: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Don Manuel (82 años)</Text>
           </Text>
         </View>
 
-        <View style={styles.clockHeaderBadge}>
+        <View style={styles.clockHeaderBadge} accessibilityRole="text" accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
           <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
           <Text style={styles.clockHeaderText}>
             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -417,6 +417,9 @@ export default function App() {
                         ]}
                         onPress={() => setExpandedMedId(item.medicine.id)}
                         activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Toma de ${item.scheduledTime}, ${item.medicine.name} ${item.medicine.doseDescription}. ${item.isTakenToday ? 'Dosis completada' : item.isPastDue ? 'Dosis pendiente con retraso' : 'Dosis programada'}`}
+                        accessibilityHint="Toca para expandir los detalles de la pastilla y registrar la toma"
                       >
                         {/* Cabecera de la Tarjeta */}
                         <View style={styles.timelineCardTop}>
@@ -473,7 +476,7 @@ export default function App() {
                           <MaterialCommunityIcons
                             name={isExpanded ? 'chevron-up' : 'chevron-down'}
                             size={20}
-                            color="#64748B"
+                            color="#334155"
                           />
                         </View>
 
@@ -555,6 +558,8 @@ export default function App() {
                                 Alert.alert('Lectura en Voz Alta', speechText);
                               }}
                               activeOpacity={0.8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Escuchar en voz alta indicación de ${item.medicine.name}`}
                             >
                               <MaterialCommunityIcons name="volume-high" size={18} color="#0284C7" />
                               <Text style={styles.listenTTSButtonText}>Escuchar indicación en voz alta</Text>
@@ -574,6 +579,9 @@ export default function App() {
                                   style={styles.confirmActionButton}
                                   onPress={() => handleTakeDose(item.medicine.id, 'patient')}
                                   activeOpacity={0.85}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Confirmar toma de ${item.medicine.name} ${item.medicine.doseDescription}`}
+                                  accessibilityHint="Registra la dosis en el historial y descuenta del inventario"
                                 >
                                   <MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />
                                   <Text style={styles.confirmActionButtonText}>Confirmar toma</Text>
@@ -583,8 +591,11 @@ export default function App() {
                                   style={styles.postponeActionButton}
                                   onPress={() => handlePostponeDose(item.medicine.id)}
                                   activeOpacity={0.8}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Posponer toma de ${item.medicine.name} por 15 minutos`}
+                                  accessibilityHint="Pospone el recordatorio sin penalizar tu adherencia"
                                 >
-                                  <MaterialCommunityIcons name="clock-fast" size={16} color="#475569" />
+                                  <MaterialCommunityIcons name="clock-fast" size={16} color="#334155" />
                                   <Text style={styles.postponeActionButtonText}>Posponer 15 min</Text>
                                 </TouchableOpacity>
                               </View>
@@ -738,6 +749,9 @@ export default function App() {
                           style={styles.restockPlusBtn}
                           onPress={() => handleRestockMedicine(med.id)}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Añadir 30 unidades al stock de ${med.name}`}
+                          accessibilityHint="Incrementa el inventario en 30 unidades"
                         >
                           <MaterialCommunityIcons name="plus" size={14} color="#059669" />
                           <Text style={styles.restockPlusBtnText}>+30</Text>
@@ -747,6 +761,9 @@ export default function App() {
                           style={styles.deleteMedBtn}
                           onPress={() => handleDeleteMedicine(med.id, med.name)}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Retirar ${med.name} del pastillero familiar`}
+                          accessibilityHint="Abre confirmación para retirar el fármaco del pastillero"
                         >
                           <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
                         </TouchableOpacity>
@@ -807,6 +824,9 @@ export default function App() {
                     )
                   }
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Llamar de emergencia a ${emergencyProfile.emergencyContact.name} al ${emergencyProfile.emergencyContact.phone}`}
+                  accessibilityHint="Marca el teléfono del contacto de auxilio inmediato"
                 >
                   <MaterialCommunityIcons name="phone" size={20} color="#FFFFFF" />
                   <Text style={styles.directCallEmergencyBtnText}>
@@ -820,16 +840,19 @@ export default function App() {
       </View>
 
       {/* BARRA DE NAVEGACIÓN INFERIOR NATIVA (4 VISTAS ESTRUCTURADAS) */}
-      <View style={styles.bottomNavigationBar}>
+      <View style={styles.bottomNavigationBar} accessibilityRole="tablist">
         <TouchableOpacity
           style={[styles.navBarItem, activeTab === 'today' && styles.navBarItemActive]}
           onPress={() => setActiveTab('today')}
           activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityLabel="Pestaña Hoy, plan diario de medicamentos"
+          accessibilityState={{ selected: activeTab === 'today' }}
         >
           <MaterialCommunityIcons
             name="pill"
             size={22}
-            color={activeTab === 'today' ? '#0F172A' : '#64748B'}
+            color={activeTab === 'today' ? '#0F172A' : '#334155'}
           />
           <Text style={[styles.navBarLabel, activeTab === 'today' && styles.navBarLabelActive]}>
             Hoy
@@ -840,11 +863,14 @@ export default function App() {
           style={[styles.navBarItem, activeTab === 'caregiver' && styles.navBarItemActive]}
           onPress={() => setActiveTab('caregiver')}
           activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityLabel="Pestaña Cuidador, panel de supervisión y adherencia"
+          accessibilityState={{ selected: activeTab === 'caregiver' }}
         >
           <MaterialCommunityIcons
             name="chart-timeline-variant"
             size={22}
-            color={activeTab === 'caregiver' ? '#0F172A' : '#64748B'}
+            color={activeTab === 'caregiver' ? '#0F172A' : '#334155'}
           />
           <Text style={[styles.navBarLabel, activeTab === 'caregiver' && styles.navBarLabelActive]}>
             Cuidador
@@ -855,11 +881,14 @@ export default function App() {
           style={[styles.navBarItem, activeTab === 'stock' && styles.navBarItemActive]}
           onPress={() => setActiveTab('stock')}
           activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityLabel="Pestaña Botiquín, inventario y reposición de dosis"
+          accessibilityState={{ selected: activeTab === 'stock' }}
         >
           <MaterialCommunityIcons
             name="medical-bag"
             size={22}
-            color={activeTab === 'stock' ? '#0F172A' : '#64748B'}
+            color={activeTab === 'stock' ? '#0F172A' : '#334155'}
           />
           <Text style={[styles.navBarLabel, activeTab === 'stock' && styles.navBarLabelActive]}>
             Botiquín
@@ -870,11 +899,14 @@ export default function App() {
           style={[styles.navBarItem, activeTab === 'emergency' && styles.navBarItemActive]}
           onPress={() => setActiveTab('emergency')}
           activeOpacity={0.8}
+          accessibilityRole="tab"
+          accessibilityLabel="Pestaña Emergencia, ficha médica hospitalaria ICE"
+          accessibilityState={{ selected: activeTab === 'emergency' }}
         >
           <MaterialCommunityIcons
             name="shield-alert-outline"
             size={22}
-            color={activeTab === 'emergency' ? '#0F172A' : '#64748B'}
+            color={activeTab === 'emergency' ? '#0F172A' : '#334155'}
           />
           <Text style={[styles.navBarLabel, activeTab === 'emergency' && styles.navBarLabelActive]}>
             Emergencia
@@ -1109,7 +1141,7 @@ const styles = StyleSheet.create({
   },
   patientSubLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: '#334155',
   },
   clockHeaderBadge: {
     flexDirection: 'row',
@@ -1126,6 +1158,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    fontVariant: ['tabular-nums'],
   },
 
   // CONTENEDOR PRINCIPAL
@@ -1134,7 +1167,7 @@ const styles = StyleSheet.create({
   },
   tabScrollContent: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 84,
   },
 
   // PESTAÑA HOY: HERO BANNER
@@ -1143,7 +1176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     marginBottom: 20,
@@ -1155,14 +1188,14 @@ const styles = StyleSheet.create({
   },
   todayHeroSub: {
     fontSize: 13,
-    color: '#475569',
+    color: '#334155',
     marginTop: 2,
   },
   adherenceMiniBadge: {
     backgroundColor: '#ECFDF5',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#A7F3D0',
@@ -1171,6 +1204,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     color: '#065F46',
+    fontVariant: ['tabular-nums'],
   },
   adherenceMiniBadgeLabel: {
     fontSize: 10,
@@ -1223,7 +1257,7 @@ const styles = StyleSheet.create({
   // TARJETA DE DOSIS EN EL HILO
   timelineCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -1255,6 +1289,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#0284C7',
+    fontVariant: ['tabular-nums'],
   },
   statusTakenChip: {
     flexDirection: 'row',
@@ -1283,7 +1318,7 @@ const styles = StyleSheet.create({
   statusScheduledChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#334155',
   },
 
   // Fila del Fármaco en la Tarjeta
@@ -1294,7 +1329,7 @@ const styles = StyleSheet.create({
   miniPillPreviewBox: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
     alignItems: 'center',
@@ -1307,7 +1342,7 @@ const styles = StyleSheet.create({
   },
   timelineMedDose: {
     fontSize: 13,
-    color: '#475569',
+    color: '#334155',
     marginTop: 2,
   },
 
@@ -1374,7 +1409,7 @@ const styles = StyleSheet.create({
   pillVisualDescriptionTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#64748B',
+    color: '#334155',
     letterSpacing: 0.3,
   },
   pillVisualDescriptionText: {
@@ -1407,7 +1442,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    minHeight: 48,
     borderRadius: 6,
     gap: 8,
     borderWidth: 1,
@@ -1431,13 +1467,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0F172A',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    minHeight: 52,
+    borderRadius: 6,
     gap: 6,
   },
   confirmActionButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
   postponeActionButton: {
@@ -1446,15 +1483,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    minHeight: 52,
+    borderRadius: 6,
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     gap: 6,
   },
   postponeActionButtonText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#334155',
   },
   takenNoticeStrip: {
@@ -1534,6 +1572,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '900',
     color: '#0F172A',
+    fontVariant: ['tabular-nums'],
   },
   adherenceRatingChip: {
     backgroundColor: '#ECFDF5',
@@ -1557,13 +1596,14 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#334155',
   },
   breakdownValue: {
     fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   openReportCTAButton: {
     flexDirection: 'row',
@@ -1599,7 +1639,7 @@ const styles = StyleSheet.create({
   },
   medBreakdownDose: {
     fontSize: 11,
-    color: '#64748B',
+    color: '#334155',
   },
   progressBarWrapper: {
     width: 80,
@@ -1619,6 +1659,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     width: 34,
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
 
   // Stock / Botiquín
@@ -1842,7 +1883,7 @@ const styles = StyleSheet.create({
   navBarLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: '#334155',
     marginTop: 2,
   },
   navBarLabelActive: {
