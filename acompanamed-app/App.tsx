@@ -48,7 +48,7 @@ const INITIAL_MEDICINES: Medicine[] = [
     doseDescription: '50 mg',
     intervalHours: 24,
     instructions: 'Tomar con medio vaso de agua después del desayuno.',
-    visualPill: { shape: 'round', colorHex: '#38BDF8', colorName: 'Azul Celeste' },
+    visualPill: { shape: 'round', colorHex: '#0284C7', colorName: 'Azul Clínico' },
     stock: 14,
     minStockAlert: 6,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -58,8 +58,8 @@ const INITIAL_MEDICINES: Medicine[] = [
     name: 'Metformina',
     doseDescription: '850 mg',
     intervalHours: 24,
-    instructions: 'Tomar inmediatamente con el almuerzo para proteger el estómago.',
-    visualPill: { shape: 'capsule', colorHex: '#F8FAFC', colorName: 'Blanco Nácar' },
+    instructions: 'Tomar inmediatamente con el almuerzo para proteger la mucosa gástrica.',
+    visualPill: { shape: 'capsule', colorHex: '#64748B', colorName: 'Blanco / Gris Neutro' },
     stock: 22,
     minStockAlert: 5,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -69,8 +69,8 @@ const INITIAL_MEDICINES: Medicine[] = [
     name: 'Atorvastatina',
     doseDescription: '20 mg',
     intervalHours: 24,
-    instructions: 'Tomar antes de acostarse con un sorbo de agua.',
-    visualPill: { shape: 'oval', colorHex: '#FACC15', colorName: 'Amarillo Cálido' },
+    instructions: 'Tomar antes de acostarse a dormir.',
+    visualPill: { shape: 'oval', colorHex: '#D97706', colorName: 'Ámbar Cálido' },
     stock: 4,
     minStockAlert: 6,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -125,12 +125,12 @@ const DEFAULT_PROFILE: EmergencyProfile = {
 };
 
 const COLOR_PALETTE = [
-  { hex: '#38BDF8', name: 'Azul Celeste' },
-  { hex: '#F8FAFC', name: 'Blanco Nácar' },
-  { hex: '#FACC15', name: 'Amarillo Cálido' },
-  { hex: '#F87171', name: 'Rojo Coral' },
-  { hex: '#4ADE80', name: 'Verde Menta' },
-  { hex: '#FB923C', name: 'Naranja Cítrico' },
+  { hex: '#0284C7', name: 'Azul Clínico' },
+  { hex: '#64748B', name: 'Gris Neutro' },
+  { hex: '#D97706', name: 'Ámbar Cálido' },
+  { hex: '#DC2626', name: 'Rojo Carmesí' },
+  { hex: '#059669', name: 'Verde Médico' },
+  { hex: '#7C3AED', name: 'Violeta Suave' },
 ];
 
 export default function App() {
@@ -144,7 +144,7 @@ export default function App() {
   const [selectedSlot, setSelectedSlot] = useState<DayTimeSlot>('morning');
   const [activeDoseMedicineId, setActiveDoseMedicineId] = useState<string>('med-losartan');
   const [lastActionMessage, setLastActionMessage] = useState<string>(
-    'Bienvenido a AcompañaMed. Toque su pastilla para confirmar la toma.'
+    'Bienvenido a AcompañaMed. Toque su medicamento para confirmar la toma.'
   );
 
   // Modales
@@ -162,7 +162,7 @@ export default function App() {
   const [newMedStock, setNewMedStock] = useState('30');
   const [newMedMinAlert, setNewMedMinAlert] = useState('6');
 
-  // Carga inicial persistente
+  // Carga inicial asíncrona
   useEffect(() => {
     async function loadStoredData() {
       try {
@@ -249,7 +249,7 @@ export default function App() {
 
     const msg =
       actor === 'patient'
-        ? `¡Muy bien, Don Manuel! Dosis de ${activeMedicine.name} confirmada. Quedan ${updated.stock} pastillas.`
+        ? `Dosis confirmada de ${activeMedicine.name}. Quedan ${updated.stock} comprimidos.`
         : `Toma asistida de ${activeMedicine.name} registrada por el cuidador. Stock: ${updated.stock}.`;
 
     if (actor === 'patient') {
@@ -261,7 +261,7 @@ export default function App() {
     Alert.alert('Registro Exitoso', msg);
   };
 
-  // Acción: Posponer toma (Snooze sin castigo moral)
+  // Acción: Posponer toma (Snooze sin castigo)
   const handlePostpone = () => {
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
@@ -286,18 +286,18 @@ export default function App() {
     setMedicines((prev) =>
       prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + 30 } : m))
     );
-    Alert.alert('Botiquín Actualizado', 'Se agregaron 30 pastillas al inventario.');
+    Alert.alert('Inventario Actualizado', 'Se registraron 30 unidades adicionales.');
   };
 
   // Acción: Eliminar medicina
   const handleDeleteMedicine = (medId: string, name: string) => {
     Alert.alert(
-      'Dar de baja medicamento',
-      `¿Desea retirar ${name} del pastillero?`,
+      'Retirar Medicamento',
+      `¿Desea desvincular ${name} del pastillero activo?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: 'Retirar',
           style: 'destructive',
           onPress: () => {
             setMedicines((prev) => prev.filter((m) => m.id !== medId));
@@ -314,7 +314,7 @@ export default function App() {
   // Acción: Guardar nuevo medicamento
   const handleSaveNewMedicine = () => {
     if (!newMedName.trim() || !newMedDose.trim()) {
-      Alert.alert('Campos requeridos', 'Por favor ingrese el nombre del medicamento y la dosis.');
+      Alert.alert('Campos Obligatorios', 'Por favor indique el nombre y la dosis prescrita.');
       return;
     }
 
@@ -324,7 +324,7 @@ export default function App() {
       name: newMedName.trim(),
       doseDescription: newMedDose.trim(),
       intervalHours: 24,
-      instructions: newMedInstructions.trim() || 'Tomar según prescripción médica con agua.',
+      instructions: newMedInstructions.trim() || 'Tomar según prescripción médica con abundante agua.',
       visualPill: {
         shape: newMedShape,
         colorHex: newMedColor.hex,
@@ -344,57 +344,63 @@ export default function App() {
     setNewMedDose('');
     setNewMedInstructions('');
     setIsModalVisible(false);
-    Alert.alert('Medicamento Añadido', `${newMed.name} ha sido guardado en el pastillero.`);
+    Alert.alert('Registro Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
   };
 
   if (!isLoaded) {
     return (
       <SafeAreaView style={[styles.safeContainer, styles.centerContent]}>
-        <StatusBar style="light" />
-        <MaterialCommunityIcons name="alarm-panel" size={54} color="#0284C7" />
+        <StatusBar style="dark" />
+        <MaterialCommunityIcons name="hospital-box-outline" size={48} color="#0F172A" />
         <Text style={styles.loadingTitle}>AcompañaMed</Text>
-        <Text style={styles.loadingSubtitle}>Cargando pastillero inteligente...</Text>
-        <ActivityIndicator size="small" color="#0284C7" style={{ marginTop: 24 }} />
+        <Text style={styles.loadingSubtitle}>Cargando entorno clínico...</Text>
+        <ActivityIndicator size="small" color="#0F172A" style={{ marginTop: 20 }} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeContainer}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      {/* CHASSIS HEADER: Reloj de Velador con Interruptor Físico de Modo */}
-      <View style={styles.chassisHeader}>
-        <View style={styles.applianceTopBar}>
-          <View style={styles.brandBadge}>
-            <MaterialCommunityIcons name="shield-check" size={20} color="#10B981" />
-            <Text style={styles.brandTitle}>AcompañaMed</Text>
+      {/* CABECERA CLÍNICA MINIMALISTA (ESTILO SUIZO / APPLE HEALTH) */}
+      <View style={styles.clinicalHeader}>
+        <View style={styles.headerTopRow}>
+          <View style={styles.brandGroup}>
+            <View style={styles.brandIconSquare}>
+              <MaterialCommunityIcons name="pill" size={20} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.brandHeaderTitle}>AcompañaMed</Text>
+              <Text style={styles.brandHeaderSub}>Asistencia de Adherencia Geriátrica</Text>
+            </View>
           </View>
-          <View style={styles.clockDigitalDisplay}>
-            <MaterialCommunityIcons name="clock-outline" size={16} color="#94A3B8" />
-            <Text style={styles.clockDigitalTime}>
+
+          <View style={styles.clockPillBadge}>
+            <MaterialCommunityIcons name="clock-outline" size={14} color="#475569" />
+            <Text style={styles.clockPillText}>
               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
         </View>
 
-        {/* Interruptor Físico de Modo (Senior / Cuidador) */}
-        <View style={styles.modeSwitchConsole}>
+        {/* SELECTOR SEGMENTADO DE ROL (CONTRASTE WCAG AAA) */}
+        <View style={styles.roleSegmentContainer}>
           <TouchableOpacity
-            style={[styles.modeSwitchBtn, activeRole === 'patient' && styles.modeSwitchBtnActiveSenior]}
+            style={[styles.roleSegmentBtn, activeRole === 'patient' && styles.roleSegmentBtnActive]}
             onPress={() => setActiveRole('patient')}
             accessibilityRole="button"
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
               name="account-heart"
-              size={20}
-              color={activeRole === 'patient' ? '#FFFFFF' : '#64748B'}
+              size={18}
+              color={activeRole === 'patient' ? '#0F172A' : '#64748B'}
             />
             <Text
               style={[
-                styles.modeSwitchText,
-                activeRole === 'patient' && styles.modeSwitchTextActive,
+                styles.roleSegmentText,
+                activeRole === 'patient' && styles.roleSegmentTextActive,
               ]}
             >
               Modo Adulto Mayor
@@ -402,20 +408,20 @@ export default function App() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.modeSwitchBtn, activeRole === 'caregiver' && styles.modeSwitchBtnActiveCaregiver]}
+            style={[styles.roleSegmentBtn, activeRole === 'caregiver' && styles.roleSegmentBtnActive]}
             onPress={() => setActiveRole('caregiver')}
             accessibilityRole="button"
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
               name="stethoscope"
-              size={20}
-              color={activeRole === 'caregiver' ? '#FFFFFF' : '#64748B'}
+              size={18}
+              color={activeRole === 'caregiver' ? '#0F172A' : '#64748B'}
             />
             <Text
               style={[
-                styles.modeSwitchText,
-                activeRole === 'caregiver' && styles.modeSwitchTextActive,
+                styles.roleSegmentText,
+                activeRole === 'caregiver' && styles.roleSegmentTextActive,
               ]}
             >
               Modo Cuidador
@@ -424,92 +430,92 @@ export default function App() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.appContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.mainScrollBody} showsVerticalScrollIndicator={false}>
         {/* ========================================================= */}
-        {/* VISTA 1: MODO ADULTO MAYOR (RELOJ TÁCTIL DE VELADOR)      */}
+        {/* VISTA 1: MODO ADULTO MAYOR (CLÍNICO, LIMPIO, WCAG AAA)     */}
         {/* ========================================================= */}
         {activeRole === 'patient' && (
-          <View style={styles.seniorViewContainer}>
-            {/* 1. Selector de Franja Diaria (Botones Mecánicos con Iconos Vectoriales) */}
-            <View style={styles.slotRack}>
+          <View style={styles.seniorSectionWrap}>
+            {/* 1. Selector de Franja Horaria (Segmented Timeline) */}
+            <View style={styles.timelineSegmentRow}>
               <TouchableOpacity
-                style={[styles.slotSlide, selectedSlot === 'morning' && styles.slotSlideActive]}
+                style={[styles.timelineTab, selectedSlot === 'morning' && styles.timelineTabActive]}
                 onPress={() => setSelectedSlot('morning')}
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="weather-sunny"
-                  size={24}
+                  size={20}
                   color={selectedSlot === 'morning' ? '#0284C7' : '#64748B'}
                 />
-                <Text style={[styles.slotSlideLabel, selectedSlot === 'morning' && styles.slotSlideLabelActive]}>
+                <Text style={[styles.timelineTabText, selectedSlot === 'morning' && styles.timelineTabTextActive]}>
                   Mañana
                 </Text>
-                <Text style={styles.slotTimeSub}>06:00 - 12:00</Text>
+                <Text style={styles.timelineTabHours}>06:00 - 12:00</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.slotSlide, selectedSlot === 'afternoon' && styles.slotSlideActive]}
+                style={[styles.timelineTab, selectedSlot === 'afternoon' && styles.timelineTabActive]}
                 onPress={() => setSelectedSlot('afternoon')}
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="weather-partly-cloudy"
-                  size={24}
+                  size={20}
                   color={selectedSlot === 'afternoon' ? '#0284C7' : '#64748B'}
                 />
-                <Text style={[styles.slotSlideLabel, selectedSlot === 'afternoon' && styles.slotSlideLabelActive]}>
+                <Text style={[styles.timelineTabText, selectedSlot === 'afternoon' && styles.timelineTabTextActive]}>
                   Tarde
                 </Text>
-                <Text style={styles.slotTimeSub}>12:00 - 18:00</Text>
+                <Text style={styles.timelineTabHours}>12:00 - 18:00</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.slotSlide, selectedSlot === 'night' && styles.slotSlideActive]}
+                style={[styles.timelineTab, selectedSlot === 'night' && styles.timelineTabActive]}
                 onPress={() => setSelectedSlot('night')}
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons
                   name="weather-night"
-                  size={24}
+                  size={20}
                   color={selectedSlot === 'night' ? '#0284C7' : '#64748B'}
                 />
-                <Text style={[styles.slotSlideLabel, selectedSlot === 'night' && styles.slotSlideLabelActive]}>
+                <Text style={[styles.timelineTabText, selectedSlot === 'night' && styles.timelineTabTextActive]}>
                   Noche
                 </Text>
-                <Text style={styles.slotTimeSub}>18:00 - 05:00</Text>
+                <Text style={styles.timelineTabHours}>18:00 - 05:00</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 2. Fila de Selección Táctil de Medicamentos en la Franja */}
-            <View style={styles.chipRackContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRackContent}>
+            {/* 2. Lista Horizontal de Medicamentos en la Franja */}
+            <View style={styles.medSelectorStrip}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
                 {slotDoses.map((item) => {
                   const isSelected = item.medicine.id === activeMedicine.id;
                   return (
                     <TouchableOpacity
                       key={item.medicine.id}
                       style={[
-                        styles.medicineChipButton,
-                        isSelected && styles.medicineChipButtonSelected,
-                        item.isTakenToday && styles.medicineChipButtonTaken,
+                        styles.medPillSelectorCard,
+                        isSelected && styles.medPillSelectorCardActive,
+                        item.isTakenToday && styles.medPillSelectorCardTaken,
                       ]}
                       onPress={() => setActiveDoseMedicineId(item.medicine.id)}
-                      activeOpacity={0.7}
+                      activeOpacity={0.8}
                     >
-                      <View style={[styles.pillColorDot, { backgroundColor: item.medicine.visualPill.colorHex }]} />
+                      <View style={[styles.pillColorIndicator, { backgroundColor: item.medicine.visualPill.colorHex }]} />
                       <View>
-                        <Text style={[styles.chipTitleText, isSelected && styles.chipTitleTextSelected]}>
+                        <Text style={[styles.medSelectorName, isSelected && styles.medSelectorNameActive]}>
                           {item.medicine.name}
                         </Text>
-                        <Text style={styles.chipDoseMeta}>
+                        <Text style={styles.medSelectorTime}>
                           {item.scheduledTime} • {item.medicine.doseDescription}
                         </Text>
                       </View>
                       {item.isTakenToday ? (
-                        <MaterialCommunityIcons name="check-circle" size={20} color="#10B981" style={{ marginLeft: 8 }} />
+                        <MaterialCommunityIcons name="check-circle" size={18} color="#059669" style={{ marginLeft: 6 }} />
                       ) : (
-                        <MaterialCommunityIcons name="clock-outline" size={18} color="#64748B" style={{ marginLeft: 8 }} />
+                        <MaterialCommunityIcons name="clock-outline" size={16} color="#94A3B8" style={{ marginLeft: 6 }} />
                       )}
                     </TouchableOpacity>
                   );
@@ -517,33 +523,33 @@ export default function App() {
               </ScrollView>
             </View>
 
-            {/* 3. Bandeja Central del Medicamento: Relieve Táctil de Alta Visibilidad */}
-            <View style={styles.applianceMainCard}>
-              {/* Encabezado con hora programada y estado */}
-              <View style={styles.cardScheduleHeader}>
-                <View style={styles.scheduleBadge}>
-                  <MaterialCommunityIcons name="alarm" size={18} color="#38BDF8" />
-                  <Text style={styles.scheduleBadgeText}>
-                    HORA FIJADA: {scheduleTimes[activeMedicine.id] || '08:00'}
+            {/* 3. Bandeja Principal de Medicación (Clean White Canvas Card) */}
+            <View style={styles.mainMedicationCard}>
+              {/* Encabezado con horario y estado */}
+              <View style={styles.cardHeaderRow}>
+                <View style={styles.timeTag}>
+                  <MaterialCommunityIcons name="alarm" size={16} color="#0284C7" />
+                  <Text style={styles.timeTagText}>
+                    Toma fijada: {scheduleTimes[activeMedicine.id] || '08:00'}
                   </Text>
                 </View>
 
                 {activeDoseItem?.isTakenToday ? (
-                  <View style={styles.statusPillTaken}>
-                    <MaterialCommunityIcons name="check" size={16} color="#10B981" />
-                    <Text style={styles.statusPillTakenText}>TOMADA HOY</Text>
+                  <View style={styles.statusBadgeConfirmed}>
+                    <MaterialCommunityIcons name="check" size={14} color="#065F46" />
+                    <Text style={styles.statusBadgeConfirmedText}>Tomada hoy</Text>
                   </View>
                 ) : (
-                  <View style={styles.statusPillPending}>
-                    <MaterialCommunityIcons name="bell-ring" size={16} color="#F59E0B" />
-                    <Text style={styles.statusPillPendingText}>PENDIENTE</Text>
+                  <View style={styles.statusBadgePending}>
+                    <MaterialCommunityIcons name="bell-ring-outline" size={14} color="#B45309" />
+                    <Text style={styles.statusBadgePendingText}>Pendiente</Text>
                   </View>
                 )}
               </View>
 
-              {/* Contenedor Visual de la Pastilla (Tangible Visual Pill Chamber) */}
-              <View style={styles.pillChamber}>
-                <View style={[styles.pillVisualDisc, { borderColor: activeMedicine.visualPill.colorHex }]}>
+              {/* Recinto Visual del Fármaco (Visual Pill ID Minimalista) */}
+              <View style={styles.pillDisplayStage}>
+                <View style={[styles.pillGeometricShape, { borderColor: activeMedicine.visualPill.colorHex }]}>
                   <MaterialCommunityIcons
                     name={
                       activeMedicine.visualPill.shape === 'capsule'
@@ -552,36 +558,34 @@ export default function App() {
                         ? 'circle-double'
                         : 'checkbox-blank-circle'
                     }
-                    size={64}
+                    size={48}
                     color={activeMedicine.visualPill.colorHex}
                   />
                 </View>
 
-                <View style={styles.pillIdentityBox}>
-                  <Text style={styles.medicineMainName}>{activeMedicine.name}</Text>
-                  <Text style={styles.medicineMainDose}>{activeMedicine.doseDescription}</Text>
-                  <View style={styles.pillAttributesRow}>
-                    <Text style={styles.pillShapeBadge}>
-                      {activeMedicine.visualPill.shape === 'capsule'
-                        ? 'Cápsula'
-                        : activeMedicine.visualPill.shape === 'oval'
-                        ? 'Comprimido Oval'
-                        : 'Comprimido Redondo'}
-                    </Text>
-                    <Text style={styles.pillColorBadge}>• {activeMedicine.visualPill.colorName}</Text>
-                  </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.medPrimaryHeading}>{activeMedicine.name}</Text>
+                  <Text style={styles.medPrimaryDosage}>{activeMedicine.doseDescription}</Text>
+                  <Text style={styles.medFormatNote}>
+                    {activeMedicine.visualPill.shape === 'capsule'
+                      ? 'Cápsula'
+                      : activeMedicine.visualPill.shape === 'oval'
+                      ? 'Comprimido ovalado'
+                      : 'Comprimido redondo'}{' '}
+                    • {activeMedicine.visualPill.colorName}
+                  </Text>
                 </View>
               </View>
 
-              {/* Indicación médica clara en tamaño legible */}
-              <View style={styles.instructionDisplay}>
-                <MaterialCommunityIcons name="information" size={24} color="#0284C7" />
-                <Text style={styles.instructionDisplayText}>{activeMedicine.instructions}</Text>
+              {/* Indicación médica estructurada */}
+              <View style={styles.instructionContainer}>
+                <MaterialCommunityIcons name="information-outline" size={20} color="#0284C7" />
+                <Text style={styles.instructionBodyText}>{activeMedicine.instructions}</Text>
               </View>
 
-              {/* Botón Táctil de Audio en Voz Alta (TTS Accesible) */}
+              {/* Botón Accesible de Lectura por Voz (TTS) */}
               <TouchableOpacity
-                style={styles.voiceSpeakerBtn}
+                style={styles.voiceAssistantBtn}
                 onPress={() => {
                   const speechText = formatSeniorInstructionSpeech(
                     'Don Manuel',
@@ -590,209 +594,214 @@ export default function App() {
                     activeMedicine.instructions
                   );
                   defaultSpeechService.speak(speechText);
-                  Alert.alert('Lectura en Voz Alta', speechText);
+                  Alert.alert('Lectura por Voz', speechText);
                 }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name="volume-high" size={24} color="#38BDF8" />
-                <Text style={styles.voiceSpeakerText}>Escuchar Instrucción con Voz Clara</Text>
+                <MaterialCommunityIcons name="volume-high" size={20} color="#0284C7" />
+                <Text style={styles.voiceAssistantBtnText}>Escuchar indicación en voz alta</Text>
               </TouchableOpacity>
 
-              {/* 4. BOTONES TÁCTILES GIGANTES CON RELIEVE FÍSICO */}
+              {/* 4. BOTONES DE ACCIÓN: SOBRIOS, MINIMALISTAS, ERGONÓMICOS */}
               {activeDoseItem?.isTakenToday ? (
-                <View style={styles.completedDosePlaque}>
-                  <MaterialCommunityIcons name="check-decagram" size={32} color="#10B981" />
+                <View style={styles.doseCompleteBox}>
+                  <MaterialCommunityIcons name="shield-check" size={24} color="#065F46" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.completedDoseTitle}>Dosis Completada con Éxito</Text>
-                    <Text style={styles.completedDoseSubtitle}>
-                      El escudo antidobles tomas protege a Don Manuel. Próxima toma mañana a las {scheduleTimes[activeMedicine.id] || '08:00'}.
+                    <Text style={styles.doseCompleteTitle}>Dosis registrada con éxito</Text>
+                    <Text style={styles.doseCompleteSub}>
+                      El escudo de seguridad protege su horario. Próxima toma programada a las {scheduleTimes[activeMedicine.id] || '08:00'}.
                     </Text>
                   </View>
                 </View>
               ) : (
-                <View style={styles.actionButtonsCol}>
-                  {/* Botón Gigante de Toma (Relieve 3D Físico Esmeralda) */}
+                <View style={styles.actionsStack}>
+                  {/* Botón Principal: Alta Autoridad Clínica */}
                   <TouchableOpacity
-                    style={styles.primaryTakeButton}
+                    style={styles.actionPrimaryButton}
                     onPress={() => handleTakeDose('patient')}
                     activeOpacity={0.85}
                   >
-                    <MaterialCommunityIcons name="check-bold" size={30} color="#FFFFFF" />
-                    <Text style={styles.primaryTakeButtonText}>¡YA ME TOMÉ ESTA PASTILLA!</Text>
+                    <MaterialCommunityIcons name="check" size={22} color="#FFFFFF" />
+                    <Text style={styles.actionPrimaryButtonText}>Confirmar toma de pastilla</Text>
                   </TouchableOpacity>
 
-                  {/* Botón de Posponer (Snooze Bar Ámbar sin castigo) */}
+                  {/* Botón Secundario: Snooze Normalizado */}
                   <TouchableOpacity
-                    style={styles.snoozeButton}
+                    style={styles.actionSecondaryButton}
                     onPress={handlePostpone}
                     activeOpacity={0.8}
                   >
-                    <MaterialCommunityIcons name="clock-fast" size={22} color="#F59E0B" />
-                    <Text style={styles.snoozeButtonText}>Posponer 15 minutos (Avisar luego)</Text>
+                    <MaterialCommunityIcons name="clock-fast" size={18} color="#475569" />
+                    <Text style={styles.actionSecondaryButtonText}>Posponer 15 minutos</Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
 
-            {/* 5. Acceso Inmediato a la Ficha Médica de Emergencia (ICE) */}
+            {/* 5. Ficha Médica de Emergencia (ICE) Card Minimalista */}
             <TouchableOpacity
-              style={styles.emergencyAccessPill}
+              style={styles.emergencyCardStrip}
               onPress={() => setIsIceModalVisible(true)}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="shield-alert" size={24} color="#EF4444" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.emergencyAccessTitle}>Ver Mi Ficha Médica de Emergencia (ICE)</Text>
-                <Text style={styles.emergencyAccessSub}>Alergias, grupo sanguíneo y contacto directo de auxilio</Text>
+              <View style={styles.emergencyRedIconBox}>
+                <MaterialCommunityIcons name="card-account-details-outline" size={22} color="#991B1B" />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#EF4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emergencyCardStripTitle}>Ficha Médica de Emergencia (ICE)</Text>
+                <Text style={styles.emergencyCardStripSub}>Grupo O+, alergias farmacológicas y contacto directo</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
         )}
 
         {/* ========================================================= */}
-        {/* VISTA 2: MODO CUIDADOR (PANEL CLÍNICO & GESTIÓN DE STOCK)  */}
+        {/* VISTA 2: MODO CUIDADOR (CONSOLA CLÍNICA LIMPIA)           */}
         {/* ========================================================= */}
         {activeRole === 'caregiver' && (
-          <View style={styles.caregiverViewContainer}>
-            {/* 1. Alerta de Escalamiento Clínico */}
-            <View style={styles.escalationCard}>
-              <View style={styles.escalationHeader}>
+          <View style={styles.caregiverSectionWrap}>
+            {/* 1. Alerta de Escalamiento / Tolerancia */}
+            <View style={[styles.whiteCardContainer, escalation.shouldEscalate && styles.alertCardBorder]}>
+              <View style={styles.cardHeaderFlex}>
                 <MaterialCommunityIcons
-                  name={escalation.shouldEscalate ? 'alert-decagram' : 'clock-check'}
-                  size={26}
-                  color={escalation.shouldEscalate ? '#EF4444' : '#10B981'}
+                  name={escalation.shouldEscalate ? 'alert-circle' : 'check-circle-outline'}
+                  size={24}
+                  color={escalation.shouldEscalate ? '#DC2626' : '#059669'}
                 />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.escalationTitle}>
-                    {escalation.shouldEscalate
-                      ? 'Alerta de Escalamiento: Dosis Demorada'
-                      : 'Monitoreo de Adherencia en Tiempo Real'}
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.cardSectionTitle}>
+                    {escalation.shouldEscalate ? 'Alerta de Dosis Vencida' : 'Monitoreo de Adherencia en Curso'}
                   </Text>
-                  <Text style={styles.escalationMessage}>{escalation.message}</Text>
+                  <Text style={styles.cardSectionBodyText}>{escalation.message}</Text>
                 </View>
               </View>
-              <View style={styles.escalationStatsRow}>
-                <Text style={styles.escalationStatItem}>
-                  Tolerancia Máxima: <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>30 minutos</Text>
-                </Text>
-                <Text style={styles.escalationStatItem}>
-                  Paciente: <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>Don Manuel (74 años)</Text>
-                </Text>
+              <View style={styles.clinicalMetaRow}>
+                <Text style={styles.metaLabelText}>Tolerancia máxima: 30 minutos</Text>
+                <Text style={styles.metaLabelText}>Paciente: Don Manuel (74 años)</Text>
               </View>
             </View>
 
-            {/* 2. Métricas Globales de Adherencia Farmacoterapéutica */}
-            <View style={styles.adherenceDashboardCard}>
-              <Text style={styles.sectionHeaderTitle}>Adherencia Terapéutica Global</Text>
-              <View style={styles.adherenceMetricRow}>
-                <View style={styles.adherenceBigNumberBox}>
-                  <Text style={styles.adherenceBigNumber}>{adherence.adherencePercentage}%</Text>
-                  <Text style={styles.adherenceStatusLabel}>
-                    Calificación: {adherence.statusRating === 'excellent' ? 'Excelente' : adherence.statusRating === 'good' ? 'Buena' : 'En Riesgo'}
-                  </Text>
+            {/* 2. Cuadrícula de Adherencia Farmacoterapéutica */}
+            <View style={styles.whiteCardContainer}>
+              <Text style={styles.cardSectionTitle}>Adherencia Terapéutica Global</Text>
+              <View style={styles.adherenceDashboardRow}>
+                <View style={styles.adherenceScorePlaque}>
+                  <Text style={styles.adherenceScoreNumber}>{adherence.adherencePercentage}%</Text>
+                  <View style={styles.adherenceRatingPill}>
+                    <Text style={styles.adherenceRatingText}>
+                      {adherence.statusRating === 'excellent' ? 'Excelente' : adherence.statusRating === 'good' ? 'Buena' : 'En Riesgo'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.adherenceCountersCol}>
-                  <Text style={styles.adherenceCounterText}>
-                    Programadas: <Text style={{ color: '#F8FAFC', fontWeight: '700' }}>{adherence.totalScheduled}</Text>
-                  </Text>
-                  <Text style={styles.adherenceCounterText}>
-                    Confirmadas: <Text style={{ color: '#10B981', fontWeight: '700' }}>{adherence.totalTaken}</Text>
-                  </Text>
-                  <Text style={styles.adherenceCounterText}>
-                    Pospuestas: <Text style={{ color: '#F59E0B', fontWeight: '700' }}>{adherence.totalPostponed}</Text>
-                  </Text>
+
+                <View style={styles.adherenceDataGrid}>
+                  <View style={styles.dataGridItem}>
+                    <Text style={styles.dataGridLabel}>Programadas</Text>
+                    <Text style={styles.dataGridValue}>{adherence.totalScheduled}</Text>
+                  </View>
+                  <View style={styles.dataGridItem}>
+                    <Text style={styles.dataGridLabel}>Confirmadas</Text>
+                    <Text style={[styles.dataGridValue, { color: '#059669' }]}>{adherence.totalTaken}</Text>
+                  </View>
+                  <View style={styles.dataGridItem}>
+                    <Text style={styles.dataGridLabel}>Pospuestas</Text>
+                    <Text style={[styles.dataGridValue, { color: '#D97706' }]}>{adherence.totalPostponed}</Text>
+                  </View>
                 </View>
               </View>
 
-              {/* Botón para Abrir Reporte Clínico Formal */}
               <TouchableOpacity
-                style={styles.openClinicalReportBtn}
+                style={styles.openReportButton}
                 onPress={() => setIsReportModalVisible(true)}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name="file-document-outline" size={20} color="#38BDF8" />
-                <Text style={styles.openClinicalReportBtnText}>Generar Informe Completo para la Consulta Médica</Text>
+                <MaterialCommunityIcons name="file-document-outline" size={18} color="#0F172A" />
+                <Text style={styles.openReportButtonText}>Generar Informe Completo para la Consulta</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 3. Botiquín e Inventario de Stock Farmacológico */}
-            <View style={styles.stockSectionCard}>
-              <View style={styles.stockSectionHeader}>
+            {/* 3. Inventario y Control de Botiquín */}
+            <View style={styles.whiteCardContainer}>
+              <View style={styles.cardHeaderFlex}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionHeaderTitle}>Pastillero e Inventario de Stock</Text>
-                  <Text style={styles.stockSectionSubtitle}>Control de existencias y días de medicación restantes</Text>
+                  <Text style={styles.cardSectionTitle}>Inventario y Reposición de Stock</Text>
+                  <Text style={styles.cardSectionSubtitle}>Días restantes de medicación continua</Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.addMedHeaderBtn}
+                  style={styles.primaryAddBtn}
                   onPress={() => setIsModalVisible(true)}
                   activeOpacity={0.8}
                 >
-                  <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
-                  <Text style={styles.addMedHeaderBtnText}>Agregar</Text>
+                  <MaterialCommunityIcons name="plus" size={16} color="#FFFFFF" />
+                  <Text style={styles.primaryAddBtnText}>Agregar</Text>
                 </TouchableOpacity>
               </View>
 
-              {medicines.map((med) => {
-                const low = isStockLow(med);
-                const days = daysRemaining(med.stock, 1);
-                return (
-                  <View key={med.id} style={styles.medicineInventoryRow}>
-                    <View style={[styles.pillColorPlaque, { backgroundColor: med.visualPill.colorHex }]}>
-                      <MaterialCommunityIcons
-                        name={med.visualPill.shape === 'capsule' ? 'pill' : 'checkbox-blank-circle'}
-                        size={22}
-                        color="#0B132B"
-                      />
-                    </View>
+              <View style={styles.inventoryList}>
+                {medicines.map((med) => {
+                  const low = isStockLow(med);
+                  const days = daysRemaining(med.stock, 1);
+                  return (
+                    <View key={med.id} style={styles.inventoryItemRow}>
+                      <View style={[styles.inventoryShapeBox, { borderColor: med.visualPill.colorHex }]}>
+                        <MaterialCommunityIcons
+                          name={med.visualPill.shape === 'capsule' ? 'pill' : 'checkbox-blank-circle'}
+                          size={18}
+                          color={med.visualPill.colorHex}
+                        />
+                      </View>
 
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text style={styles.medInventoryName}>{med.name}</Text>
-                      <Text style={styles.medInventoryDose}>
-                        {med.doseDescription} • Toma diaria a las {scheduleTimes[med.id] || '08:00'}
-                      </Text>
-                      <View style={styles.stockBadgeRow}>
-                        <Text style={[styles.stockStatusBadge, low && styles.stockStatusBadgeLow]}>
-                          Stock: {med.stock} unidades ({days} días restantes)
+                      <View style={{ flex: 1, marginHorizontal: 12 }}>
+                        <Text style={styles.inventoryItemName}>{med.name}</Text>
+                        <Text style={styles.inventoryItemSub}>
+                          {med.doseDescription} • Diaria a las {scheduleTimes[med.id] || '08:00'}
                         </Text>
+                        <View style={styles.inventoryStockStatus}>
+                          <Text style={[styles.stockPillTag, low && styles.stockPillTagLow]}>
+                            {med.stock} unidades ({days} días de reserva)
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.inventoryActions}>
+                        <TouchableOpacity
+                          style={styles.restockOutlineBtn}
+                          onPress={() => handleRestockMedicine(med.id)}
+                          activeOpacity={0.7}
+                        >
+                          <MaterialCommunityIcons name="plus" size={14} color="#059669" />
+                          <Text style={styles.restockOutlineBtnText}>+30</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.deleteOutlineBtn}
+                          onPress={() => handleDeleteMedicine(med.id, med.name)}
+                          activeOpacity={0.7}
+                        >
+                          <MaterialCommunityIcons name="trash-can-outline" size={16} color="#991B1B" />
+                        </TouchableOpacity>
                       </View>
                     </View>
-
-                    <View style={styles.inventoryActionButtons}>
-                      <TouchableOpacity
-                        style={styles.restockSmallBtn}
-                        onPress={() => handleRestockMedicine(med.id)}
-                        activeOpacity={0.7}
-                      >
-                        <MaterialCommunityIcons name="plus-box" size={18} color="#10B981" />
-                        <Text style={styles.restockSmallBtnText}>+30</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.deleteSmallBtn}
-                        onPress={() => handleDeleteMedicine(med.id, med.name)}
-                        activeOpacity={0.7}
-                      >
-                        <MaterialCommunityIcons name="trash-can-outline" size={18} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
+              </View>
             </View>
 
-            {/* 4. Acceso a la Ficha ICE en Modo Cuidador */}
+            {/* 4. Enlace a Ficha ICE */}
             <TouchableOpacity
-              style={styles.iceCardCaregiver}
+              style={styles.whiteCardContainer}
               onPress={() => setIsIceModalVisible(true)}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="card-account-details-outline" size={24} color="#38BDF8" />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.iceCardCaregiverTitle}>Ficha Médica de Emergencia (ICE)</Text>
-                <Text style={styles.iceCardCaregiverSub}>Grupo sanguíneo, alergias severas y contacto de auxilio</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="card-account-details-outline" size={24} color="#0284C7" />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.cardSectionTitle}>Ficha Médica de Emergencia (ICE)</Text>
+                  <Text style={styles.cardSectionSubtitle}>Alergias severas, grupo sanguíneo y teléfonos</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#64748B" />
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color="#64748B" />
             </TouchableOpacity>
           </View>
         )}
@@ -802,71 +811,66 @@ export default function App() {
       {/* MODAL 1: REGISTRO DE NUEVO MEDICAMENTO                    */}
       {/* ========================================================= */}
       <Modal visible={isModalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheetContainer}>
-            <View style={styles.modalSheetHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="pill" size={24} color="#0284C7" />
-                <Text style={styles.modalSheetTitle}>Nuevo Medicamento</Text>
-              </View>
-              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={styles.modalCloseBtn}>
-                <MaterialCommunityIcons name="close" size={22} color="#94A3B8" />
+        <View style={styles.modalOverlayScrim}>
+          <View style={styles.modalSheetBox}>
+            <View style={styles.modalHeaderBorder}>
+              <Text style={styles.modalHeaderTitle}>Registrar Nuevo Medicamento</Text>
+              <TouchableOpacity onPress={() => setIsModalVisible(false)} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalFormContent} showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>Nombre del Principio Activo</Text>
+            <ScrollView contentContainerStyle={styles.modalScrollForm} showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputFieldLabel}>Principio Activo</Text>
               <TextInput
-                style={styles.tactileInput}
-                placeholder="Ej. Enalapril, Glibenclamida, Levotiroxina"
-                placeholderTextColor="#64748B"
+                style={styles.clinicalTextInput}
+                placeholder="Ej. Enalapril, Glibenclamida"
+                placeholderTextColor="#94A3B8"
                 value={newMedName}
                 onChangeText={setNewMedName}
               />
 
-              <View style={styles.twoColumnInputs}>
+              <View style={styles.twoColumnRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Dosis Prescrita</Text>
+                  <Text style={styles.inputFieldLabel}>Dosis</Text>
                   <TextInput
-                    style={styles.tactileInput}
-                    placeholder="Ej. 10 mg, 1 comp"
-                    placeholderTextColor="#64748B"
+                    style={styles.clinicalTextInput}
+                    placeholder="Ej. 10 mg"
+                    placeholderTextColor="#94A3B8"
                     value={newMedDose}
                     onChangeText={setNewMedDose}
                   />
                 </View>
-
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.fieldLabel}>Horario Diario (HH:MM)</Text>
+                  <Text style={styles.inputFieldLabel}>Horario Diario</Text>
                   <TextInput
-                    style={styles.tactileInput}
+                    style={styles.clinicalTextInput}
                     placeholder="08:00"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#94A3B8"
                     value={newMedTime}
                     onChangeText={setNewMedTime}
                   />
                 </View>
               </View>
 
-              <Text style={styles.fieldLabel}>Instrucciones de Toma para el Adulto Mayor</Text>
+              <Text style={styles.inputFieldLabel}>Instrucciones de Ingestión</Text>
               <TextInput
-                style={[styles.tactileInput, { minHeight: 70 }]}
-                placeholder="Ej. Tomar con medio vaso de agua después del almuerzo."
-                placeholderTextColor="#64748B"
+                style={[styles.clinicalTextInput, { minHeight: 60 }]}
+                placeholder="Ej. Tomar después del desayuno con agua."
+                placeholderTextColor="#94A3B8"
                 multiline
                 value={newMedInstructions}
                 onChangeText={setNewMedInstructions}
               />
 
-              {/* Selector de Forma Geométrica de la Pastilla */}
-              <Text style={styles.fieldLabel}>Forma Visual de la Pastilla</Text>
-              <View style={styles.shapeSelectorRow}>
+              <Text style={styles.inputFieldLabel}>Forma del Comprimido</Text>
+              <View style={styles.shapeButtonGroup}>
                 {(['round', 'capsule', 'oval'] as PillShape[]).map((shape) => (
                   <TouchableOpacity
                     key={shape}
                     style={[
-                      styles.shapeSelectorBtn,
-                      newMedShape === shape && styles.shapeSelectorBtnActive,
+                      styles.shapeButton,
+                      newMedShape === shape && styles.shapeButtonSelected,
                     ]}
                     onPress={() => setNewMedShape(shape)}
                     activeOpacity={0.8}
@@ -879,13 +883,13 @@ export default function App() {
                           ? 'circle-double'
                           : 'checkbox-blank-circle'
                       }
-                      size={24}
-                      color={newMedShape === shape ? '#38BDF8' : '#64748B'}
+                      size={20}
+                      color={newMedShape === shape ? '#0F172A' : '#64748B'}
                     />
                     <Text
                       style={[
-                        styles.shapeSelectorText,
-                        newMedShape === shape && styles.shapeSelectorTextActive,
+                        styles.shapeButtonText,
+                        newMedShape === shape && styles.shapeButtonTextSelected,
                       ]}
                     >
                       {shape === 'round' ? 'Redonda' : shape === 'capsule' ? 'Cápsula' : 'Oval'}
@@ -894,39 +898,36 @@ export default function App() {
                 ))}
               </View>
 
-              {/* Selector de Color de la Pastilla */}
-              <Text style={styles.fieldLabel}>Color Distintivo del Comprimido</Text>
-              <View style={styles.paletteSelectorRow}>
+              <Text style={styles.inputFieldLabel}>Color Distintivo</Text>
+              <View style={styles.colorPaletteGrid}>
                 {COLOR_PALETTE.map((c) => (
                   <TouchableOpacity
                     key={c.hex}
                     style={[
-                      styles.colorSwatch,
+                      styles.colorDotSwatch,
                       { backgroundColor: c.hex },
-                      newMedColor.hex === c.hex && styles.colorSwatchActive,
+                      newMedColor.hex === c.hex && styles.colorDotSwatchSelected,
                     ]}
                     onPress={() => setNewMedColor(c)}
                     activeOpacity={0.8}
                   />
                 ))}
               </View>
-              <Text style={styles.selectedColorHint}>Color seleccionado: {newMedColor.name}</Text>
 
-              <View style={styles.twoColumnInputs}>
+              <View style={styles.twoColumnRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fieldLabel}>Stock Inicial</Text>
+                  <Text style={styles.inputFieldLabel}>Stock Inicial</Text>
                   <TextInput
-                    style={styles.tactileInput}
+                    style={styles.clinicalTextInput}
                     keyboardType="numeric"
                     value={newMedStock}
                     onChangeText={setNewMedStock}
                   />
                 </View>
-
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.fieldLabel}>Alerta Stock Mínimo</Text>
+                  <Text style={styles.inputFieldLabel}>Alerta de Stock</Text>
                   <TextInput
-                    style={styles.tactileInput}
+                    style={styles.clinicalTextInput}
                     keyboardType="numeric"
                     value={newMedMinAlert}
                     onChangeText={setNewMedMinAlert}
@@ -935,12 +936,11 @@ export default function App() {
               </View>
 
               <TouchableOpacity
-                style={styles.modalSubmitButton}
+                style={styles.modalPrimaryActionBtn}
                 onPress={handleSaveNewMedicine}
                 activeOpacity={0.85}
               >
-                <MaterialCommunityIcons name="content-save" size={22} color="#FFFFFF" />
-                <Text style={styles.modalSubmitButtonText}>Guardar en el Pastillero</Text>
+                <Text style={styles.modalPrimaryActionText}>Guardar en el Pastillero</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -951,64 +951,64 @@ export default function App() {
       {/* MODAL 2: FICHA MÉDICA DE EMERGENCIA (ICE)                 */}
       {/* ========================================================= */}
       <Modal visible={isIceModalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheetContainer}>
-            <View style={styles.modalSheetHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="shield-cross" size={26} color="#EF4444" />
-                <Text style={styles.modalSheetTitle}>Ficha Médica de Emergencia (ICE)</Text>
+        <View style={styles.modalOverlayScrim}>
+          <View style={styles.modalSheetBox}>
+            <View style={styles.modalHeaderBorder}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="card-account-details-outline" size={22} color="#991B1B" />
+                <Text style={styles.modalHeaderTitle}>Ficha Médica de Emergencia (ICE)</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsIceModalVisible(false)} style={styles.modalCloseBtn}>
-                <MaterialCommunityIcons name="close" size={22} color="#94A3B8" />
+              <TouchableOpacity onPress={() => setIsIceModalVisible(false)} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalFormContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.iceHeaderCard}>
-                <View style={styles.bloodTypeDisc}>
-                  <Text style={styles.bloodTypeDiscTitle}>GRUPO</Text>
-                  <Text style={styles.bloodTypeDiscValue}>{emergencyProfile.bloodType}</Text>
+            <ScrollView contentContainerStyle={styles.modalScrollForm} showsVerticalScrollIndicator={false}>
+              <View style={styles.patientIDCard}>
+                <View style={styles.bloodTypePill}>
+                  <Text style={styles.bloodTypeLabel}>GRUPO</Text>
+                  <Text style={styles.bloodTypeValue}>{emergencyProfile.bloodType}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text style={styles.icePatientFullName}>{emergencyProfile.patientFullName}</Text>
-                  <Text style={styles.icePatientSub}>
+                  <Text style={styles.patientFullNameText}>{emergencyProfile.patientFullName}</Text>
+                  <Text style={styles.patientAgeMeta}>
                     {emergencyProfile.age} años • {emergencyProfile.healthInsurance}
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.iceAllergiesBox}>
-                <MaterialCommunityIcons name="alert-octagon" size={24} color="#EF4444" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.iceAllergiesTitle}>Alergias Severas a Fármacos:</Text>
-                  <Text style={styles.iceAllergiesList}>{emergencyProfile.allergies.join(' • ')}</Text>
+              <View style={styles.allergyWarningCard}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={22} color="#991B1B" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.allergyWarningTitle}>Alergias Severas a Medicamentos:</Text>
+                  <Text style={styles.allergyWarningBody}>{emergencyProfile.allergies.join(' • ')}</Text>
                 </View>
               </View>
 
-              <View style={styles.iceConditionsBox}>
-                <Text style={styles.iceConditionsTitle}>Condiciones Médicas Crónicas:</Text>
+              <View style={styles.chronicConditionsCard}>
+                <Text style={styles.conditionCardTitle}>Condiciones Médicas Crónicas:</Text>
                 {emergencyProfile.chronicConditions.map((cond, idx) => (
-                  <Text key={idx} style={styles.iceConditionItem}>• {cond}</Text>
+                  <Text key={idx} style={styles.conditionCardItem}>• {cond}</Text>
                 ))}
               </View>
 
-              <View style={styles.iceContactCard}>
-                <Text style={styles.iceContactHeading}>CONTACTO DE AUXILIO INMEDIATO:</Text>
-                <Text style={styles.iceContactName}>{emergencyProfile.emergencyContact.name}</Text>
-                <Text style={styles.iceContactRelation}>{emergencyProfile.emergencyContact.relationship}</Text>
+              <View style={styles.emergencyContactCard}>
+                <Text style={styles.contactLabelHeader}>CONTACTO DE AUXILIO INMEDIATO</Text>
+                <Text style={styles.contactPersonName}>{emergencyProfile.emergencyContact.name}</Text>
+                <Text style={styles.contactPersonRelation}>{emergencyProfile.emergencyContact.relationship}</Text>
 
                 <TouchableOpacity
-                  style={styles.iceCallButton}
+                  style={styles.callActionButton}
                   onPress={() =>
                     Alert.alert(
                       'Llamada de Emergencia',
-                      `Conectando con ${emergencyProfile.emergencyContact.name}: ${emergencyProfile.emergencyContact.phone}`
+                      `Llamando al contacto de auxilio: ${emergencyProfile.emergencyContact.phone}`
                     )
                   }
                   activeOpacity={0.85}
                 >
-                  <MaterialCommunityIcons name="phone" size={22} color="#FFFFFF" />
-                  <Text style={styles.iceCallButtonText}>Llamar a {emergencyProfile.emergencyContact.phone}</Text>
+                  <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
+                  <Text style={styles.callActionButtonText}>Llamar a {emergencyProfile.emergencyContact.phone}</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -1017,38 +1017,38 @@ export default function App() {
       </Modal>
 
       {/* ========================================================= */}
-      {/* MODAL 3: INFORME CLÍNICO FORMAL PARA EL GERIATRA          */}
+      {/* MODAL 3: INFORME CLÍNICO DE ADHERENCIA                   */}
       {/* ========================================================= */}
       <Modal visible={isReportModalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheetContainer}>
-            <View style={styles.modalSheetHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <MaterialCommunityIcons name="file-document-check" size={24} color="#0284C7" />
-                <Text style={styles.modalSheetTitle}>Informe Clínico de Adherencia</Text>
+        <View style={styles.modalOverlayScrim}>
+          <View style={styles.modalSheetBox}>
+            <View style={styles.modalHeaderBorder}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="file-document-check-outline" size={22} color="#0F172A" />
+                <Text style={styles.modalHeaderTitle}>Informe Clínico de Adherencia</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsReportModalVisible(false)} style={styles.modalCloseBtn}>
-                <MaterialCommunityIcons name="close" size={22} color="#94A3B8" />
+              <TouchableOpacity onPress={() => setIsReportModalVisible(false)} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalFormContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.reportTerminalBox}>
-                <Text style={styles.reportTerminalText}>{clinicalReport.formattedReportText}</Text>
+            <ScrollView contentContainerStyle={styles.modalScrollForm} showsVerticalScrollIndicator={false}>
+              <View style={styles.monospaceReportBox}>
+                <Text style={styles.monospaceReportText}>{clinicalReport.formattedReportText}</Text>
               </View>
 
               <TouchableOpacity
-                style={styles.shareReportSubmitBtn}
+                style={styles.modalPrimaryActionBtn}
                 onPress={() =>
                   Alert.alert(
-                    'Informe Exportado',
-                    'El reporte de adherencia ha sido formateado y copiado para compartir por WhatsApp o imprimir en la consulta geriátrica.'
+                    'Informe Copiado',
+                    'El reporte clínico fue formateado y copiado para compartir por WhatsApp o imprimir para la consulta médica.'
                   )
                 }
                 activeOpacity={0.85}
               >
-                <MaterialCommunityIcons name="share-variant" size={20} color="#FFFFFF" />
-                <Text style={styles.shareReportSubmitBtnText}>Compartir con el Médico Geriatra</Text>
+                <MaterialCommunityIcons name="share-variant-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.modalPrimaryActionText}>Compartir con el Médico Geriatra</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1058,922 +1058,864 @@ export default function App() {
   );
 }
 
-// ESTILOS TÁCTILES: DIRECCIÓN VISUAL "RELOJ DESPERTADOR DE VELADOR"
+// ESTILOS MINIMALISTAS CLÍNICOS (CONTRASTE WCAG AAA, TIPOGRAFÍA SUIZA, CARDS BLANCAS)
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#070B14',
+    backgroundColor: '#F8FAFC',
   },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#F8FAFC',
-    marginTop: 16,
+    color: '#0F172A',
+    marginTop: 14,
   },
   loadingSubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
-    marginTop: 6,
+    color: '#475569',
+    marginTop: 4,
   },
 
-  // Encabezado Chasis de Velador
-  chassisHeader: {
-    backgroundColor: '#0E1726',
+  // CABECERA CLÍNICA MINIMALISTA
+  clinicalHeader: {
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 14,
   },
-  applianceTopBar: {
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  brandBadge: {
+  brandGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  brandTitle: {
-    fontSize: 20,
+  brandIconSquare: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandHeaderTitle: {
+    fontSize: 18,
     fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 0.3,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
-  clockDigitalDisplay: {
+  brandHeaderSub: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  clockPillBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#182234',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 6,
+    gap: 6,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
-  clockDigitalTime: {
-    fontSize: 14,
+  clockPillText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#38BDF8',
+    color: '#334155',
   },
 
-  // Interruptor Físico de Modo
-  modeSwitchConsole: {
+  // SELECTOR SEGMENTADO DE ROL
+  roleSegmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#182234',
-    borderRadius: 12,
-    padding: 4,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    padding: 3,
     borderWidth: 1,
-    borderColor: '#334155',
-    gap: 6,
+    borderColor: '#E2E8F0',
   },
-  modeSwitchBtn: {
+  roleSegmentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
   },
-  modeSwitchBtnActiveSenior: {
-    backgroundColor: '#0284C7',
-    borderBottomWidth: 2,
-    borderBottomColor: '#0369A1',
+  roleSegmentBtnActive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
-  modeSwitchBtnActiveCaregiver: {
-    backgroundColor: '#059669',
-    borderBottomWidth: 2,
-    borderBottomColor: '#047857',
-  },
-  modeSwitchText: {
-    fontSize: 14,
+  roleSegmentText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
   },
-  modeSwitchTextActive: {
-    color: '#FFFFFF',
+  roleSegmentTextActive: {
+    color: '#0F172A',
     fontWeight: '700',
   },
 
-  // Contenedor Scroll Principal
-  appContent: {
+  // CUERPO PRINCIPAL SCROLL
+  mainScrollBody: {
     padding: 16,
     paddingBottom: 40,
   },
 
-  // VISTA ADULTO MAYOR
-  seniorViewContainer: {
-    gap: 16,
+  // SECCIÓN MODO ADULTO MAYOR
+  seniorSectionWrap: {
+    gap: 14,
   },
 
-  // Selector de Franja Diaria
-  slotRack: {
+  // Segmented Timeline (Mañana / Tarde / Noche)
+  timelineSegmentRow: {
     flexDirection: 'row',
     gap: 10,
   },
-  slotSlide: {
+  timelineTab: {
     flex: 1,
-    backgroundColor: '#0E1726',
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#E2E8F0',
   },
-  slotSlideActive: {
-    backgroundColor: '#132338',
+  timelineTabActive: {
     borderColor: '#0284C7',
-    borderBottomWidth: 3,
-    borderBottomColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
   },
-  slotSlideLabel: {
-    fontSize: 15,
+  timelineTabText: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#475569',
     marginTop: 4,
   },
-  slotSlideLabelActive: {
-    color: '#F8FAFC',
+  timelineTabTextActive: {
+    color: '#0284C7',
   },
-  slotTimeSub: {
+  timelineTabHours: {
     fontSize: 10,
     color: '#64748B',
     marginTop: 2,
+    fontWeight: '500',
   },
 
-  // Fila de Chips de Medicamentos
-  chipRackContainer: {
-    marginVertical: 4,
+  // Selector de Medicamentos en Franja
+  medSelectorStrip: {
+    marginVertical: 2,
   },
-  chipRackContent: {
-    gap: 10,
-  },
-  medicineChipButton: {
+  medPillSelectorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0E1726',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#E2E8F0',
     gap: 10,
   },
-  medicineChipButtonSelected: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#182436',
+  medPillSelectorCardActive: {
+    borderColor: '#0F172A',
+    backgroundColor: '#F8FAFC',
   },
-  medicineChipButtonTaken: {
+  medPillSelectorCardTaken: {
     borderColor: '#059669',
-    backgroundColor: '#0C201A',
+    backgroundColor: '#ECFDF5',
   },
-  pillColorDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+  pillColorIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  chipTitleText: {
-    fontSize: 15,
+  medSelectorName: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#0F172A',
   },
-  chipTitleTextSelected: {
-    color: '#38BDF8',
+  medSelectorNameActive: {
+    color: '#0F172A',
   },
-  chipDoseMeta: {
-    fontSize: 12,
-    color: '#94A3B8',
+  medSelectorTime: {
+    fontSize: 11,
+    color: '#475569',
     marginTop: 2,
   },
 
-  // BANDEJA PRINCIPAL DE LA PASTILLA (Relieve y Ergonomía de Velador)
-  applianceMainCard: {
-    backgroundColor: '#0E1726',
-    borderRadius: 20,
-    padding: 20,
+  // TARJETA PRINCIPAL DEL MEDICAMENTO (WHITE CLINICAL CANVAS)
+  mainMedicationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 16,
+    borderColor: '#CBD5E1',
+    gap: 14,
   },
-  cardScheduleHeader: {
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  scheduleBadge: {
+  timeTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#182234',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    backgroundColor: '#F0F9FF',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
     gap: 6,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
   },
-  scheduleBadgeText: {
-    fontSize: 13,
+  timeTagText: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#38BDF8',
-    letterSpacing: 0.5,
+    color: '#0369A1',
   },
-  statusPillTaken: {
+  statusBadgeConfirmed: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C201A',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: '#ECFDF5',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: '#A7F3D0',
   },
-  statusPillTakenText: {
+  statusBadgeConfirmedText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#10B981',
+    fontWeight: '700',
+    color: '#065F46',
   },
-  statusPillPending: {
+  statusBadgePending: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#261C0D',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 6,
+    backgroundColor: '#FFFBEB',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: '#FDE68A',
   },
-  statusPillPendingText: {
+  statusBadgePendingText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#F59E0B',
+    fontWeight: '700',
+    color: '#B45309',
   },
 
-  // Cámara Visual de la Pastilla
-  pillChamber: {
+  // Escenario Visual de la Pastilla
+  pillDisplayStage: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#070B14',
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#182436',
-    gap: 16,
+    borderColor: '#E2E8F0',
+    gap: 14,
   },
-  pillVisualDisc: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#131B2E',
+  pillGeometricShape: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
   },
-  pillIdentityBox: {
-    flex: 1,
-  },
-  medicineMainName: {
-    fontSize: 22,
+  medPrimaryHeading: {
+    fontSize: 20,
     fontWeight: '800',
-    color: '#F8FAFC',
-    lineHeight: 26,
+    color: '#0F172A',
+    lineHeight: 24,
   },
-  medicineMainDose: {
-    fontSize: 16,
+  medPrimaryDosage: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#38BDF8',
-    marginTop: 4,
+    color: '#0284C7',
+    marginTop: 2,
   },
-  pillAttributesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
-  pillShapeBadge: {
+  medFormatNote: {
     fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  pillColorBadge: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '600',
+    color: '#475569',
+    marginTop: 2,
   },
 
-  // Instrucción clara
-  instructionDisplay: {
+  // Instrucción médica clara
+  instructionContainer: {
     flexDirection: 'row',
-    backgroundColor: '#131F33',
-    padding: 14,
-    borderRadius: 12,
-    gap: 10,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#E2E8F0',
   },
-  instructionDisplayText: {
+  instructionBodyText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#334155',
     lineHeight: 20,
   },
 
-  // Botón Altavoz TTS
-  voiceSpeakerBtn: {
+  // Asistente por Voz
+  voiceAssistantBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#182436',
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: '#F0F9FF',
+    paddingVertical: 10,
+    borderRadius: 8,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#BAE6FD',
   },
-  voiceSpeakerText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#38BDF8',
-  },
-
-  // BOTONES TÁCTILES GIGANTES
-  actionButtonsCol: {
-    gap: 12,
-    marginTop: 6,
-  },
-  primaryTakeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 18,
-    borderRadius: 16,
-    gap: 10,
-    borderBottomWidth: 4,
-    borderBottomColor: '#047857',
-  },
-  primaryTakeButtonText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  snoozeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#182234',
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 8,
-    borderWidth: 1.5,
-    borderColor: '#F59E0B',
-    borderBottomWidth: 3,
-    borderBottomColor: '#B45309',
-  },
-  snoozeButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FBBF24',
-  },
-
-  // Placa de toma completada
-  completedDosePlaque: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0C201A',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#10B981',
-    gap: 14,
-  },
-  completedDoseTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#10B981',
-  },
-  completedDoseSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-
-  // Acceso Emergencia ICE
-  emergencyAccessPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1116',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#7F1D1D',
-    gap: 14,
-  },
-  emergencyAccessTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#F87171',
-  },
-  emergencyAccessSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-
-  // VISTA MODO CUIDADOR
-  caregiverViewContainer: {
-    gap: 16,
-  },
-  escalationCard: {
-    backgroundColor: '#0E1726',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 12,
-  },
-  escalationHeader: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  escalationTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#F8FAFC',
-  },
-  escalationMessage: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  escalationStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#070B14',
-    padding: 10,
-    borderRadius: 10,
-  },
-  escalationStatItem: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-
-  adherenceDashboardCard: {
-    backgroundColor: '#0E1726',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 14,
-  },
-  sectionHeaderTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#F8FAFC',
-  },
-  adherenceMetricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  adherenceBigNumberBox: {
-    backgroundColor: '#070B14',
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  adherenceBigNumber: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#10B981',
-  },
-  adherenceStatusLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#34D399',
-    marginTop: 2,
-  },
-  adherenceCountersCol: {
-    flex: 1,
-    gap: 6,
-  },
-  adherenceCounterText: {
-    fontSize: 13,
-    color: '#94A3B8',
-  },
-  openClinicalReportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#182436',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#0284C7',
-  },
-  openClinicalReportBtnText: {
+  voiceAssistantBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#38BDF8',
+    color: '#0369A1',
   },
 
-  stockSectionCard: {
-    backgroundColor: '#0E1726',
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 14,
+  // BOTONES DE ACCIÓN: MINIMALISTAS, LIMPIOS
+  actionsStack: {
+    gap: 10,
+    marginTop: 4,
   },
-  stockSectionHeader: {
+  actionPrimaryButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F172A',
+    paddingVertical: 14,
+    borderRadius: 8,
+    gap: 8,
   },
-  stockSectionSubtitle: {
+  actionPrimaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  actionSecondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+  },
+  actionSecondaryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#334155',
+  },
+
+  doseCompleteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    gap: 12,
+  },
+  doseCompleteTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  doseCompleteSub: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+
+  // Acceso Ficha ICE
+  emergencyCardStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  emergencyRedIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emergencyCardStripTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  emergencyCardStripSub: {
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
   },
-  addMedHeaderBtn: {
+
+  // SECCIÓN MODO CUIDADOR
+  caregiverSectionWrap: {
+    gap: 14,
+  },
+  whiteCardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 12,
+  },
+  alertCardBorder: {
+    borderColor: '#FECACA',
+    backgroundColor: '#FFF8F8',
+  },
+  cardHeaderFlex: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0284C7',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  },
+  cardSectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  cardSectionSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  cardSectionBodyText: {
+    fontSize: 13,
+    color: '#475569',
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  clinicalMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 6,
+  },
+  metaLabelText: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '500',
+  },
+
+  // Adherencia Dashboard
+  adherenceDashboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  adherenceScorePlaque: {
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  adherenceScoreNumber: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  adherenceRatingPill: {
+    backgroundColor: '#ECFDF5',
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  adherenceRatingText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#065F46',
+  },
+  adherenceDataGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dataGridItem: {
+    alignItems: 'center',
+  },
+  dataGridLabel: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  dataGridValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  openReportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 10,
+    borderRadius: 6,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  openReportButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+
+  // Inventario y Botiquín
+  primaryAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
     gap: 4,
   },
-  addMedHeaderBtnText: {
-    fontSize: 13,
+  primaryAddBtnText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  medicineInventoryRow: {
+  inventoryList: {
+    gap: 8,
+  },
+  inventoryItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#070B14',
-    padding: 12,
-    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#182436',
+    borderColor: '#E2E8F0',
   },
-  pillColorPlaque: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  inventoryShapeBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  medInventoryName: {
-    fontSize: 15,
+  inventoryItemName: {
+    fontSize: 14,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#0F172A',
   },
-  medInventoryDose: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  stockBadgeRow: {
-    flexDirection: 'row',
-    marginTop: 6,
-  },
-  stockStatusBadge: {
+  inventoryItemSub: {
     fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  inventoryStockStatus: {
+    marginTop: 4,
+  },
+  stockPillTag: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#10B981',
-    backgroundColor: '#0C201A',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    color: '#059669',
   },
-  stockStatusBadgeLow: {
-    color: '#EF4444',
-    backgroundColor: '#2A1116',
+  stockPillTagLow: {
+    color: '#DC2626',
   },
-  inventoryActionButtons: {
+  inventoryActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  restockSmallBtn: {
+  restockOutlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C201A',
-    paddingVertical: 6,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 6,
-    gap: 4,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: '#CBD5E1',
+    gap: 2,
   },
-  restockSmallBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#10B981',
-  },
-  deleteSmallBtn: {
-    backgroundColor: '#1E1418',
-    padding: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-
-  iceCardCaregiver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0E1726',
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 12,
-  },
-  iceCardCaregiverTitle: {
-    fontSize: 15,
+  restockOutlineBtnText: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#F8FAFC',
+    color: '#059669',
   },
-  iceCardCaregiverSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
+  deleteOutlineBtn: {
+    padding: 4,
   },
 
-  // MODALES
-  modalBackdrop: {
+  // MODALES CLÍNICOS
+  modalOverlayScrim: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'flex-end',
   },
-  modalSheetContainer: {
-    backgroundColor: '#0E1726',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  modalSheetBox: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     maxHeight: '90%',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E2E8F0',
   },
-  modalSheetHeader: {
+  modalHeaderBorder: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: '#E2E8F0',
   },
-  modalSheetTitle: {
-    fontSize: 18,
+  modalHeaderTitle: {
+    fontSize: 17,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#0F172A',
   },
-  modalCloseBtn: {
-    padding: 4,
-  },
-  modalFormContent: {
+  modalScrollForm: {
     padding: 20,
-    gap: 14,
+    gap: 12,
   },
-  fieldLabel: {
-    fontSize: 13,
+  inputFieldLabel: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: '#475569',
   },
-  tactileInput: {
-    backgroundColor: '#070B14',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#1E293B',
+  clinicalTextInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 14,
+    color: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
   },
-  twoColumnInputs: {
+  twoColumnRow: {
     flexDirection: 'row',
   },
-  shapeSelectorRow: {
+  shapeButtonGroup: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
-  shapeSelectorBtn: {
+  shapeButton: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#070B14',
-    paddingVertical: 12,
-    borderRadius: 10,
+    justifyContent: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 10,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#CBD5E1',
     gap: 6,
   },
-  shapeSelectorBtnActive: {
-    borderColor: '#0284C7',
-    backgroundColor: '#132338',
+  shapeButtonSelected: {
+    borderColor: '#0F172A',
+    backgroundColor: '#F1F5F9',
   },
-  shapeSelectorText: {
-    fontSize: 13,
+  shapeButtonText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#64748B',
   },
-  shapeSelectorTextActive: {
-    color: '#38BDF8',
+  shapeButtonTextSelected: {
+    color: '#0F172A',
     fontWeight: '700',
   },
-  paletteSelectorRow: {
+  colorPaletteGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  colorSwatch: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#1E293B',
+  colorDotSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
   },
-  colorSwatchActive: {
-    borderColor: '#38BDF8',
-    transform: [{ scale: 1.15 }],
+  colorDotSwatchSelected: {
+    borderColor: '#0F172A',
+    borderWidth: 3,
   },
-  selectedColorHint: {
-    fontSize: 12,
-    color: '#64748B',
-    fontStyle: 'italic',
-  },
-  modalSubmitButton: {
+  modalPrimaryActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0284C7',
-    paddingVertical: 16,
-    borderRadius: 14,
-    gap: 8,
-    marginTop: 10,
+    backgroundColor: '#0F172A',
+    paddingVertical: 14,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 8,
   },
-  modalSubmitButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
+  modalPrimaryActionText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 
   // Modal ICE
-  iceHeaderCard: {
+  patientIDCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#070B14',
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#E2E8F0',
   },
-  bloodTypeDisc: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#181216',
-    borderWidth: 2,
-    borderColor: '#EF4444',
+  bloodTypePill: {
+    width: 52,
+    height: 52,
+    borderRadius: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#991B1B',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bloodTypeDiscTitle: {
-    fontSize: 10,
+  bloodTypeLabel: {
+    fontSize: 9,
     fontWeight: '800',
-    color: '#EF4444',
+    color: '#991B1B',
   },
-  bloodTypeDiscValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  icePatientFullName: {
+  bloodTypeValue: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#F8FAFC',
+    fontWeight: '900',
+    color: '#991B1B',
   },
-  icePatientSub: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  iceAllergiesBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#261217',
-    padding: 14,
-    borderRadius: 12,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: '#7F1D1D',
-  },
-  iceAllergiesTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#EF4444',
-  },
-  iceAllergiesList: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FECACA',
-    marginTop: 2,
-  },
-  iceConditionsBox: {
-    backgroundColor: '#070B14',
-    padding: 14,
-    borderRadius: 12,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  iceConditionsTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#94A3B8',
-  },
-  iceConditionItem: {
-    fontSize: 14,
-    color: '#F8FAFC',
-  },
-  iceContactCard: {
-    backgroundColor: '#070B14',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    gap: 6,
-  },
-  iceContactHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
-  },
-  iceContactName: {
+  patientFullNameText: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#F8FAFC',
+    color: '#0F172A',
   },
-  iceContactRelation: {
+  patientAgeMeta: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 2,
+  },
+  allergyWarningCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  allergyWarningTitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    fontWeight: '800',
+    color: '#991B1B',
   },
-  iceCallButton: {
+  allergyWarningBody: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7F1D1D',
+    marginTop: 1,
+  },
+  chronicConditionsCard: {
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  conditionCardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  conditionCardItem: {
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  emergencyContactCard: {
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  contactLabelHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  contactPersonName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  contactPersonRelation: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  callActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#059669',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 6,
+    gap: 6,
+    marginTop: 6,
   },
-  iceCallButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
+  callActionButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 
-  // Modal Reporte
-  reportTerminalBox: {
-    backgroundColor: '#070B14',
-    padding: 16,
-    borderRadius: 14,
+  // Modal Reporte Monospace
+  monospaceReportBox: {
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#CBD5E1',
   },
-  reportTerminalText: {
+  monospaceReportText: {
     fontFamily: 'monospace',
     fontSize: 12,
-    color: '#38BDF8',
+    color: '#0F172A',
     lineHeight: 18,
-  },
-  shareReportSubmitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0284C7',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  shareReportSubmitBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
   },
 });

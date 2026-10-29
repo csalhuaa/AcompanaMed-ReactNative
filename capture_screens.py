@@ -53,7 +53,7 @@ with sync_playwright() as p:
 
     # 3. Ficha Médica de Emergencia (ICE)
     print("Capturing 3. Ficha Médica de Emergencia (ICE)...")
-    page.click("text=VER MI FICHA MÉDICA DE EMERGENCIA (ICE)")
+    page.click("text=Ficha Médica de Emergencia (ICE)")
     time.sleep(0.8)
     page.screenshot(path="figures/3_ficha_emergencia_ice.png")
 
