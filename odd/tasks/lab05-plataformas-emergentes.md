@@ -5,6 +5,14 @@ Implementación y documentación del Laboratorio 5 de Plataformas Emergentes: De
 ## Allowed edit surfaces
 odd/tasks/lab05-plataformas-emergentes.md
 docs/acompanamed-blueprint.md
+.gitignore
+acompanamed-app/package.json
+acompanamed-app/tsconfig.json
+acompanamed-app/app.json
+acompanamed-app/.npmrc
+acompanamed-app/index.ts
+acompanamed-app/assets/
+acompanamed-app/src/
 
 ## Specs
 - S1: Analizar y explicar en detalle de qué trata la guía `LAB 05_PLATAFORMAS EMERGENTES 2024B.pdf`, abarcando objetivos, alcance, estructura requerida del informe y rúbrica de calificación.
@@ -15,6 +23,8 @@ docs/acompanamed-blueprint.md
 - S6: Modelar a profundidad los actores del ecosistema, sus capacidades/restricciones, el árbol de problemas formal y el flujo operativo detallado de interacción y escalamiento.
 - S7: Fundamentar la realidad gerontológica sobre los niveles de autonomía del adulto mayor (independiente, semidependiente y dependiente) para garantizar un diseño ético y humanizado.
 - S8: Redactar el documento maestro de especificación y arquitectura técnica del proyecto AcompañaMed para guiar el desarrollo de software y la elaboración del informe oficial.
+- S9: Inicializar el repositorio Git y el proyecto base React Native con TypeScript, Expo y arquitectura modular limpia.
+- S10: Desarrollar con enfoque Test-First (TDD) los módulos nucleares de dominio: cálculo de adherencia, control de duplicidad, deducción de stock y ciclo de escalamiento.
 
 ## Tasks
 - [x] T1: Analizar la guía del Laboratorio 5 y recuperar memoria de los proyectos anteriores (AutoCare / Lab 3 y Lab 4) en Engram. [S1] -> `odd/tasks/lab05-plataformas-emergentes.md`
@@ -25,7 +35,12 @@ docs/acompanamed-blueprint.md
 - [x] T6: Modelar exhaustivamente actores, árbol de problemas, casos operativos y el flujo de vida de una dosis. [S6] -> `odd/tasks/lab05-plataformas-emergentes.md`
 - [x] T7: Documentar el espectro de autonomía real en la administración de fármacos y cómo la solución se adapta respetando la dignidad y capacidad de cada adulto mayor. [S7] -> `odd/tasks/lab05-plataformas-emergentes.md`
 - [x] T8: Redactar y publicar el Documento Maestro de Diseño y Especificación Técnica en artefacto y en `docs/acompanamed-blueprint.md`. [S8] -> `docs/acompanamed-blueprint.md`
-- [ ] T9: Inicializar la base del proyecto React Native / TypeScript para AcompañaMed con la arquitectura modular definida. [S2] -> `odd/tasks/lab05-plataformas-emergentes.md`
+- [x] T9: Configurar el proyecto `acompanamed-app` (Expo 58, React Native 0.88, TypeScript, pnpm, testing harness). [S9] -> `acompanamed-app/package.json`
+- [x] T10: Implementar mediante TDD los modelos y servicios de dominio: `Medicine`, `DoseLog`, `DuplicateGuard`, `StockManager` y `AdherenceMetrics`. [S10] -> `acompanamed-app/src/domain/`
+
+## Verification
+- `pnpm test`: 11 tests passed in 574ms across 5 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine).
+- `pnpm typecheck`: TypeScript compilation clean (exit code 0).
 
 ## Log
 - L1: Petición original del usuario: "/odd quiero trabajar en este @[LAB 05_PLATAFORMAS EMERGENTES 2024B.pdf] primero explicame de que trata este".
@@ -33,3 +48,5 @@ docs/acompanamed-blueprint.md
 - L3: Petición del usuario de descartar CarePill/VitalDosis, profundizar en naming original y modelar a detalle el funcionamiento real, actores y flujo sistémico.
 - L4: Consulta del usuario sobre la realidad de si los adultos mayores toman sus pastillas solos y si el diseño respeta la realidad gerontológica.
 - L5: Aprobación del usuario del nombre AcompañaMed y de la justificación; redacción del documento maestro de especificación y arquitectura.
+- L6: Inicialización del repositorio Git (commit raíz: 2928d53); usuario autoriza proceder con implementación ordenada y commits por unidades de trabajo.
+- L7: Configuración de acompanamed-app (Expo/RN/TS), desarrollo TDD del motor de dominio (11 tests pass), e interfaz accesible con Modo Dual (Senior/Cuidador).

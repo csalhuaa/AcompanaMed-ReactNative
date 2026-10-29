@@ -1,0 +1,32 @@
+{
+  "name": "acompanamed-app",
+  "version": "1.0.0",
+  "description": "Asistente multiplataforma de adherencia farmacoterapéutica para adultos mayores con red de apoyo",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~58.0.14",
+    "expo-status-bar": "~58.0.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-web": "0.21.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "~19.3.0",
+    "tsx": "^4.19.3",
+    "typescript": "~6.0.3"
+  },
+  "private": true
+}
