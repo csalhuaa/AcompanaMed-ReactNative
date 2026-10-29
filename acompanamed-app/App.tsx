@@ -672,6 +672,9 @@ export default function App() {
                 style={styles.openReportCTAButton}
                 onPress={() => setIsReportModalVisible(true)}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Generar informe completo de adherencia para la consulta médica"
+                accessibilityHint="Abre la ventana con el informe médico estructurado y opción de exportación"
               >
                 <MaterialCommunityIcons name="file-document-outline" size={18} color="#0F172A" />
                 <Text style={styles.openReportCTAButtonText}>Generar Informe Completo para la Consulta Médica</Text>
@@ -714,6 +717,9 @@ export default function App() {
                   style={styles.addNewMedActionBtn}
                   onPress={() => setIsAddModalVisible(true)}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Agregar nuevo medicamento al pastillero"
+                  accessibilityHint="Abre el formulario para registrar un nuevo fármaco con su horario y dosis"
                 >
                   <MaterialCommunityIcons name="plus" size={16} color="#FFFFFF" />
                   <Text style={styles.addNewMedActionBtnText}>Agregar</Text>
@@ -922,8 +928,13 @@ export default function App() {
           <View style={styles.modalSheetBox}>
             <View style={styles.modalSheetTop}>
               <Text style={styles.modalSheetTitle}>Registrar Nuevo Medicamento</Text>
-              <TouchableOpacity onPress={() => setIsAddModalVisible(false)} style={{ padding: 4 }}>
-                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
+              <TouchableOpacity
+                onPress={() => setIsAddModalVisible(false)}
+                style={{ padding: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar ventana de registro de medicamento"
+              >
+                <MaterialCommunityIcons name="close" size={20} color="#334155" />
               </TouchableOpacity>
             </View>
 
@@ -935,6 +946,7 @@ export default function App() {
                 placeholderTextColor="#94A3B8"
                 value={newMedName}
                 onChangeText={setNewMedName}
+                accessibilityLabel="Nombre del principio activo"
               />
 
               <View style={styles.twoColumnInputs}>
@@ -946,6 +958,7 @@ export default function App() {
                     placeholderTextColor="#94A3B8"
                     value={newMedDose}
                     onChangeText={setNewMedDose}
+                    accessibilityLabel="Dosis prescrita"
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
@@ -956,6 +969,7 @@ export default function App() {
                     placeholderTextColor="#94A3B8"
                     value={newMedTime}
                     onChangeText={setNewMedTime}
+                    accessibilityLabel="Horario diario de la toma"
                   />
                 </View>
               </View>
@@ -968,10 +982,11 @@ export default function App() {
                 multiline
                 value={newMedInstructions}
                 onChangeText={setNewMedInstructions}
+                accessibilityLabel="Instrucciones médicas de ingestión"
               />
 
               <Text style={styles.formInputLabel}>Forma del Comprimido</Text>
-              <View style={styles.shapeSelectorRow}>
+              <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
                 {(['round', 'capsule', 'oval'] as PillShape[]).map((shape) => (
                   <TouchableOpacity
                     key={shape}
@@ -981,6 +996,9 @@ export default function App() {
                     ]}
                     onPress={() => setNewMedShape(shape)}
                     activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: newMedShape === shape }}
+                    accessibilityLabel={`Forma: ${shape === 'round' ? 'Pastilla Redonda' : shape === 'capsule' ? 'Cápsula' : 'Comprimido Oval'}`}
                   >
                     <MaterialCommunityIcons
                       name={
@@ -991,7 +1009,7 @@ export default function App() {
                           : 'checkbox-blank-circle'
                       }
                       size={20}
-                      color={newMedShape === shape ? '#0F172A' : '#64748B'}
+                      color={newMedShape === shape ? '#0F172A' : '#334155'}
                     />
                     <Text
                       style={[
@@ -1006,7 +1024,7 @@ export default function App() {
               </View>
 
               <Text style={styles.formInputLabel}>Color Distintivo</Text>
-              <View style={styles.colorPaletteGrid}>
+              <View style={styles.colorPaletteGrid} accessibilityRole="radiogroup">
                 {COLOR_PALETTE.map((c) => (
                   <TouchableOpacity
                     key={c.hex}
@@ -1017,6 +1035,9 @@ export default function App() {
                     ]}
                     onPress={() => setNewMedColor(c)}
                     activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: newMedColor.hex === c.hex }}
+                    accessibilityLabel={`Color distintivo: ${c.name}`}
                   />
                 ))}
               </View>
@@ -1029,6 +1050,7 @@ export default function App() {
                     keyboardType="numeric"
                     value={newMedStock}
                     onChangeText={setNewMedStock}
+                    accessibilityLabel="Cantidad inicial en inventario"
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1038,6 +1060,7 @@ export default function App() {
                     keyboardType="numeric"
                     value={newMedMinAlert}
                     onChangeText={setNewMedMinAlert}
+                    accessibilityLabel="Umbral de alerta de reposición"
                   />
                 </View>
               </View>
@@ -1046,6 +1069,8 @@ export default function App() {
                 style={styles.modalSubmitButton}
                 onPress={handleSaveNewMedicine}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Guardar medicamento en el pastillero"
               >
                 <Text style={styles.modalSubmitButtonText}>Guardar en el Pastillero</Text>
               </TouchableOpacity>
@@ -1065,8 +1090,13 @@ export default function App() {
                 <MaterialCommunityIcons name="file-document-check-outline" size={20} color="#0F172A" />
                 <Text style={styles.modalSheetTitle}>Informe Clínico de Adherencia</Text>
               </View>
-              <TouchableOpacity onPress={() => setIsReportModalVisible(false)} style={{ padding: 4 }}>
-                <MaterialCommunityIcons name="close" size={20} color="#64748B" />
+              <TouchableOpacity
+                onPress={() => setIsReportModalVisible(false)}
+                style={{ padding: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar informe clínico"
+              >
+                <MaterialCommunityIcons name="close" size={20} color="#334155" />
               </TouchableOpacity>
             </View>
 
@@ -1084,6 +1114,8 @@ export default function App() {
                   )
                 }
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Compartir informe clínico con el médico geriatra"
               >
                 <MaterialCommunityIcons name="share-variant-outline" size={18} color="#FFFFFF" />
                 <Text style={styles.modalSubmitButtonText}>Compartir con el Médico Geriatra</Text>
