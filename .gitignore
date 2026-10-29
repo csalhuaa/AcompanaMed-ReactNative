@@ -28,3 +28,9 @@ pnpm-debug.log*
 # Antigravity / Brain
 .system_generated/
 scratch/
+.gemini/
+.cursor/
+.codex/
+.agents/
+skills-lock.json
+

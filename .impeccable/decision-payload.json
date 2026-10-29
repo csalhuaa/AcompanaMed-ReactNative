@@ -1,0 +1,127 @@
+{
+  "title": "Dirección Visual de AcompañaMed",
+  "question": "El sorteo de Impeccable asignó 'Reloj Despertador Táctil de Velador'. Elige la dirección que reconstruirá la interfaz desde cero:",
+  "options": [
+    {
+      "id": "assigned",
+      "kind": "assigned",
+      "label": "Reloj Despertador Táctil de Velador (Asignada)",
+      "kicker": "THE ROLL",
+      "lineage": "Electrodoméstico de velador con botones táctiles grandes, contraste diurno/nocturno y cero destellos confusos",
+      "thesis": "La app se siente como un electrodoméstico fiable y noble: botones físicos prominentes con relieve, pantalla táctil sin reflejos molestos y respuesta háptica inmediata.",
+      "palette": [
+        "#0F172A",
+        "#FFFFFF",
+        "#10B981",
+        "#F59E0B"
+      ],
+      "materials": [
+        "acabado mate antireflejo",
+        "superficies táctiles con relieve",
+        "iconografía geométrica de alto contraste"
+      ],
+      "viewport": "Pantalla móvil limpia con la toma actual en el centro a gran escala, botón de confirmación verde esmeralda y botón secundario de posponer.",
+      "risk": "Puede parecer demasiado sobrio si no se balancea con la calidez de las formas de las pastillas.",
+      "raised": [
+        {
+          "from": "challenger-boarding-pass",
+          "raise": "Tablero horario secuencial que reordena las tomas del día sin esconder ninguna."
+        },
+        {
+          "from": "challenger-botanical-folio",
+          "raise": "Identidad visual y cromática inmutable para cada medicamento a lo largo del tiempo."
+        }
+      ]
+    },
+    {
+      "id": "model-pick",
+      "kind": "pick",
+      "label": "Pastillero Semanal Físico Compartimentado",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Pastilleros translúcidos de repisa con divisiones por día y franja horaria",
+      "thesis": "Traduce la familiaridad física del pastillero real a la pantalla: ranuras táctiles claras, colores por franja y sensación de compartimentos.",
+      "palette": [
+        "#F8FAFC",
+        "#0284C7",
+        "#10B981",
+        "#E2E8F0"
+      ],
+      "materials": [
+        "acrílico translúcido mate",
+        "divisiones nítidas",
+        "chips de estado"
+      ],
+      "viewport": "Vista superior con franjas Mañana/Tarde/Noche como compartimentos táctiles y el medicamento activo en relieve.",
+      "risk": "Riesgo de sobrecarga visual si hay muchos medicamentos en la misma franja."
+    },
+    {
+      "id": "challenger-boarding-pass",
+      "kind": "challenger",
+      "catalogId": "vernacular-ephemera-boarding-pass-and-gate-board",
+      "label": "Tablero de Horarios y Turnos en Vivo",
+      "verdict": "competitive",
+      "lineage": "Pase de abordar segmentado y pizarra de horarios en vivo",
+      "thesis": "Tomas organizadas como eventos de horario en tiempo real: bloques tabulares claros con aviso cromático reservado para tomas pospuestas o retrasadas.",
+      "palette": [
+        "#111827",
+        "#F9FAFB",
+        "#EF4444",
+        "#3B82F6"
+      ],
+      "materials": [
+        "paneles tabulares de alto contraste",
+        "indicadores de estado en tiempo real"
+      ],
+      "viewport": "Pizarra de tomas secuenciales con el medicamento actual en cabecera y cola cronológica.",
+      "case": "Organiza con precisión milimétrica los tiempos de tolerancia, pero puede sentirse clínico o administrativo.",
+      "risk": "Sensación de documento de transporte en lugar de cuidado familiar cálido."
+    },
+    {
+      "id": "challenger-botanical-folio",
+      "kind": "challenger",
+      "catalogId": "editorial-sequence-montage-botanical-folio-season",
+      "label": "Folio Botánico de Secuencias",
+      "verdict": "declined",
+      "lineage": "Láminas botánicas de herbario con evolución estacional",
+      "palette": [
+        "#FDFBF7",
+        "#2D5A27",
+        "#8C2D19"
+      ],
+      "materials": [
+        "papel de grabado",
+        "líneas finas sepia"
+      ],
+      "case": "La metáfora botánica no conecta directamente con la urgencia y simplicidad de la toma geriátrica diaria.",
+      "kept": "Escala fija y constancia cromática de cada fármaco."
+    }
+  ],
+  "canonCard": {
+    "kind": "canon",
+    "label": "Estándar de la Categoría (App genérica)",
+    "thesis": "Interfaz convencional de salud con tarjetas blancas, sombras difusas, iconos en azul médico estándar y barra inferior de 4 iconos.",
+    "palette": [
+      "#FFFFFF",
+      "#0F172A",
+      "#2563EB"
+    ],
+    "materials": [
+      "tarjetas con sombra difusa",
+      "botones con bordes redondeados estándar"
+    ],
+    "viewport": "Dashboard clásico con resumen de tomas y lista vertical scrolleable.",
+    "risk": "Indistinguible de las apps convencionales genéricas."
+  },
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "code",
+    "toggle": false
+  },
+  "canon": true,
+  "steer": true
+}

@@ -70,7 +70,7 @@ with sync_playwright() as p:
 
     # 5. Modo Cuidador - Modal Nuevo Medicamento
     print("Capturing 5. Modal Nuevo Medicamento...")
-    page.click("text=+ Medicamento")
+    page.click("text=Agregar")
     time.sleep(0.8)
     page.screenshot(path="figures/5_modal_nuevo_medicamento.png")
 
@@ -83,7 +83,7 @@ with sync_playwright() as p:
 
     # 6. Modo Cuidador - Reporte Clínico
     print("Capturing 6. Reporte Clínico Formal...")
-    page.click("text=Generar Informe Completo para la Consulta")
+    page.click("text=Generar Informe Completo")
     time.sleep(0.8)
     page.screenshot(path="figures/6_reporte_clinico_geriatria.png")
 

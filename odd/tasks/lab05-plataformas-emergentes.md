@@ -30,6 +30,7 @@ acompanamed-app/src/
 - S13: Iteración Módulo 3 — Ficha de Emergencia Médica (Alergias, Condiciones, Contacto de Apoyo) y Reporte Detallado de Adherencia.
 - S14: Iteración Módulo 4 — Asistente de Voz y Notificaciones Programadas en el Dispositivo.
 - S15: Ejecución en vivo, captura de pantallas en resolución móvil y validación interactiva de la interfaz de usuario con el usuario.
+- S16: Rediseño visual integral con Impeccable bajo la dirección 'Reloj Despertador Táctil de Velador' (M3 / WCAG AAA / Tonal Depth / Relief Buttons).
 
 ## Tasks
 - [x] T1: Analizar la guía del Laboratorio 5 y recuperar memoria de los proyectos anteriores (AutoCare / Lab 3 y Lab 4) en Engram. [S1] -> `odd/tasks/lab05-plataformas-emergentes.md`
@@ -47,11 +48,13 @@ acompanamed-app/src/
 - [x] T13: Implementar Módulo 3 (Ficha Médica de Emergencia y Reporte Clínico exportable). [S13] -> `acompanamed-app/`
 - [x] T14: Implementar Módulo 4 (Síntesis de voz Text-to-Speech nativo con expo-speech, vibración háptica expo-haptics y motor de notificaciones expo-notifications). [S14] -> `acompanamed-app/src/infrastructure/`
 - [x] T15: Desplegar servidor local interactivo (puerto 5056) y capturar las 6 pantallas móviles clave para inspección y evaluación del diseño. [S15] -> `figures/`
+- [x] T16: Rediseño visual radical con Impeccable: captura de `PRODUCT.md`, selección de dirección 'Reloj Despertador Táctil de Velador', publicación de `DESIGN.md`, reconstrucción ergonómica de `App.tsx` y verificación con 0 defectos en el detector. [S16] -> `DESIGN.md`
 
 ## Verification
 - `pnpm test`: 35 tests passed in 255ms across 16 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine, ScheduleTimelineEngine, StorageService, ClinicalReportEngine, SpeechNotificationEngines).
 - `pnpm typecheck`: TypeScript compilation clean (exit code 0).
 - `expo export --platform web`: 385 modules bundled successfully in dist (exit code 0).
+- `impeccable detect --json`: 0 violations detected (`[]`).
 - `capture_screens.py`: 6 screenshots captured with Edge Headless in mobile resolution (Pixel 7 / 412x892 @ 2x).
 - `http://localhost:5056`: Live web server serving dist with 200 OK.
 
@@ -69,3 +72,4 @@ acompanamed-app/src/
 - L11: Implementación completa de Módulo 3 (Ficha Médica de Emergencia ICE, desglose de adherencia por fármaco y exportador clínico para geriatría, 30 tests pass).
 - L12: Implementación completa de Módulo 4 (Síntesis de voz Text-to-Speech pausada, retroalimentación háptica y programación de notificaciones locales, 35 tests pass).
 - L13: Ejecución en vivo de la aplicación en http://localhost:5056 y captura de las 6 vistas móviles del sistema para revisión visual del usuario.
+- L14: Usuario rechaza el diseño previo ("esta hasta el piincho") e invoca `/impeccable init`. Se ejecuta el protocolo completo de Impeccable: creación de `PRODUCT.md`, elección de la dirección 'Reloj Despertador Táctil de Velador' (THE ROLL), redacción de `DESIGN.md`, reescritura total de `App.tsx` con botones de relieve tridimensional físico, eliminación de emojis y verificación de 0 defectos con el detector.
