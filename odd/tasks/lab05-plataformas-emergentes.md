@@ -25,6 +25,10 @@ acompanamed-app/src/
 - S8: Redactar el documento maestro de especificación y arquitectura técnica del proyecto AcompañaMed para guiar el desarrollo de software y la elaboración del informe oficial.
 - S9: Inicializar el repositorio Git y el proyecto base React Native con TypeScript, Expo y arquitectura modular limpia.
 - S10: Desarrollar con enfoque Test-First (TDD) los módulos nucleares de dominio: cálculo de adherencia, control de duplicidad, deducción de stock y ciclo de escalamiento.
+- S11: Iteración Módulo 1 — Catálogo Multimedicina & Agenda Diaria Cronológica (CRUD de fármacos por el Cuidador y carrusel/agenda secuencial para el Adulto Mayor).
+- S12: Iteración Módulo 2 — Persistencia Local Offline-First (`StorageService` en AsyncStorage) con sincronización atómica.
+- S13: Iteración Módulo 3 — Ficha de Emergencia Médica (Alergias, Condiciones, Contacto de Apoyo) y Reporte Detallado de Adherencia.
+- S14: Iteración Módulo 4 — Asistente de Voz y Notificaciones Programadas en el Dispositivo.
 
 ## Tasks
 - [x] T1: Analizar la guía del Laboratorio 5 y recuperar memoria de los proyectos anteriores (AutoCare / Lab 3 y Lab 4) en Engram. [S1] -> `odd/tasks/lab05-plataformas-emergentes.md`
@@ -37,10 +41,14 @@ acompanamed-app/src/
 - [x] T8: Redactar y publicar el Documento Maestro de Diseño y Especificación Técnica en artefacto y en `docs/acompanamed-blueprint.md`. [S8] -> `docs/acompanamed-blueprint.md`
 - [x] T9: Configurar el proyecto `acompanamed-app` (Expo 58, React Native 0.88, TypeScript, pnpm, testing harness). [S9] -> `acompanamed-app/package.json`
 - [x] T10: Implementar mediante TDD los modelos y servicios de dominio: `Medicine`, `DoseLog`, `DuplicateGuard`, `StockManager` y `AdherenceMetrics`. [S10] -> `acompanamed-app/src/domain/`
+- [x] T11: Implementar Módulo 1 (Catálogo Multimedicina con soporte para 3-6 fármacos simultáneos, selector de forma/color y agenda secuencial de tomas diarias). [S11] -> `acompanamed-app/`
+- [ ] T12: Implementar Módulo 2 (Capa de almacenamiento persistente `StorageService` con AsyncStorage y pruebas unitarias de serialización). [S12] -> `acompanamed-app/src/infrastructure/`
+- [ ] T13: Implementar Módulo 3 (Ficha Médica de Emergencia y Reporte Clínico exportable). [S13] -> `acompanamed-app/`
 
 ## Verification
-- `pnpm test`: 11 tests passed in 574ms across 5 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine).
+- `pnpm test`: 19 tests passed in 383ms across 9 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine, ScheduleTimelineEngine).
 - `pnpm typecheck`: TypeScript compilation clean (exit code 0).
+- `expo export --platform web`: 299 modules bundled successfully in dist (exit code 0).
 
 ## Log
 - L1: Petición original del usuario: "/odd quiero trabajar en este @[LAB 05_PLATAFORMAS EMERGENTES 2024B.pdf] primero explicame de que trata este".
@@ -50,3 +58,5 @@ acompanamed-app/src/
 - L5: Aprobación del usuario del nombre AcompañaMed y de la justificación; redacción del documento maestro de especificación y arquitectura.
 - L6: Inicialización del repositorio Git (commit raíz: 2928d53); usuario autoriza proceder con implementación ordenada y commits por unidades de trabajo.
 - L7: Configuración de acompanamed-app (Expo/RN/TS), desarrollo TDD del motor de dominio (11 tests pass), e interfaz accesible con Modo Dual (Senior/Cuidador).
+- L8: Usuario solicita iterar módulo a módulo para robustecer la aplicación de forma integral.
+- L9: Implementación completa de Módulo 1 (ScheduleTimelineEngine, agenda por franjas mañana/tarde/noche, catálogo multimedicina con modal de registro, 19 tests pass).
