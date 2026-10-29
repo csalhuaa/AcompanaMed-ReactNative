@@ -51,3 +51,39 @@ export interface EscalationResult {
   minutesElapsed: number;
   message: string;
 }
+
+export interface EmergencyContact {
+  name: string;
+  relationship: string;
+  phone: string;
+}
+
+export interface EmergencyProfile {
+  patientFullName: string;
+  age: number;
+  bloodType: string;
+  allergies: string[];
+  chronicConditions: string[];
+  healthInsurance: string;
+  emergencyContact: EmergencyContact;
+}
+
+export interface MedicationAdherenceBreakdown {
+  medicineId: string;
+  medicineName: string;
+  doseDescription: string;
+  totalScheduled: number;
+  totalTaken: number;
+  adherenceRate: number;
+  status: 'optimal' | 'regular' | 'deficient';
+}
+
+export interface ClinicalSummaryReport {
+  patientName: string;
+  patientAge: number;
+  overallAdherencePercentage: number;
+  medicationBreakdown: MedicationAdherenceBreakdown[];
+  clinicalWarnings: string[];
+  formattedReportText: string;
+}
+

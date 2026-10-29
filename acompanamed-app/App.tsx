@@ -18,6 +18,7 @@ import {
   DoseLog,
   ActorRole,
   PillShape,
+  EmergencyProfile,
   canRegisterDose,
   decrementStock,
   isStockLow,
@@ -28,6 +29,8 @@ import {
   filterDosesBySlot,
   DayTimeSlot,
   ScheduledDoseItem,
+  generateClinicalSummary,
+  validateEmergencyProfile,
 } from './src/domain';
 import { defaultStorageService } from './src/infrastructure';
 
@@ -101,6 +104,20 @@ const INITIAL_LOGS: DoseLog[] = [
   },
 ];
 
+const DEFAULT_PROFILE: EmergencyProfile = {
+  patientFullName: 'Manuel Jesús Alhua',
+  age: 74,
+  bloodType: 'O+',
+  allergies: ['Penicilina', 'Ibuprofeno (AINEs)'],
+  chronicConditions: ['Hipertensión Arterial Primaria', 'Diabetes Mellitus Tipo 2'],
+  healthInsurance: 'EsSalud - Policlínico Yanahuara',
+  emergencyContact: {
+    name: 'María Alhua',
+    relationship: 'Hija / Cuidadora Principal',
+    phone: '+51 954 123 456',
+  },
+};
+
 const COLOR_PALETTE = [
   { hex: '#38BDF8', name: 'Azul Celeste' },
   { hex: '#F8FAFC', name: 'Blanco' },
@@ -116,13 +133,30 @@ export default function App() {
   const [medicines, setMedicines] = useState<Medicine[]>(INITIAL_MEDICINES);
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>(INITIAL_SCHEDULE_TIMES);
   const [logs, setLogs] = useState<DoseLog[]>(INITIAL_LOGS);
+  const [emergencyProfile, setEmergencyProfile] = useState<EmergencyProfile>(DEFAULT_PROFILE);
+
   const [selectedSlot, setSelectedSlot] = useState<DayTimeSlot>('morning');
   const [activeDoseMedicineId, setActiveDoseMedicineId] = useState<string>('med-losartan');
   const [lastActionMessage, setLastActionMessage] = useState<string>(
     'Bienvenido a AcompañaMed. Toque su medicamento para registrar su toma.'
   );
 
-  // Carga inicial desde almacenamiento local persistente (Offline-First)
+  // Modales
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isIceModalVisible, setIsIceModalVisible] = useState(false);
+  const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+
+  // Formulario nuevo medicamento
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedDose, setNewMedDose] = useState('');
+  const [newMedTime, setNewMedTime] = useState('08:00');
+  const [newMedInstructions, setNewMedInstructions] = useState('');
+  const [newMedShape, setNewMedShape] = useState<PillShape>('round');
+  const [newMedColor, setNewMedColor] = useState(COLOR_PALETTE[0]);
+  const [newMedStock, setNewMedStock] = useState('30');
+  const [newMedMinAlert, setNewMedMinAlert] = useState('6');
+
+  // Carga inicial asíncrona desde almacenamiento persistente
   useEffect(() => {
     async function loadStoredData() {
       try {
@@ -130,11 +164,13 @@ export default function App() {
         const storedMeds = await defaultStorageService.loadMedicines(INITIAL_MEDICINES);
         const storedTimes = await defaultStorageService.loadSchedules(INITIAL_SCHEDULE_TIMES);
         const storedLogs = await defaultStorageService.loadLogs(INITIAL_LOGS);
+        const storedProfile = await defaultStorageService.loadEmergencyProfile(DEFAULT_PROFILE);
 
         setActiveRole(storedRole);
         setMedicines(storedMeds);
         setScheduleTimes(storedTimes);
         setLogs(storedLogs);
+        setEmergencyProfile(storedProfile);
         if (storedMeds.length > 0) {
           setActiveDoseMedicineId(storedMeds[0].id);
         }
@@ -147,7 +183,7 @@ export default function App() {
     loadStoredData();
   }, []);
 
-  // Persistencia automática ante mutaciones
+  // Sincronización automática ante cambios
   useEffect(() => {
     if (isLoaded) defaultStorageService.saveMedicines(medicines);
   }, [medicines, isLoaded]);
@@ -164,35 +200,26 @@ export default function App() {
     if (isLoaded) defaultStorageService.saveActiveRole(activeRole);
   }, [activeRole, isLoaded]);
 
-  // Estado para modal de nuevo medicamento (Modo Cuidador)
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newMedName, setNewMedName] = useState('');
-  const [newMedDose, setNewMedDose] = useState('');
-  const [newMedTime, setNewMedTime] = useState('08:00');
-  const [newMedInstructions, setNewMedInstructions] = useState('');
-  const [newMedShape, setNewMedShape] = useState<PillShape>('round');
-  const [newMedColor, setNewMedColor] = useState(COLOR_PALETTE[0]);
-  const [newMedStock, setNewMedStock] = useState('30');
-  const [newMedMinAlert, setNewMedMinAlert] = useState('6');
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveEmergencyProfile(emergencyProfile);
+  }, [emergencyProfile, isLoaded]);
 
-  // Agenda diaria calculada dinámicamente
+  // Cálculos de agenda y reportes clínicos
   const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, new Date());
   const slotDoses = filterDosesBySlot(dailySchedule, selectedSlot);
-
-  // Medicamento actualmente activo para la vista Senior
   const activeMedicine =
     medicines.find((m) => m.id === activeDoseMedicineId) || medicines[0] || INITIAL_MEDICINES[0];
   const activeDoseItem = dailySchedule.find((item) => item.medicine.id === activeMedicine.id);
 
-  // Métricas para cuidador
   const adherence = calculateAdherence(logs);
+  const clinicalReport = generateClinicalSummary(medicines, logs, emergencyProfile);
 
   // Escalamiento simulado (40 minutos transcurridos desde las 08:00 AM)
   const simulatedScheduledTime = new Date('2026-10-29T08:00:00.000Z');
   const simulatedNowTime = new Date('2026-10-29T08:40:00.000Z');
   const escalation = evaluateEscalation(simulatedScheduledTime, simulatedNowTime, 30);
 
-  // Acción: Confirmar toma del medicamento activo
+  // Acción: Confirmar toma
   const handleTakeDose = (actor: ActorRole) => {
     const check = canRegisterDose(activeMedicine.id, logs, new Date());
     if (!check.allowed) {
@@ -201,11 +228,9 @@ export default function App() {
       return;
     }
 
-    // Decrementar stock
     const updated = decrementStock(activeMedicine, 1);
     setMedicines((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
 
-    // Registrar log
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
       medicineId: activeMedicine.id,
@@ -225,7 +250,7 @@ export default function App() {
     Alert.alert('Registro Exitoso', msg);
   };
 
-  // Acción: Posponer toma 15 minutos
+  // Acción: Posponer toma
   const handlePostpone = () => {
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
@@ -241,7 +266,7 @@ export default function App() {
     Alert.alert('Dosis Pospuesta', msg);
   };
 
-  // Acción: Reabastecer stock de un medicamento
+  // Acción: Reabastecer stock
   const handleRestockMedicine = (medId: string) => {
     setMedicines((prev) =>
       prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + 30 } : m))
@@ -249,7 +274,7 @@ export default function App() {
     Alert.alert('Botiquín Actualizado', 'Se agregaron 30 pastillas al inventario.');
   };
 
-  // Acción: Eliminar medicamento del tratamiento
+  // Acción: Eliminar medicina
   const handleDeleteMedicine = (medId: string, name: string) => {
     Alert.alert(
       'Dar de baja medicamento',
@@ -298,12 +323,11 @@ export default function App() {
     setMedicines((prev) => [...prev, newMed]);
     setScheduleTimes((prev) => ({ ...prev, [newId]: newMedTime }));
 
-    // Reset y cerrar modal
     setNewMedName('');
     setNewMedDose('');
     setNewMedInstructions('');
     setIsModalVisible(false);
-    Alert.alert('Medicamento Agregado', `${newMed.name} ha sido añadido al pastillero diario.`);
+    Alert.alert('Medicamento Agregado', `${newMed.name} ha sido añadido al pastillero.`);
   };
 
   if (!isLoaded) {
@@ -391,7 +415,7 @@ export default function App() {
               <Text style={styles.bannerText}>{lastActionMessage}</Text>
             </View>
 
-            {/* Selector de Franjas del Día (Mañana, Tarde, Noche) */}
+            {/* Selector de Franjas del Día */}
             <View style={styles.slotSelectorRow}>
               <TouchableOpacity
                 style={[
@@ -448,7 +472,7 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Selector horizontal de pastillas en esta franja */}
+            {/* Chips de Medicamentos en la franja */}
             <View style={styles.pillListInSlot}>
               {slotDoses.length === 0 ? (
                 <View style={styles.emptySlotCard}>
@@ -580,13 +604,22 @@ export default function App() {
               </View>
             )}
 
+            {/* Acceso a Ficha Médica de Emergencia (ICE) */}
+            <TouchableOpacity
+              style={styles.iceSeniorButton}
+              onPress={() => setIsIceModalVisible(true)}
+            >
+              <MaterialCommunityIcons name="card-account-details-outline" size={26} color="#0369A1" />
+              <Text style={styles.iceSeniorButtonText}>VER MI FICHA MÉDICA DE EMERGENCIA (ICE)</Text>
+            </TouchableOpacity>
+
             {/* Botón SOS de Emergencia Familiar */}
             <TouchableOpacity
               style={styles.sosButton}
               onPress={() =>
                 Alert.alert(
                   'Contacto de Emergencia SOS',
-                  'Llamando a Hija / Cuidadora Principal: +51 954 123 456\nLínea médica SAMU: 106'
+                  `Llamando a ${emergencyProfile.emergencyContact.name} (${emergencyProfile.emergencyContact.relationship}): ${emergencyProfile.emergencyContact.phone}\nLínea médica SAMU: 106`
                 )
               }
             >
@@ -597,7 +630,7 @@ export default function App() {
         )}
 
         {/* ========================================================= */}
-        {/* MODO CUIDADOR (GESTIÓN, INVENTARIO Y ESCALAMIENTO)        */}
+        {/* MODO CUIDADOR (GESTIÓN, INVENTARIO Y REPORTE CLÍNICO)     */}
         {/* ========================================================= */}
         {activeRole === 'caregiver' && (
           <View style={styles.caregiverView}>
@@ -612,7 +645,7 @@ export default function App() {
                 <View style={styles.escalationActions}>
                   <TouchableOpacity
                     style={styles.callPatientBtn}
-                    onPress={() => Alert.alert('Llamada en curso', 'Marcando a Don Manuel...')}
+                    onPress={() => Alert.alert('Llamada en curso', `Marcando a ${emergencyProfile.patientFullName}...`)}
                   >
                     <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
                     <Text style={styles.callPatientText}>Llamar a Don Manuel</Text>
@@ -629,14 +662,24 @@ export default function App() {
               </View>
             )}
 
-            {/* Botón para Abrir Modal de Nuevo Medicamento */}
-            <TouchableOpacity
-              style={styles.addMedButton}
-              onPress={() => setIsModalVisible(true)}
-            >
-              <MaterialCommunityIcons name="plus-circle" size={24} color="#FFFFFF" />
-              <Text style={styles.addMedButtonText}>+ Agregar Nuevo Medicamento al Pastillero</Text>
-            </TouchableOpacity>
+            {/* Barra de Accesos Rápidos Cuidador */}
+            <View style={styles.caregiverActionsRow}>
+              <TouchableOpacity
+                style={styles.addMedButton}
+                onPress={() => setIsModalVisible(true)}
+              >
+                <MaterialCommunityIcons name="plus-circle" size={20} color="#FFFFFF" />
+                <Text style={styles.addMedButtonText}>+ Medicamento</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.iceCaregiverButton}
+                onPress={() => setIsIceModalVisible(true)}
+              >
+                <MaterialCommunityIcons name="shield-cross" size={20} color="#FFFFFF" />
+                <Text style={styles.iceCaregiverButtonText}>Ficha Médica ICE</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Catálogo de Medicamentos en Tratamiento */}
             <View style={styles.card}>
@@ -693,23 +736,27 @@ export default function App() {
               })}
             </View>
 
-            {/* Métrica de Adherencia para el Médico */}
+            {/* Reporte Clínico y Adherencia para el Médico */}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <MaterialCommunityIcons name="chart-box-outline" size={24} color="#0284C7" />
-                <Text style={styles.cardTitle}>Reporte de Adherencia Terapéutica</Text>
+                <Text style={styles.cardTitle}>Reporte Clínico para el Geriatra</Text>
               </View>
+
               <View style={styles.adherenceStatsRow}>
                 <View style={styles.adherenceCircle}>
                   <Text style={styles.adherencePercentage}>
-                    {adherence.adherencePercentage}%
+                    {clinicalReport.overallAdherencePercentage}%
                   </Text>
-                  <Text style={styles.adherenceLabel}>Cumplimiento</Text>
+                  <Text style={styles.adherenceLabel}>Global</Text>
                 </View>
                 <View style={styles.adherenceDetails}>
-                  <Text style={styles.adherenceDetailItem}>• Dosis tomadas: {adherence.totalTaken}</Text>
-                  <Text style={styles.adherenceDetailItem}>• Pospuestas: {adherence.totalPostponed}</Text>
-                  <Text style={styles.adherenceDetailItem}>• Omitidas: {adherence.totalMissed}</Text>
+                  <Text style={styles.adherenceDetailItem}>
+                    • Dosis tomadas: {adherence.totalTaken} de {adherence.totalScheduled}
+                  </Text>
+                  <Text style={styles.adherenceDetailItem}>
+                    • Pospuestas: {adherence.totalPostponed}
+                  </Text>
                   <Text
                     style={[
                       styles.statusBadge,
@@ -718,57 +765,48 @@ export default function App() {
                       adherence.statusRating === 'critical' && styles.statusBadgeRed,
                     ]}
                   >
-                    Evaluación: {adherence.statusRating.toUpperCase()}
+                    Estado: {adherence.statusRating.toUpperCase()}
                   </Text>
                 </View>
               </View>
-            </View>
 
-            {/* Historial de Registro de Tomas */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <MaterialCommunityIcons name="history" size={24} color="#0284C7" />
-                <Text style={styles.cardTitle}>Bitácora de Eventos Recientes</Text>
-              </View>
-              {logs.slice(0, 5).map((log) => {
-                const med = medicines.find((m) => m.id === log.medicineId);
-                return (
-                  <View key={log.id} style={styles.logItem}>
-                    <MaterialCommunityIcons
-                      name={
-                        log.status === 'taken'
-                          ? 'check-circle'
-                          : log.status === 'postponed'
-                          ? 'clock-alert'
-                          : 'close-circle'
-                      }
-                      size={20}
-                      color={
-                        log.status === 'taken'
-                          ? '#16A34A'
-                          : log.status === 'postponed'
-                          ? '#CA8A04'
-                          : '#DC2626'
-                      }
-                    />
-                    <View style={styles.logInfo}>
-                      <Text style={styles.logStatus}>
-                        {med?.name || 'Medicamento'}: {log.status === 'taken' ? 'Tomada' : log.status === 'postponed' ? 'Pospuesta' : 'Omitida'}
-                      </Text>
-                      <Text style={styles.logTime}>
-                        Por: {log.registeredBy === 'patient' ? 'Don Manuel' : 'Cuidador'}
-                      </Text>
-                    </View>
+              {/* Desglose por Fármaco */}
+              <Text style={styles.breakdownHeaderTitle}>Cumplimiento Individual por Medicamento:</Text>
+              {clinicalReport.medicationBreakdown.map((item) => (
+                <View key={item.medicineId} style={styles.breakdownItemRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.breakdownMedName}>{item.medicineName}</Text>
+                    <Text style={styles.breakdownMedSub}>{item.doseDescription}</Text>
                   </View>
-                );
-              })}
+                  <View style={styles.breakdownBarTrack}>
+                    <View
+                      style={[
+                        styles.breakdownBarFill,
+                        {
+                          width: `${item.adherenceRate}%`,
+                          backgroundColor: item.adherenceRate >= 80 ? '#16A34A' : '#EF4444',
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.breakdownRateVal}>{item.adherenceRate}%</Text>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.openReportBtn}
+                onPress={() => setIsReportModalVisible(true)}
+              >
+                <MaterialCommunityIcons name="file-document-outline" size={20} color="#0284C7" />
+                <Text style={styles.openReportBtnText}>Generar Informe Completo para la Consulta</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
       </ScrollView>
 
       {/* ========================================================= */}
-      {/* MODAL: REGISTRAR NUEVO MEDICAMENTO (MODO CUIDADOR)        */}
+      {/* MODAL 1: REGISTRAR NUEVO MEDICAMENTO                     */}
       {/* ========================================================= */}
       <Modal visible={isModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -817,7 +855,6 @@ export default function App() {
                 onChangeText={setNewMedInstructions}
               />
 
-              {/* Selector Visual Pill ID: Forma */}
               <Text style={styles.inputLabel}>Forma de la Pastilla</Text>
               <View style={styles.pillShapeOptions}>
                 {(['round', 'capsule', 'oval'] as PillShape[]).map((shape) => (
@@ -852,7 +889,6 @@ export default function App() {
                 ))}
               </View>
 
-              {/* Selector Visual Pill ID: Color */}
               <Text style={styles.inputLabel}>Color Distintivo</Text>
               <View style={styles.colorPaletteRow}>
                 {COLOR_PALETTE.map((c) => (
@@ -869,7 +905,6 @@ export default function App() {
               </View>
               <Text style={styles.selectedColorLabel}>Seleccionado: {newMedColor.name}</Text>
 
-              {/* Stock Inicial y Alerta */}
               <View style={styles.rowTwoInputs}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Stock Inicial</Text>
@@ -896,6 +931,106 @@ export default function App() {
                 onPress={handleSaveNewMedicine}
               >
                 <Text style={styles.saveMedSubmitText}>Guardar en el Pastillero</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 2: FICHA MÉDICA DE EMERGENCIA (ICE)                 */}
+      {/* ========================================================= */}
+      <Modal visible={isIceModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="card-account-details" size={24} color="#0284C7" />
+                <Text style={styles.modalTitle}>Ficha Médica de Emergencia (ICE)</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsIceModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalScroll}>
+              <View style={styles.iceHeaderCard}>
+                <View style={styles.bloodTypeBadge}>
+                  <Text style={styles.bloodTypeBadgeLabel}>GRUPO</Text>
+                  <Text style={styles.bloodTypeBadgeValue}>{emergencyProfile.bloodType}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.icePatientName}>{emergencyProfile.patientFullName}</Text>
+                  <Text style={styles.icePatientAge}>{emergencyProfile.age} años • {emergencyProfile.healthInsurance}</Text>
+                </View>
+              </View>
+
+              <View style={styles.iceAlertBox}>
+                <MaterialCommunityIcons name="alert-octagon" size={24} color="#DC2626" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.iceAlertTitle}>Alergias Conocidas a Medicamentos:</Text>
+                  <Text style={styles.iceAlertText}>{emergencyProfile.allergies.join(' • ')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.iceSectionBox}>
+                <Text style={styles.iceSectionTitle}>Condiciones Médicas Crónicas:</Text>
+                {emergencyProfile.chronicConditions.map((cond, idx) => (
+                  <Text key={idx} style={styles.iceSectionItem}>• {cond}</Text>
+                ))}
+              </View>
+
+              <View style={styles.iceContactCard}>
+                <Text style={styles.iceContactLabel}>CONTACTO DE AUXILIO INMEDIATO:</Text>
+                <Text style={styles.iceContactName}>{emergencyProfile.emergencyContact.name}</Text>
+                <Text style={styles.iceContactRel}>{emergencyProfile.emergencyContact.relationship}</Text>
+                <TouchableOpacity
+                  style={styles.callContactBtn}
+                  onPress={() => Alert.alert('Llamada de Auxilio', `Marcando al contacto de auxilio: ${emergencyProfile.emergencyContact.phone}`)}
+                >
+                  <MaterialCommunityIcons name="phone-in-talk" size={20} color="#FFFFFF" />
+                  <Text style={styles.callContactBtnText}>Llamar: {emergencyProfile.emergencyContact.phone}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL 3: REPORTE CLÍNICO COMPLETO PARA EL GERIATRA       */}
+      {/* ========================================================= */}
+      <Modal visible={isReportModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialCommunityIcons name="file-document-outline" size={24} color="#0284C7" />
+                <Text style={styles.modalTitle}>Informe Clínico de Adherencia</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsReportModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalScroll}>
+              <View style={styles.reportCodeBlock}>
+                <Text style={styles.reportMonospaceText}>
+                  {clinicalReport.formattedReportText}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.shareReportBtn}
+                onPress={() =>
+                  Alert.alert(
+                    'Informe Copiado',
+                    'El reporte clínico fue copiado al portapapeles y está listo para ser compartido por WhatsApp o impreso para la consulta médica.'
+                  )
+                }
+              >
+                <MaterialCommunityIcons name="share-variant" size={20} color="#FFFFFF" />
+                <Text style={styles.shareReportBtnText}>Compartir Reporte con el Médico</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -1198,6 +1333,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E293B',
   },
+  iceSeniorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E0F2FE',
+    borderColor: '#BAE6FD',
+    borderWidth: 2,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8,
+  },
+  iceSeniorButtonText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
   sosButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1273,18 +1424,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  caregiverActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   addMedButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0284C7',
     paddingVertical: 14,
     borderRadius: 12,
-    gap: 8,
+    gap: 6,
   },
   addMedButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  iceCaregiverButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F766E',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 6,
+  },
+  iceCaregiverButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
   card: {
@@ -1382,11 +1553,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 20,
+    marginBottom: 14,
   },
   adherenceCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     backgroundColor: '#F0F9FF',
     borderWidth: 4,
     borderColor: '#0284C7',
@@ -1433,25 +1605,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     color: '#B91C1C',
   },
-  logItem: {
+  breakdownHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  breakdownItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    marginBottom: 8,
   },
-  logInfo: {
-    flex: 1,
-  },
-  logStatus: {
-    fontSize: 14,
+  breakdownMedName: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1E293B',
+    color: '#0F172A',
   },
-  logTime: {
-    fontSize: 12,
+  breakdownMedSub: {
+    fontSize: 11,
     color: '#64748B',
+  },
+  breakdownBarTrack: {
+    width: 70,
+    height: 8,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  breakdownBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  breakdownRateVal: {
+    width: 38,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'right',
+  },
+  openReportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginTop: 12,
+  },
+  openReportBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0284C7',
   },
   // Estilos del Modal
   modalOverlay: {
@@ -1463,7 +1672,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '85%',
+    maxHeight: '88%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1474,7 +1683,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
   },
@@ -1561,6 +1770,149 @@ const styles = StyleSheet.create({
   saveMedSubmitText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '800',
+  },
+  // Estilos de la Ficha Médica ICE
+  iceHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 12,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bloodTypeBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#DC2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bloodTypeBadgeLabel: {
+    color: '#FEE2E2',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  bloodTypeBadgeValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  icePatientName: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  icePatientAge: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  iceAlertBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1.5,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+  },
+  iceAlertTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#991B1B',
+  },
+  iceAlertText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#B91C1C',
+    marginTop: 2,
+  },
+  iceSectionBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  iceSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  iceSectionItem: {
+    fontSize: 13,
+    color: '#475569',
+    marginBottom: 2,
+  },
+  iceContactCard: {
+    backgroundColor: '#F0FDFA',
+    borderColor: '#99F6E4',
+    borderWidth: 1,
+    padding: 14,
+    borderRadius: 12,
+  },
+  iceContactLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0F766E',
+    letterSpacing: 0.5,
+  },
+  iceContactName: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#134E4A',
+    marginTop: 4,
+  },
+  iceContactRel: {
+    fontSize: 13,
+    color: '#0D9488',
+    marginBottom: 10,
+  },
+  callContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0D9488',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
+  },
+  callContactBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  // Estilos del Reporte Clínico Monospace
+  reportCodeBlock: {
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 14,
+  },
+  reportMonospaceText: {
+    color: '#38BDF8',
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: 'monospace',
+  },
+  shareReportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0284C7',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+    marginTop: 10,
+  },
+  shareReportBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '800',
   },
 });

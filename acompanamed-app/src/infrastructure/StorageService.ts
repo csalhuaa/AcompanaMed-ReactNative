@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Medicine, DoseLog, ActorRole } from '../domain/types';
+import { Medicine, DoseLog, ActorRole, EmergencyProfile } from '../domain/types';
 
 export interface IStorageAdapter {
   getItem(key: string): Promise<string | null>;
@@ -51,6 +51,7 @@ export const STORAGE_KEYS = {
   SCHEDULES: '@acompanamed:schedules',
   LOGS: '@acompanamed:logs',
   ROLE: '@acompanamed:active_role',
+  PROFILE: '@acompanamed:emergency_profile',
 } as const;
 
 export class StorageService {
@@ -125,11 +126,44 @@ export class StorageService {
     }
   }
 
+  async saveEmergencyProfile(profile: EmergencyProfile): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+  }
+
+  async loadEmergencyProfile(
+    defaultProfile: EmergencyProfile = {
+      patientFullName: 'Manuel Jesús Alhua',
+      age: 74,
+      bloodType: 'O+',
+      allergies: ['Penicilina', 'Ibuprofeno (AINEs)'],
+      chronicConditions: ['Hipertensión Arterial', 'Diabetes Mellitus Tipo 2'],
+      healthInsurance: 'EsSalud - Policlínico Yanahuara',
+      emergencyContact: {
+        name: 'María Alhua',
+        relationship: 'Hija / Cuidadora Principal',
+        phone: '+51 954 123 456',
+      },
+    }
+  ): Promise<EmergencyProfile> {
+    try {
+      const raw = await this.adapter.getItem(STORAGE_KEYS.PROFILE);
+      if (!raw) return defaultProfile;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.patientFullName) {
+        return parsed;
+      }
+      return defaultProfile;
+    } catch {
+      return defaultProfile;
+    }
+  }
+
   async clearAllData(): Promise<void> {
     await this.adapter.removeItem(STORAGE_KEYS.MEDICINES);
     await this.adapter.removeItem(STORAGE_KEYS.SCHEDULES);
     await this.adapter.removeItem(STORAGE_KEYS.LOGS);
     await this.adapter.removeItem(STORAGE_KEYS.ROLE);
+    await this.adapter.removeItem(STORAGE_KEYS.PROFILE);
   }
 }
 
