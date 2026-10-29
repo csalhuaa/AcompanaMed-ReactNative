@@ -32,7 +32,14 @@ import {
   generateClinicalSummary,
   validateEmergencyProfile,
 } from './src/domain';
-import { defaultStorageService } from './src/infrastructure';
+import {
+  defaultStorageService,
+  defaultSpeechService,
+  defaultHapticService,
+  defaultNotificationService,
+  formatSeniorInstructionSpeech,
+  formatConfirmationSpeech,
+} from './src/infrastructure';
 
 // Catálogo inicial con polifarmacia geriátrica real
 const INITIAL_MEDICINES: Medicine[] = [
@@ -246,6 +253,11 @@ export default function App() {
         ? `¡Muy bien, Don Manuel! Dosis de ${activeMedicine.name} confirmada. Quedan ${updated.stock} pastillas.`
         : `Toma asistida de ${activeMedicine.name} registrada por el cuidador. Stock: ${updated.stock}.`;
 
+    if (actor === 'patient') {
+      defaultHapticService.vibrateSuccess();
+      defaultSpeechService.speak(formatConfirmationSpeech('Don Manuel', activeMedicine.name, updated.stock));
+    }
+
     setLastActionMessage(msg);
     Alert.alert('Registro Exitoso', msg);
   };
@@ -261,6 +273,10 @@ export default function App() {
       notes: 'Pospuesto 15 minutos por el paciente',
     };
     setLogs((prev) => [newLog, ...prev]);
+
+    defaultHapticService.vibrateWarning();
+    defaultSpeechService.speak(`Toma de ${activeMedicine.name} pospuesta 15 minutos.`);
+
     const msg = `Toma de ${activeMedicine.name} pospuesta 15 minutos. Le avisaremos nuevamente.`;
     setLastActionMessage(msg);
     Alert.alert('Dosis Pospuesta', msg);
@@ -322,6 +338,9 @@ export default function App() {
 
     setMedicines((prev) => [...prev, newMed]);
     setScheduleTimes((prev) => ({ ...prev, [newId]: newMedTime }));
+
+    // Programar notificación de recordatorio en el sistema operativo
+    defaultNotificationService.scheduleDoseReminder(newMed, newMedTime);
 
     setNewMedName('');
     setNewMedDose('');
@@ -561,12 +580,16 @@ export default function App() {
                 {/* Botón de Audio para Lectura en Voz Alta */}
                 <TouchableOpacity
                   style={styles.voiceButton}
-                  onPress={() =>
-                    Alert.alert(
-                      'Lectura por Voz (Text-to-Speech)',
-                      `"Don Manuel, le corresponde tomar ${activeMedicine.name} de ${activeMedicine.doseDescription}. ${activeMedicine.instructions}"`
-                    )
-                  }
+                  onPress={() => {
+                    const speechText = formatSeniorInstructionSpeech(
+                      'Don Manuel',
+                      activeMedicine.name,
+                      activeMedicine.doseDescription,
+                      activeMedicine.instructions
+                    );
+                    defaultSpeechService.speak(speechText);
+                    Alert.alert('Lectura por Voz (Text-to-Speech)', speechText);
+                  }}
                 >
                   <MaterialCommunityIcons name="bullhorn" size={24} color="#0369A1" />
                   <Text style={styles.voiceButtonText}>Escuchar Instrucción en Voz Alta</Text>
@@ -616,12 +639,13 @@ export default function App() {
             {/* Botón SOS de Emergencia Familiar */}
             <TouchableOpacity
               style={styles.sosButton}
-              onPress={() =>
+              onPress={() => {
+                defaultHapticService.vibrateSOS();
                 Alert.alert(
                   'Contacto de Emergencia SOS',
                   `Llamando a ${emergencyProfile.emergencyContact.name} (${emergencyProfile.emergencyContact.relationship}): ${emergencyProfile.emergencyContact.phone}\nLínea médica SAMU: 106`
-                )
-              }
+                );
+              }}
             >
               <MaterialCommunityIcons name="phone-alert" size={28} color="#FFFFFF" />
               <Text style={styles.sosText}>BOTÓN SOS: LLAMAR A FAMILIAR</Text>

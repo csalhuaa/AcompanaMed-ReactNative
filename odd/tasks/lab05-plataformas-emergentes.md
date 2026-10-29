@@ -44,11 +44,12 @@ acompanamed-app/src/
 - [x] T11: Implementar Módulo 1 (Catálogo Multimedicina con soporte para 3-6 fármacos simultáneos, selector de forma/color y agenda secuencial de tomas diarias). [S11] -> `acompanamed-app/`
 - [x] T12: Implementar Módulo 2 (Capa de almacenamiento persistente `StorageService` con AsyncStorage y pruebas unitarias de serialización). [S12] -> `acompanamed-app/src/infrastructure/`
 - [x] T13: Implementar Módulo 3 (Ficha Médica de Emergencia y Reporte Clínico exportable). [S13] -> `acompanamed-app/`
+- [x] T14: Implementar Módulo 4 (Síntesis de voz Text-to-Speech nativo con expo-speech, vibración háptica expo-haptics y motor de notificaciones expo-notifications). [S14] -> `acompanamed-app/src/infrastructure/`
 
 ## Verification
-- `pnpm test`: 30 tests passed in 441ms across 13 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine, ScheduleTimelineEngine, StorageService, ClinicalReportEngine).
+- `pnpm test`: 35 tests passed in 255ms across 16 suites (DuplicateGuard, StockManager, AdherenceCalculator, EscalationEngine, ScheduleTimelineEngine, StorageService, ClinicalReportEngine, SpeechNotificationEngines).
 - `pnpm typecheck`: TypeScript compilation clean (exit code 0).
-- `expo export --platform web`: 309 modules bundled successfully in dist (exit code 0).
+- `expo export --platform web`: 385 modules bundled successfully in dist (exit code 0).
 
 ## Log
 - L1: Petición original del usuario: "/odd quiero trabajar en este @[LAB 05_PLATAFORMAS EMERGENTES 2024B.pdf] primero explicame de que trata este".
@@ -62,3 +63,4 @@ acompanamed-app/src/
 - L9: Implementación completa de Módulo 1 (ScheduleTimelineEngine, agenda por franjas mañana/tarde/noche, catálogo multimedicina con modal de registro, 19 tests pass).
 - L10: Implementación completa de Módulo 2 (StorageService con AsyncStorage, adaptador de memoria para CI, persistencia automática de catálogo, bitácora y rol, 25 tests pass).
 - L11: Implementación completa de Módulo 3 (Ficha Médica de Emergencia ICE, desglose de adherencia por fármaco y exportador clínico para geriatría, 30 tests pass).
+- L12: Implementación completa de Módulo 4 (Síntesis de voz Text-to-Speech pausada, retroalimentación háptica y programación de notificaciones locales, 35 tests pass).
