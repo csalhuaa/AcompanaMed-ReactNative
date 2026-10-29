@@ -1,0 +1,136 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Medicine, DoseLog, ActorRole } from '../domain/types';
+
+export interface IStorageAdapter {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+  removeItem(key: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+export class MemoryStorageAdapter implements IStorageAdapter {
+  private store = new Map<string, string>();
+
+  async getItem(key: string): Promise<string | null> {
+    return this.store.has(key) ? this.store.get(key)! : null;
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    this.store.set(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    this.store.delete(key);
+  }
+
+  async clear(): Promise<void> {
+    this.store.clear();
+  }
+}
+
+export class AsyncStorageAdapter implements IStorageAdapter {
+  async getItem(key: string): Promise<string | null> {
+    return AsyncStorage.getItem(key);
+  }
+
+  async setItem(key: string, value: string): Promise<void> {
+    return AsyncStorage.setItem(key, value);
+  }
+
+  async removeItem(key: string): Promise<void> {
+    return AsyncStorage.removeItem(key);
+  }
+
+  async clear(): Promise<void> {
+    return AsyncStorage.clear();
+  }
+}
+
+export const STORAGE_KEYS = {
+  MEDICINES: '@acompanamed:medicines',
+  SCHEDULES: '@acompanamed:schedules',
+  LOGS: '@acompanamed:logs',
+  ROLE: '@acompanamed:active_role',
+} as const;
+
+export class StorageService {
+  constructor(private adapter: IStorageAdapter = new AsyncStorageAdapter()) {}
+
+  async saveMedicines(medicines: Medicine[]): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.MEDICINES, JSON.stringify(medicines));
+  }
+
+  async loadMedicines(defaultMedicines: Medicine[] = []): Promise<Medicine[]> {
+    try {
+      const raw = await this.adapter.getItem(STORAGE_KEYS.MEDICINES);
+      if (!raw) return defaultMedicines;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return defaultMedicines;
+    } catch {
+      return defaultMedicines;
+    }
+  }
+
+  async saveSchedules(schedules: Record<string, string>): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
+  }
+
+  async loadSchedules(
+    defaultSchedules: Record<string, string> = {}
+  ): Promise<Record<string, string>> {
+    try {
+      const raw = await this.adapter.getItem(STORAGE_KEYS.SCHEDULES);
+      if (!raw) return defaultSchedules;
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'object' && parsed !== null ? parsed : defaultSchedules;
+    } catch {
+      return defaultSchedules;
+    }
+  }
+
+  async saveLogs(logs: DoseLog[]): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.LOGS, JSON.stringify(logs));
+  }
+
+  async loadLogs(defaultLogs: DoseLog[] = []): Promise<DoseLog[]> {
+    try {
+      const raw = await this.adapter.getItem(STORAGE_KEYS.LOGS);
+      if (!raw) return defaultLogs;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return defaultLogs;
+    } catch {
+      return defaultLogs;
+    }
+  }
+
+  async saveActiveRole(role: ActorRole): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.ROLE, role);
+  }
+
+  async loadActiveRole(defaultRole: ActorRole = 'patient'): Promise<ActorRole> {
+    try {
+      const role = await this.adapter.getItem(STORAGE_KEYS.ROLE);
+      if (role === 'patient' || role === 'caregiver') {
+        return role;
+      }
+      return defaultRole;
+    } catch {
+      return defaultRole;
+    }
+  }
+
+  async clearAllData(): Promise<void> {
+    await this.adapter.removeItem(STORAGE_KEYS.MEDICINES);
+    await this.adapter.removeItem(STORAGE_KEYS.SCHEDULES);
+    await this.adapter.removeItem(STORAGE_KEYS.LOGS);
+    await this.adapter.removeItem(STORAGE_KEYS.ROLE);
+  }
+}
+
+export const defaultStorageService = new StorageService();

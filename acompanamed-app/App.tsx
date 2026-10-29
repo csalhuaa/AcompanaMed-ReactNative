@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ import {
   DayTimeSlot,
   ScheduledDoseItem,
 } from './src/domain';
+import { defaultStorageService } from './src/infrastructure';
 
 // Catálogo inicial con polifarmacia geriátrica real
 const INITIAL_MEDICINES: Medicine[] = [
@@ -109,6 +111,7 @@ const COLOR_PALETTE = [
 ];
 
 export default function App() {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [activeRole, setActiveRole] = useState<ActorRole>('patient');
   const [medicines, setMedicines] = useState<Medicine[]>(INITIAL_MEDICINES);
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>(INITIAL_SCHEDULE_TIMES);
@@ -118,6 +121,48 @@ export default function App() {
   const [lastActionMessage, setLastActionMessage] = useState<string>(
     'Bienvenido a AcompañaMed. Toque su medicamento para registrar su toma.'
   );
+
+  // Carga inicial desde almacenamiento local persistente (Offline-First)
+  useEffect(() => {
+    async function loadStoredData() {
+      try {
+        const storedRole = await defaultStorageService.loadActiveRole('patient');
+        const storedMeds = await defaultStorageService.loadMedicines(INITIAL_MEDICINES);
+        const storedTimes = await defaultStorageService.loadSchedules(INITIAL_SCHEDULE_TIMES);
+        const storedLogs = await defaultStorageService.loadLogs(INITIAL_LOGS);
+
+        setActiveRole(storedRole);
+        setMedicines(storedMeds);
+        setScheduleTimes(storedTimes);
+        setLogs(storedLogs);
+        if (storedMeds.length > 0) {
+          setActiveDoseMedicineId(storedMeds[0].id);
+        }
+      } catch (err) {
+        console.warn('Error al cargar datos desde AsyncStorage:', err);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+    loadStoredData();
+  }, []);
+
+  // Persistencia automática ante mutaciones
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveMedicines(medicines);
+  }, [medicines, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveLogs(logs);
+  }, [logs, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveSchedules(scheduleTimes);
+  }, [scheduleTimes, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveActiveRole(activeRole);
+  }, [activeRole, isLoaded]);
 
   // Estado para modal de nuevo medicamento (Modo Cuidador)
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -260,6 +305,22 @@ export default function App() {
     setIsModalVisible(false);
     Alert.alert('Medicamento Agregado', `${newMed.name} ha sido añadido al pastillero diario.`);
   };
+
+  if (!isLoaded) {
+    return (
+      <SafeAreaView style={[styles.safeContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar style="light" />
+        <MaterialCommunityIcons name="pill" size={54} color="#38BDF8" />
+        <Text style={{ color: '#F8FAFC', fontSize: 20, fontWeight: '800', marginTop: 14 }}>
+          AcompañaMed
+        </Text>
+        <Text style={{ color: '#94A3B8', fontSize: 14, marginTop: 4 }}>
+          Cargando pastillero familiar...
+        </Text>
+        <ActivityIndicator size="small" color="#38BDF8" style={{ marginTop: 20 }} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeContainer}>
