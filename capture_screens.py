@@ -41,50 +41,47 @@ with sync_playwright() as p:
     page.wait_for_load_state("networkidle")
     time.sleep(2)
 
-    # 1. Modo Senior - Mañana
-    print("Capturing 1. Modo Senior - Mañana...")
+    # 1. Tab Hoy - Hilo del día con Losartán expandido
+    print("Capturing 1. Hoy - Hilo del día (Losartán expandido)...")
     page.screenshot(path="figures/1_modo_senior_manana.png")
 
-    # 2. Modo Senior - Tarde
-    print("Capturing 2. Modo Senior - Tarde...")
-    page.click("text=Tarde")
-    time.sleep(0.5)
+    # 2. Tab Hoy - Metformina expandida (Cápsula realista)
+    print("Capturing 2. Hoy - Metformina expandida...")
+    page.click("text=Metformina")
+    time.sleep(0.6)
     page.screenshot(path="figures/2_modo_senior_tarde.png")
 
-    # 3. Ficha Médica de Emergencia (ICE)
-    print("Capturing 3. Ficha Médica de Emergencia (ICE)...")
-    page.click("text=Ficha Médica de Emergencia (ICE)")
-    time.sleep(0.8)
+    # 3. Tab Emergencia - Ficha ICE directa
+    print("Capturing 3. Tab Emergencia (Ficha ICE)...")
+    page.click("text=Emergencia")
+    time.sleep(0.6)
     page.screenshot(path="figures/3_ficha_emergencia_ice.png")
 
-    # Close modal by reloading
-    page.goto(f"http://localhost:{PORT}/index.html")
-    page.wait_for_load_state("networkidle")
-    time.sleep(1)
-
-    # 4. Modo Cuidador - Dashboard
-    print("Capturing 4. Modo Cuidador...")
-    page.click("text=Modo Cuidador")
-    time.sleep(0.8)
+    # 4. Tab Cuidador - Telemetría y Adherencia
+    print("Capturing 4. Tab Cuidador (Dashboard)...")
+    page.click("text=Cuidador")
+    time.sleep(0.6)
     page.screenshot(path="figures/4_modo_cuidador_dashboard.png")
 
-    # 5. Modo Cuidador - Modal Nuevo Medicamento
-    print("Capturing 5. Modal Nuevo Medicamento...")
+    # 5. Tab Botiquín - Modal Nuevo Medicamento
+    print("Capturing 5. Tab Botiquín y Modal...")
+    page.click("text=Botiquín")
+    time.sleep(0.6)
     page.click("text=Agregar")
-    time.sleep(0.8)
+    time.sleep(0.6)
     page.screenshot(path="figures/5_modal_nuevo_medicamento.png")
 
-    # Close modal by reloading and returning to caregiver mode
+    # Cerrar modal recargando
     page.goto(f"http://localhost:{PORT}/index.html")
     page.wait_for_load_state("networkidle")
     time.sleep(1)
-    page.click("text=Modo Cuidador")
-    time.sleep(0.5)
 
-    # 6. Modo Cuidador - Reporte Clínico
+    # 6. Reporte Clínico Formal
     print("Capturing 6. Reporte Clínico Formal...")
+    page.click("text=Cuidador")
+    time.sleep(0.6)
     page.click("text=Generar Informe Completo")
-    time.sleep(0.8)
+    time.sleep(0.6)
     page.screenshot(path="figures/6_reporte_clinico_geriatria.png")
 
     browser.close()
