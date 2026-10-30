@@ -7,3 +7,5 @@ export * from './stock/MedicineInventoryPanel';
 export * from './ice/EmergencyProfileCard';
 export * from './modals/AddMedicineModal';
 export * from './modals/ClinicalReportModal';
+export * from './modals/ConfirmDialogModal';
+export * from './modals/RestockModal';

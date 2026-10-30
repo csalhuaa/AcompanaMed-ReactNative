@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { PillShape } from '../../domain';
+import { PillShape, Medicine } from '../../domain';
 
 export const COLOR_PALETTE = [
   { hex: '#0284C7', name: 'Azul Clínico' },
@@ -22,6 +22,7 @@ export const COLOR_PALETTE = [
 ];
 
 export interface NewMedicineData {
+  id?: string;
   name: string;
   doseDescription: string;
   scheduleTime: string;
@@ -34,11 +35,19 @@ export interface NewMedicineData {
 
 interface Props {
   visible: boolean;
+  initialMedicine?: Medicine | null;
+  initialScheduleTime?: string;
   onClose: () => void;
   onSave: (data: NewMedicineData) => void;
 }
 
-export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) => {
+export const AddMedicineModal: React.FC<Props> = ({
+  visible,
+  initialMedicine,
+  initialScheduleTime = '08:00',
+  onClose,
+  onSave,
+}) => {
   const [name, setName] = useState('');
   const [dose, setDose] = useState('');
   const [scheduleTime, setScheduleTime] = useState('08:00');
@@ -48,6 +57,36 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
   const [stock, setStock] = useState('30');
   const [minAlert, setMinAlert] = useState('6');
 
+  const isEditing = !!initialMedicine;
+
+  useEffect(() => {
+    if (visible) {
+      if (initialMedicine) {
+        setName(initialMedicine.name);
+        setDose(initialMedicine.doseDescription);
+        setScheduleTime(initialScheduleTime);
+        setInstructions(initialMedicine.instructions);
+        setShape(initialMedicine.visualPill.shape);
+        const foundColor = COLOR_PALETTE.find((c) => c.hex === initialMedicine.visualPill.colorHex) || {
+          hex: initialMedicine.visualPill.colorHex,
+          name: initialMedicine.visualPill.colorName,
+        };
+        setColor(foundColor);
+        setStock(String(initialMedicine.stock));
+        setMinAlert(String(initialMedicine.minStockAlert));
+      } else {
+        setName('');
+        setDose('');
+        setScheduleTime('08:00');
+        setInstructions('');
+        setShape('round');
+        setColor(COLOR_PALETTE[0]);
+        setStock('30');
+        setMinAlert('6');
+      }
+    }
+  }, [visible, initialMedicine, initialScheduleTime]);
+
   const handleSave = () => {
     if (!name.trim() || !dose.trim()) {
       Alert.alert('Campos Obligatorios', 'Por favor indique el nombre y la dosis prescrita.');
@@ -55,6 +94,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
     }
 
     onSave({
+      id: initialMedicine?.id,
       name: name.trim(),
       doseDescription: dose.trim(),
       scheduleTime: scheduleTime.trim() || '08:00',
@@ -65,25 +105,30 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
       minStockAlert: parseInt(minAlert, 10) || 6,
     });
 
-    // Limpiar formulario
-    setName('');
-    setDose('');
-    setInstructions('');
     onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.modalBackdropScrim}>
         <View style={styles.modalSheetBox}>
           {/* Barra Superior del Modal */}
           <View style={styles.modalSheetTop}>
-            <Text style={styles.modalSheetTitle}>Registrar Nuevo Medicamento</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons
+                name={isEditing ? 'pencil-box-outline' : 'pill'}
+                size={22}
+                color="#0F172A"
+              />
+              <Text style={styles.modalSheetTitle}>
+                {isEditing ? 'Modificar Fármaco Prescrito' : 'Registrar Nuevo Medicamento'}
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeBtn}
               accessibilityRole="button"
-              accessibilityLabel="Cerrar ventana de registro de medicamento"
+              accessibilityLabel="Cerrar ventana"
             >
               <MaterialCommunityIcons name="close" size={20} color="#334155" />
             </TouchableOpacity>
@@ -94,10 +139,10 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
             contentContainerStyle={styles.modalFormContent}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.formInputLabel}>Principio Activo</Text>
+            <Text style={styles.formInputLabel}>Principio Activo (Nombre Comercial / Genérico)</Text>
             <TextInput
               style={styles.formTextInput}
-              placeholder="Ej. Enalapril, Glibenclamida"
+              placeholder="Ej. Enalapril, Glibenclamida, Losartán"
               placeholderTextColor="#94A3B8"
               value={name}
               onChangeText={setName}
@@ -106,10 +151,10 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
 
             <View style={styles.twoColumnInputs}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.formInputLabel}>Dosis</Text>
+                <Text style={styles.formInputLabel}>Dosis Prescrita</Text>
                 <TextInput
                   style={styles.formTextInput}
-                  placeholder="Ej. 10 mg"
+                  placeholder="Ej. 10 mg, 500 mg"
                   placeholderTextColor="#94A3B8"
                   value={dose}
                   onChangeText={setDose}
@@ -132,7 +177,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
             <Text style={styles.formInputLabel}>Instrucciones de Ingestión</Text>
             <TextInput
               style={[styles.formTextInput, { minHeight: 60 }]}
-              placeholder="Ej. Tomar después del desayuno con agua."
+              placeholder="Ej. Tomar después del desayuno con medio vaso de agua."
               placeholderTextColor="#94A3B8"
               multiline
               value={instructions}
@@ -140,7 +185,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
               accessibilityLabel="Instrucciones médicas de ingestión"
             />
 
-            <Text style={styles.formInputLabel}>Forma del Comprimido</Text>
+            <Text style={styles.formInputLabel}>Forma Anatómica del Comprimido</Text>
             <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
               {(['round', 'capsule', 'oval'] as PillShape[]).map((s) => (
                 <TouchableOpacity
@@ -178,7 +223,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
               ))}
             </View>
 
-            <Text style={styles.formInputLabel}>Color Distintivo</Text>
+            <Text style={styles.formInputLabel}>Color Distintivo de la Presentación</Text>
             <View style={styles.colorPaletteGrid} accessibilityRole="radiogroup">
               {COLOR_PALETTE.map((c) => (
                 <TouchableOpacity
@@ -199,7 +244,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
 
             <View style={styles.twoColumnInputs}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.formInputLabel}>Stock Inicial</Text>
+                <Text style={styles.formInputLabel}>Stock Inicial en Botiquín</Text>
                 <TextInput
                   style={styles.formTextInput}
                   keyboardType="numeric"
@@ -209,7 +254,7 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
                 />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.formInputLabel}>Alerta de Stock Mínimo</Text>
+                <Text style={styles.formInputLabel}>Alerta de Stock Crítico</Text>
                 <TextInput
                   style={styles.formTextInput}
                   keyboardType="numeric"
@@ -225,10 +270,12 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
               onPress={handleSave}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Guardar medicamento en el pastillero"
+              accessibilityLabel="Guardar fármaco en el pastillero"
             >
               <MaterialCommunityIcons name="content-save-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.modalSubmitButtonText}>Guardar en el Pastillero</Text>
+              <Text style={styles.modalSubmitButtonText}>
+                {isEditing ? 'Guardar Modificaciones' : 'Incorporar al Pastillero Familiar'}
+              </Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -240,16 +287,23 @@ export const AddMedicineModal: React.FC<Props> = ({ visible, onClose, onSave }) 
 const styles = StyleSheet.create({
   modalBackdropScrim: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   modalSheetBox: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 14,
+    width: '100%',
+    maxWidth: 520, // NUNCA se estira en pantallas anchas
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 28,
   },
   modalSheetTop: {
     flexDirection: 'row',
@@ -261,7 +315,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   modalSheetTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
   },

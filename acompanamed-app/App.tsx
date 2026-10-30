@@ -39,6 +39,8 @@ import {
   EmergencyProfileCard,
   AddMedicineModal,
   ClinicalReportModal,
+  ConfirmDialogModal,
+  RestockModal,
   NewMedicineData,
 } from './src/components';
 
@@ -141,9 +143,17 @@ export default function App() {
   const [emergencyProfile, setEmergencyProfile] = useState<EmergencyProfile>(DEFAULT_PROFILE);
   const [expandedMedId, setExpandedMedId] = useState<string>('med-losartan');
 
-  // Modales
+  // Estados de Modales y Acciones
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
+
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
+
+  const [isRestockModalVisible, setIsRestockModalVisible] = useState(false);
+  const [restockingMedicine, setRestockingMedicine] = useState<Medicine | null>(null);
+
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [deletingMedicine, setDeletingMedicine] = useState<Medicine | null>(null);
 
   // Carga asíncrona de almacenamiento
   useEffect(() => {
@@ -249,60 +259,125 @@ export default function App() {
     Alert.alert('Dosis Pospuesta', `Le recordaremos tomar ${med.name} en 15 minutos.`);
   };
 
-  // Acción: Reponer stock (+30 unidades)
-  const handleRestockMedicine = (medId: string) => {
+  // ==========================================
+  // GESTIÓN DEL BOTIQUÍN: REPOSICIÓN Y EDICIÓN
+  // ==========================================
+
+  // Abrir modal de reposición con selector de packs
+  const handleOpenRestockModal = (med: Medicine) => {
+    setRestockingMedicine(med);
+    setIsRestockModalVisible(true);
+  };
+
+  // Confirmar reposición personalizada o de pack
+  const handleConfirmRestock = (medId: string, amount: number) => {
     setMedicines((prev) =>
-      prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + 30 } : m))
+      prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + amount } : m))
     );
-    Alert.alert('Inventario Actualizado', 'Se añadieron 30 unidades al stock.');
+    const target = medicines.find((m) => m.id === medId);
+    const name = target ? target.name : 'medicamento';
+    Alert.alert('Inventario Actualizado', `Se añadieron ${amount} unidades al stock de ${name}.`);
   };
 
-  // Acción: Eliminar fármaco
-  const handleDeleteMedicine = (medId: string, name: string) => {
-    Alert.alert(
-      'Retirar Medicamento',
-      `¿Desea desvincular ${name} del pastillero familiar?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Retirar',
-          style: 'destructive',
-          onPress: () => {
-            setMedicines((prev) => prev.filter((m) => m.id !== medId));
-            if (expandedMedId === medId && medicines.length > 1) {
-              const other = medicines.find((m) => m.id !== medId);
-              if (other) setExpandedMedId(other.id);
-            }
-          },
+  // Abrir modal de nuevo medicamento
+  const handleOpenAddModal = () => {
+    setEditingMedicine(null);
+    setIsAddModalVisible(true);
+  };
+
+  // Abrir modal en modo edición
+  const handleOpenEditModal = (med: Medicine) => {
+    setEditingMedicine(med);
+    setIsAddModalVisible(true);
+  };
+
+  // Guardar (Nuevo o Modificación)
+  const handleSaveMedicine = (data: NewMedicineData) => {
+    if (data.id) {
+      // Modificar existente
+      setMedicines((prev) =>
+        prev.map((m) =>
+          m.id === data.id
+            ? {
+                ...m,
+                name: data.name,
+                doseDescription: data.doseDescription,
+                instructions: data.instructions,
+                visualPill: {
+                  shape: data.shape,
+                  colorHex: data.color.hex,
+                  colorName: data.color.name,
+                },
+                stock: data.stock,
+                minStockAlert: data.minStockAlert,
+              }
+            : m
+        )
+      );
+      setScheduleTimes((prev) => ({ ...prev, [data.id!]: data.scheduleTime }));
+      Alert.alert('Prescripción Actualizada', `Los cambios para ${data.name} fueron guardados.`);
+    } else {
+      // Crear nuevo
+      const newId = `med-${Date.now()}`;
+      const newMed: Medicine = {
+        id: newId,
+        name: data.name,
+        doseDescription: data.doseDescription,
+        intervalHours: 24,
+        instructions: data.instructions,
+        visualPill: {
+          shape: data.shape,
+          colorHex: data.color.hex,
+          colorName: data.color.name,
         },
-      ]
-    );
+        stock: data.stock,
+        minStockAlert: data.minStockAlert,
+        createdAt: new Date().toISOString(),
+      };
+      setMedicines((prev) => [...prev, newMed]);
+      setScheduleTimes((prev) => ({ ...prev, [newId]: data.scheduleTime }));
+      defaultNotificationService.scheduleDoseReminder(newMed, data.scheduleTime);
+      Alert.alert('Medicamento Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
+    }
+
+    setIsAddModalVisible(false);
+    setEditingMedicine(null);
   };
 
-  // Acción: Guardar nuevo medicamento desde modal
-  const handleSaveNewMedicine = (data: NewMedicineData) => {
-    const newId = `med-${Date.now()}`;
-    const newMed: Medicine = {
-      id: newId,
-      name: data.name,
-      doseDescription: data.doseDescription,
-      intervalHours: 24,
-      instructions: data.instructions,
-      visualPill: {
-        shape: data.shape,
-        colorHex: data.color.hex,
-        colorName: data.color.name,
-      },
-      stock: data.stock,
-      minStockAlert: data.minStockAlert,
-      createdAt: new Date().toISOString(),
-    };
+  // ==========================================
+  // ELIMINACIÓN CON DIÁLOGO REAL Y FUNCIONAL
+  // ==========================================
 
-    setMedicines((prev) => [...prev, newMed]);
-    setScheduleTimes((prev) => ({ ...prev, [newId]: data.scheduleTime }));
+  const handleRequestDelete = (med: Medicine) => {
+    setDeletingMedicine(med);
+    setIsDeleteConfirmVisible(true);
+  };
 
-    defaultNotificationService.scheduleDoseReminder(newMed, data.scheduleTime);
-    Alert.alert('Medicamento Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
+  const handleConfirmDelete = () => {
+    if (!deletingMedicine) return;
+    const id = deletingMedicine.id;
+    const name = deletingMedicine.name;
+
+    setMedicines((prev) => prev.filter((m) => m.id !== id));
+    setScheduleTimes((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+
+    if (expandedMedId === id && medicines.length > 1) {
+      const other = medicines.find((m) => m.id !== id);
+      if (other) setExpandedMedId(other.id);
+    }
+
+    setIsDeleteConfirmVisible(false);
+    setDeletingMedicine(null);
+    Alert.alert('Medicamento Retirado', `${name} fue retirado del pastillero familiar.`);
+  };
+
+  const handleCancelDelete = () => {
+    setIsDeleteConfirmVisible(false);
+    setDeletingMedicine(null);
   };
 
   // Acción: Llamada de auxilio ICE
@@ -332,7 +407,6 @@ export default function App() {
     );
   }
 
-  // MODO 1: ESCRITORIO DIVIDIDO EN 2 COLUMNAS (DESKTOP WORKSPACE)
   const isSplitModeActive = isDesktop && desktopLayoutMode === 'desktop_split';
 
   return (
@@ -356,7 +430,7 @@ export default function App() {
             </Text>
           </View>
 
-          {/* Selector de Modo en Desktop para Demostración Multiplataforma */}
+          {/* Selector de Modo en Desktop */}
           {isDesktop && (
             <View style={styles.desktopModeSelector}>
               <TouchableOpacity
@@ -531,9 +605,10 @@ export default function App() {
                         <MedicineInventoryPanel
                           medicines={medicines}
                           scheduleTimes={scheduleTimes}
-                          onRestock={handleRestockMedicine}
-                          onDelete={handleDeleteMedicine}
-                          onOpenAddModal={() => setIsAddModalVisible(true)}
+                          onOpenRestock={handleOpenRestockModal}
+                          onRequestDelete={handleRequestDelete}
+                          onEdit={handleOpenEditModal}
+                          onOpenAddModal={handleOpenAddModal}
                         />
                       )}
                       {effectiveRightTab === 'emergency' && (
@@ -577,9 +652,10 @@ export default function App() {
               <MedicineInventoryPanel
                 medicines={medicines}
                 scheduleTimes={scheduleTimes}
-                onRestock={handleRestockMedicine}
-                onDelete={handleDeleteMedicine}
-                onOpenAddModal={() => setIsAddModalVisible(true)}
+                onOpenRestock={handleOpenRestockModal}
+                onRequestDelete={handleRequestDelete}
+                onEdit={handleOpenEditModal}
+                onOpenAddModal={handleOpenAddModal}
               />
             )}
 
@@ -596,19 +672,48 @@ export default function App() {
         )}
       </View>
 
-      {/* MODAL: REGISTRAR NUEVO MEDICAMENTO */}
+      {/* MODAL 1: REGISTRAR / EDITAR MEDICAMENTO (NUNCA ESTIRADO) */}
       <AddMedicineModal
         visible={isAddModalVisible}
-        onClose={() => setIsAddModalVisible(false)}
-        onSave={handleSaveNewMedicine}
+        initialMedicine={editingMedicine}
+        initialScheduleTime={editingMedicine ? scheduleTimes[editingMedicine.id] : '08:00'}
+        onClose={() => {
+          setIsAddModalVisible(false);
+          setEditingMedicine(null);
+        }}
+        onSave={handleSaveMedicine}
       />
 
-      {/* MODAL: INFORME CLÍNICO FORMAL EXPORTABLE */}
+      {/* MODAL 2: INFORME CLÍNICO FORMAL EXPORTABLE */}
       <ClinicalReportModal
         visible={isReportModalVisible}
         reportText={clinicalReport.formattedReportText}
         onClose={() => setIsReportModalVisible(false)}
         onExport={handleExportReport}
+      />
+
+      {/* MODAL 3: REPOSICIÓN INTELIGENTE DE BOTIQUÍN */}
+      <RestockModal
+        visible={isRestockModalVisible}
+        medicine={restockingMedicine}
+        onClose={() => {
+          setIsRestockModalVisible(false);
+          setRestockingMedicine(null);
+        }}
+        onConfirmRestock={handleConfirmRestock}
+      />
+
+      {/* MODAL 4: DIÁLOGO DE CONFIRMACIÓN REAL DE RETIRO DE FÁRMACO */}
+      <ConfirmDialogModal
+        visible={isDeleteConfirmVisible}
+        title="Retirar del Pastillero Familiar"
+        message={`¿Desea desvincular ${deletingMedicine?.name || 'este medicamento'} (${deletingMedicine?.doseDescription || ''})? Se conservará su historial médico de tomas anteriores.`}
+        confirmText="Sí, retirar"
+        cancelText="Cancelar"
+        isDestructive={true}
+        iconName="trash-can-outline"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
       />
     </View>
   );
@@ -618,7 +723,7 @@ const styles = StyleSheet.create({
   // CANVAS EXTERIOR DE ESCRITORIO
   desktopOuterCanvas: {
     flex: 1,
-    backgroundColor: '#EEF2F6', // Fondo neutro suave para pantallas anchas
+    backgroundColor: '#EEF2F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -630,18 +735,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   appShellFrameLarge: {
-    maxWidth: 480, // Ancho ergonómico estándar para vista móvil centrada
+    maxWidth: 480,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: '#CBD5E1',
-    // Sombra sutil en navegador web
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 20,
   },
   appShellFrameSplit: {
-    maxWidth: 1040, // Ancho de estación de trabajo clínica en escritorio
+    maxWidth: 1040,
   },
 
   centerContent: {

@@ -81,16 +81,23 @@ export const ClinicalReportModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   modalBackdropScrim: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   modalSheetBox: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 14,
+    width: '100%',
+    maxWidth: 540, // Nunca se estira en escritorio
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 28,
   },
   modalSheetTop: {
     flexDirection: 'row',
