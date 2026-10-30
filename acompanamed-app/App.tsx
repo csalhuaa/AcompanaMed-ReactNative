@@ -135,6 +135,7 @@ export default function App() {
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<AppNavTab>('today');
+  const [activeRole, setActiveRole] = useState<ActorRole>('caregiver');
   const [desktopLayoutMode, setDesktopLayoutMode] = useState<'mobile_shell' | 'desktop_split'>('mobile_shell');
 
   const [medicines, setMedicines] = useState<Medicine[]>(INITIAL_MEDICINES);
@@ -163,11 +164,14 @@ export default function App() {
         const storedTimes = await defaultStorageService.loadSchedules(INITIAL_SCHEDULE_TIMES);
         const storedLogs = await defaultStorageService.loadLogs(INITIAL_LOGS);
         const storedProfile = await defaultStorageService.loadEmergencyProfile(DEFAULT_PROFILE);
+        const storedRole = await defaultStorageService.loadActiveRole('caregiver');
 
         setMedicines(storedMeds);
         setScheduleTimes(storedTimes);
         setLogs(storedLogs);
         setEmergencyProfile(storedProfile);
+        setActiveRole(storedRole);
+
         if (storedMeds.length > 0) {
           setExpandedMedId(storedMeds[0].id);
         }
@@ -197,6 +201,10 @@ export default function App() {
     if (isLoaded) defaultStorageService.saveEmergencyProfile(emergencyProfile);
   }, [emergencyProfile, isLoaded]);
 
+  useEffect(() => {
+    if (isLoaded) defaultStorageService.saveActiveRole(activeRole);
+  }, [activeRole, isLoaded]);
+
   // Cálculos de Dominio
   const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, new Date());
   const adherence = calculateAdherence(logs);
@@ -208,7 +216,7 @@ export default function App() {
   const escalation = evaluateEscalation(simulatedScheduledTime, simulatedNowTime, 30);
 
   // Acción: Confirmar toma de pastilla
-  const handleTakeDose = (medId: string, actor: ActorRole = 'patient') => {
+  const handleTakeDose = (medId: string, actor: ActorRole = activeRole) => {
     const med = medicines.find((m) => m.id === medId);
     if (!med) return;
 
@@ -249,7 +257,7 @@ export default function App() {
       medicineId: medId,
       scheduledTime: new Date().toISOString(),
       status: 'postponed',
-      registeredBy: 'patient',
+      registeredBy: activeRole,
       notes: 'Pospuesto 15 minutos por el paciente',
     };
     setLogs((prev) => [newLog, ...prev]);
@@ -263,13 +271,11 @@ export default function App() {
   // GESTIÓN DEL BOTIQUÍN: REPOSICIÓN Y EDICIÓN
   // ==========================================
 
-  // Abrir modal de reposición con selector de packs
   const handleOpenRestockModal = (med: Medicine) => {
     setRestockingMedicine(med);
     setIsRestockModalVisible(true);
   };
 
-  // Confirmar reposición personalizada o de pack
   const handleConfirmRestock = (medId: string, amount: number) => {
     setMedicines((prev) =>
       prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + amount } : m))
@@ -279,22 +285,18 @@ export default function App() {
     Alert.alert('Inventario Actualizado', `Se añadieron ${amount} unidades al stock de ${name}.`);
   };
 
-  // Abrir modal de nuevo medicamento
   const handleOpenAddModal = () => {
     setEditingMedicine(null);
     setIsAddModalVisible(true);
   };
 
-  // Abrir modal en modo edición
   const handleOpenEditModal = (med: Medicine) => {
     setEditingMedicine(med);
     setIsAddModalVisible(true);
   };
 
-  // Guardar (Nuevo o Modificación)
   const handleSaveMedicine = (data: NewMedicineData) => {
     if (data.id) {
-      // Modificar existente
       setMedicines((prev) =>
         prev.map((m) =>
           m.id === data.id
@@ -317,7 +319,6 @@ export default function App() {
       setScheduleTimes((prev) => ({ ...prev, [data.id!]: data.scheduleTime }));
       Alert.alert('Prescripción Actualizada', `Los cambios para ${data.name} fueron guardados.`);
     } else {
-      // Crear nuevo
       const newId = `med-${Date.now()}`;
       const newMed: Medicine = {
         id: newId,
@@ -393,6 +394,14 @@ export default function App() {
     );
   };
 
+  // Acción: Simular Alerta WhatsApp a Cuidador
+  const handleSimulateEscalationAlert = () => {
+    Alert.alert(
+      'Alerta Despachada a WhatsApp',
+      `Destinatario: ${emergencyProfile.emergencyContact.name} (${emergencyProfile.emergencyContact.phone})\n\n"⚠️ ALERTA MÉDICA ACOMPAÑAMED:\nDon Manuel (82 años) no ha confirmado la toma de Losartán Potásico (50 mg) de las 08:00 hrs tras 30 minutos de gracia.\n\nPor favor comuníquese con él de inmediato."`
+    );
+  };
+
   if (!isLoaded) {
     return (
       <View style={styles.desktopOuterCanvas}>
@@ -425,71 +434,105 @@ export default function App() {
         <View style={styles.topAppHeader}>
           <View style={styles.headerTitleGroup}>
             <Text style={styles.appNameLabel}>AcompañaMed</Text>
-            <Text style={styles.patientSubLabel}>
-              Paciente: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Don Manuel (82 años)</Text>
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Text style={styles.patientSubLabel}>Perfil:</Text>
+              {/* Selector de Rol Activo (Paciente vs Cuidador) */}
+              <View style={styles.roleSelectorPill}>
+                <TouchableOpacity
+                  style={[styles.roleOptionBtn, activeRole === 'patient' && styles.roleOptionBtnActive]}
+                  onPress={() => setActiveRole('patient')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name="account"
+                    size={13}
+                    color={activeRole === 'patient' ? '#0F172A' : '#64748B'}
+                  />
+                  <Text style={[styles.roleOptionText, activeRole === 'patient' && styles.roleOptionTextActive]}>
+                    Don Manuel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.roleOptionBtn, activeRole === 'caregiver' && styles.roleOptionBtnActive]}
+                  onPress={() => setActiveRole('caregiver')}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons
+                    name="shield-check"
+                    size={13}
+                    color={activeRole === 'caregiver' ? '#0F172A' : '#64748B'}
+                  />
+                  <Text style={[styles.roleOptionText, activeRole === 'caregiver' && styles.roleOptionTextActive]}>
+                    Cuidadora
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
 
-          {/* Selector de Modo en Desktop */}
-          {isDesktop && (
-            <View style={styles.desktopModeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  desktopLayoutMode === 'mobile_shell' && styles.modeButtonActive,
-                ]}
-                onPress={() => setDesktopLayoutMode('mobile_shell')}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons
-                  name="cellphone"
-                  size={14}
-                  color={desktopLayoutMode === 'mobile_shell' ? '#0F172A' : '#64748B'}
-                />
-                <Text
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Selector de Modo en Desktop */}
+            {isDesktop && (
+              <View style={styles.desktopModeSelector}>
+                <TouchableOpacity
                   style={[
-                    styles.modeButtonText,
-                    desktopLayoutMode === 'mobile_shell' && styles.modeButtonTextActive,
+                    styles.modeButton,
+                    desktopLayoutMode === 'mobile_shell' && styles.modeButtonActive,
                   ]}
+                  onPress={() => setDesktopLayoutMode('mobile_shell')}
+                  activeOpacity={0.8}
                 >
-                  Móvil Ergonómico
-                </Text>
-              </TouchableOpacity>
+                  <MaterialCommunityIcons
+                    name="cellphone"
+                    size={14}
+                    color={desktopLayoutMode === 'mobile_shell' ? '#0F172A' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      desktopLayoutMode === 'mobile_shell' && styles.modeButtonTextActive,
+                    ]}
+                  >
+                    Móvil
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  desktopLayoutMode === 'desktop_split' && styles.modeButtonActive,
-                ]}
-                onPress={() => setDesktopLayoutMode('desktop_split')}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons
-                  name="monitor-dashboard"
-                  size={14}
-                  color={desktopLayoutMode === 'desktop_split' ? '#0F172A' : '#64748B'}
-                />
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.modeButtonText,
-                    desktopLayoutMode === 'desktop_split' && styles.modeButtonTextActive,
+                    styles.modeButton,
+                    desktopLayoutMode === 'desktop_split' && styles.modeButtonActive,
                   ]}
+                  onPress={() => setDesktopLayoutMode('desktop_split')}
+                  activeOpacity={0.8}
                 >
-                  Panel Clínico PC
-                </Text>
-              </TouchableOpacity>
+                  <MaterialCommunityIcons
+                    name="monitor-dashboard"
+                    size={14}
+                    color={desktopLayoutMode === 'desktop_split' ? '#0F172A' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.modeButtonText,
+                      desktopLayoutMode === 'desktop_split' && styles.modeButtonTextActive,
+                    ]}
+                  >
+                    PC Split
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <View
+              style={styles.clockHeaderBadge}
+              accessibilityRole="text"
+              accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            >
+              <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
+              <Text style={styles.clockHeaderText}>
+                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
             </View>
-          )}
-
-          <View
-            style={styles.clockHeaderBadge}
-            accessibilityRole="text"
-            accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-          >
-            <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
-            <Text style={styles.clockHeaderText}>
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
           </View>
         </View>
 
@@ -599,17 +642,35 @@ export default function App() {
                           adherence={adherence}
                           clinicalReport={clinicalReport}
                           onOpenReport={() => setIsReportModalVisible(true)}
+                          onSimulateEscalationAlert={handleSimulateEscalationAlert}
                         />
                       )}
                       {effectiveRightTab === 'stock' && (
-                        <MedicineInventoryPanel
-                          medicines={medicines}
-                          scheduleTimes={scheduleTimes}
-                          onOpenRestock={handleOpenRestockModal}
-                          onRequestDelete={handleRequestDelete}
-                          onEdit={handleOpenEditModal}
-                          onOpenAddModal={handleOpenAddModal}
-                        />
+                        activeRole === 'patient' ? (
+                          <View style={styles.protectedRoleContainer}>
+                            <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
+                            <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
+                            <Text style={styles.protectedRoleSubtitle}>
+                              El Botiquín y la edición de recetas están restringidos para María Alhua para evitar alteraciones accidentales en el tratamiento de Don Manuel.
+                            </Text>
+                            <TouchableOpacity
+                              style={styles.btnUnlockRole}
+                              onPress={() => setActiveRole('caregiver')}
+                            >
+                              <MaterialCommunityIcons name="shield-check" size={16} color="#FFFFFF" />
+                              <Text style={styles.btnUnlockRoleText}>Desbloquear como Cuidadora</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <MedicineInventoryPanel
+                            medicines={medicines}
+                            scheduleTimes={scheduleTimes}
+                            onOpenRestock={handleOpenRestockModal}
+                            onRequestDelete={handleRequestDelete}
+                            onEdit={handleOpenEditModal}
+                            onOpenAddModal={handleOpenAddModal}
+                          />
+                        )
                       )}
                       {effectiveRightTab === 'emergency' && (
                         <EmergencyProfileCard
@@ -645,18 +706,36 @@ export default function App() {
                 adherence={adherence}
                 clinicalReport={clinicalReport}
                 onOpenReport={() => setIsReportModalVisible(true)}
+                onSimulateEscalationAlert={handleSimulateEscalationAlert}
               />
             )}
 
             {activeTab === 'stock' && (
-              <MedicineInventoryPanel
-                medicines={medicines}
-                scheduleTimes={scheduleTimes}
-                onOpenRestock={handleOpenRestockModal}
-                onRequestDelete={handleRequestDelete}
-                onEdit={handleOpenEditModal}
-                onOpenAddModal={handleOpenAddModal}
-              />
+              activeRole === 'patient' ? (
+                <View style={styles.protectedRoleContainer}>
+                  <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
+                  <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
+                  <Text style={styles.protectedRoleSubtitle}>
+                    El Botiquín y la edición de recetas están restringidos para María Alhua para evitar alteraciones accidentales en el tratamiento de Don Manuel.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.btnUnlockRole}
+                    onPress={() => setActiveRole('caregiver')}
+                  >
+                    <MaterialCommunityIcons name="shield-check" size={16} color="#FFFFFF" />
+                    <Text style={styles.btnUnlockRoleText}>Desbloquear como Cuidadora</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <MedicineInventoryPanel
+                  medicines={medicines}
+                  scheduleTimes={scheduleTimes}
+                  onOpenRestock={handleOpenRestockModal}
+                  onRequestDelete={handleRequestDelete}
+                  onEdit={handleOpenEditModal}
+                  onOpenAddModal={handleOpenAddModal}
+                />
+              )
             )}
 
             {activeTab === 'emergency' && (
@@ -769,7 +848,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 14,
     flexDirection: 'row',
@@ -787,8 +866,43 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   patientSubLabel: {
-    fontSize: 12,
-    color: '#334155',
+    fontSize: 11,
+    color: '#64748B',
+  },
+
+  // Selector de Rol Activo (Paciente vs Cuidador)
+  roleSelectorPill: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 5,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 2,
+  },
+  roleOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 3,
+    gap: 3,
+  },
+  roleOptionBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  roleOptionText: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  roleOptionTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
   },
 
   // Selector de Modo Desktop
@@ -830,15 +944,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    gap: 6,
+    gap: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   clockHeaderText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#0F172A',
     fontVariant: ['tabular-nums'],
@@ -846,6 +960,43 @@ const styles = StyleSheet.create({
 
   mainContainer: {
     flex: 1,
+  },
+
+  // PROTECCIÓN DE ROL: PANTALLA DE ACCESO RESTRINGIDO
+  protectedRoleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  protectedRoleTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  protectedRoleSubtitle: {
+    fontSize: 13,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 19,
+    maxWidth: 360,
+  },
+  btnUnlockRole: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0284C7',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 6,
+    gap: 6,
+    marginTop: 6,
+  },
+  btnUnlockRoleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   // ESTRUCTURA SPLIT DE 2 COLUMNAS PARA ESCRITORIO

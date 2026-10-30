@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { EscalationResult, AdherenceSummary, ClinicalSummaryReport } from '../../domain';
 
@@ -8,6 +8,7 @@ interface Props {
   adherence: AdherenceSummary;
   clinicalReport: ClinicalSummaryReport;
   onOpenReport: () => void;
+  onSimulateEscalationAlert: () => void;
 }
 
 export const CaregiverDashboard: React.FC<Props> = ({
@@ -15,6 +16,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
   adherence,
   clinicalReport,
   onOpenReport,
+  onSimulateEscalationAlert,
 }) => {
   return (
     <ScrollView
@@ -37,7 +39,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
           <View style={styles.headerTextGroup}>
             <Text style={styles.panelCardTitle}>
               {escalation.shouldEscalate
-                ? 'Alerta de Escalamiento Clínico'
+                ? 'Alerta de Escalamiento Clínico Activa'
                 : 'Supervisión en Tiempo Real'}
             </Text>
             <Text style={styles.panelCardBody}>{escalation.message}</Text>
@@ -50,7 +52,62 @@ export const CaregiverDashboard: React.FC<Props> = ({
         </View>
       </View>
 
-      {/* 2. Dashboard Cuantitativo de Adherencia Terapéutica */}
+      {/* 2. Canal de Notificaciones y Enlace Telemétrico */}
+      <View style={styles.panelCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <MaterialCommunityIcons name="cellphone-wireless" size={20} color="#0F172A" />
+          <Text style={styles.panelCardTitle}>Canal de Alertas del Cuidador</Text>
+        </View>
+
+        <View style={styles.caregiverContactCard}>
+          <View style={styles.caregiverAvatar}>
+            <MaterialCommunityIcons name="account-heart" size={24} color="#0284C7" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.caregiverNameText}>María Alhua (Hija / Cuidadora Principal)</Text>
+            <Text style={styles.caregiverPhoneText}>WhatsApp / Teléfono: +51 954 123 456</Text>
+            <Text style={styles.syncStatusText}>Estado: Sincronización telemétrica activa</Text>
+          </View>
+        </View>
+
+        <View style={styles.protocolList}>
+          <View style={styles.protocolStepRow}>
+            <View style={styles.stepBullet}><Text style={styles.stepBulletText}>1</Text></View>
+            <Text style={styles.protocolStepText}>
+              <Text style={{ fontWeight: '700' }}>Minuto 0:</Text> Alarma sonora + Lectura por voz en el velador de Don Manuel.
+            </Text>
+          </View>
+          <View style={styles.protocolStepRow}>
+            <View style={styles.stepBullet}><Text style={styles.stepBulletText}>2</Text></View>
+            <Text style={styles.protocolStepText}>
+              <Text style={{ fontWeight: '700' }}>Minutos 1 a 30:</Text> Ventana de gracia respetuosa (sin molestar al cuidador).
+            </Text>
+          </View>
+          <View style={styles.protocolStepRow}>
+            <View style={[styles.stepBullet, { backgroundColor: '#DC2626' }]}>
+              <Text style={styles.stepBulletText}>3</Text>
+            </View>
+            <Text style={styles.protocolStepText}>
+              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> Push Notification y Alerta WhatsApp directa a María.
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.btnSimulateAlert}
+          onPress={onSimulateEscalationAlert}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Simular envío de alerta de escalamiento a WhatsApp"
+        >
+          <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
+          <Text style={styles.btnSimulateAlertText}>
+            Simular Disparo de Alerta a WhatsApp del Cuidador
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. Dashboard Cuantitativo de Adherencia */}
       <View style={styles.panelCard}>
         <Text style={styles.panelCardTitle}>Tasa de Adherencia Terapéutica</Text>
 
@@ -105,7 +162,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      {/* 3. Desglose Individual por Principio Activo */}
+      {/* 4. Desglose Individual por Principio Activo */}
       <View style={styles.panelCard}>
         <Text style={styles.panelCardTitle}>Desglose Individual por Principio Activo</Text>
         <View style={styles.medicineBreakdownList}>
@@ -184,6 +241,87 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#475569',
     fontWeight: '500',
+  },
+  caregiverContactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  caregiverAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  caregiverNameText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  caregiverPhoneText: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 1,
+  },
+  syncStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+    marginTop: 2,
+  },
+  protocolList: {
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  protocolStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stepBullet: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBulletText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  protocolStepText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 16,
+  },
+  btnSimulateAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    minHeight: 46,
+    borderRadius: 6,
+    gap: 8,
+    marginTop: 2,
+  },
+  btnSimulateAlertText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   adherenceScoreContainer: {
     flexDirection: 'row',
