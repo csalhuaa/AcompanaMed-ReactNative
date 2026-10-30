@@ -41,6 +41,7 @@ import {
   ClinicalReportModal,
   ConfirmDialogModal,
   RestockModal,
+  FamilyPairingModal,
   NewMedicineData,
 } from './src/components';
 
@@ -155,6 +156,8 @@ export default function App() {
 
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [deletingMedicine, setDeletingMedicine] = useState<Medicine | null>(null);
+
+  const [isFamilyPairingModalVisible, setIsFamilyPairingModalVisible] = useState(false);
 
   // Carga asíncrona de almacenamiento
   useEffect(() => {
@@ -402,6 +405,56 @@ export default function App() {
     );
   };
 
+  // Acciones de Enlace Familiar y Configuración
+  const handleOpenFamilyPairing = () => {
+    setIsFamilyPairingModalVisible(true);
+  };
+
+  const handleCloseFamilyPairing = () => {
+    setIsFamilyPairingModalVisible(false);
+  };
+
+  const handleUpdateProfile = (updated: EmergencyProfile) => {
+    setEmergencyProfile(updated);
+    defaultStorageService.saveEmergencyProfile(updated);
+  };
+
+  const handleClearDemoData = () => {
+    setMedicines([]);
+    setScheduleTimes({});
+    setLogs([]);
+    setExpandedMedId('');
+    defaultStorageService.saveMedicines([]);
+    defaultStorageService.saveSchedules({});
+    defaultStorageService.saveLogs([]);
+    setIsFamilyPairingModalVisible(false);
+    Alert.alert('Datos Vaciados', 'Se eliminaron los datos de prueba. Ahora puede registrar su propia receta médica real.');
+  };
+
+  const handleRestoreDemoData = () => {
+    setMedicines(INITIAL_MEDICINES);
+    setScheduleTimes(INITIAL_SCHEDULE_TIMES);
+    setLogs(INITIAL_LOGS);
+    setExpandedMedId(INITIAL_MEDICINES[0].id);
+    defaultStorageService.saveMedicines(INITIAL_MEDICINES);
+    defaultStorageService.saveSchedules(INITIAL_SCHEDULE_TIMES);
+    defaultStorageService.saveLogs(INITIAL_LOGS);
+    setIsFamilyPairingModalVisible(false);
+    Alert.alert('Caso Demo Restaurado', 'Se cargaron los 3 medicamentos de prueba de Don Manuel.');
+  };
+
+  const handleTestNotification = async () => {
+    const success = await defaultNotificationService.triggerImmediateTestNotification(
+      '🔔 AcompañaMed: ¡Alarma de Dosis Activa!',
+      `${emergencyProfile.patientFullName}: Es momento de tomar Losartán Potásico (50 mg) con medio vaso de agua.`
+    );
+    if (success) {
+      Alert.alert('Notificación Emitida', 'Se disparó una notificación con sonido en su dispositivo/navegador.');
+    } else {
+      Alert.alert('Permiso de Notificación', 'Por favor habilite los permisos de notificaciones en su navegador o teléfono.');
+    }
+  };
+
   if (!isLoaded) {
     return (
       <View style={styles.desktopOuterCanvas}>
@@ -523,6 +576,18 @@ export default function App() {
               </View>
             )}
 
+            {/* Botón Familia y Ajustes */}
+            <TouchableOpacity
+              style={styles.btnHeaderSettings}
+              onPress={handleOpenFamilyPairing}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Configuración de familia, enlace y datos reales"
+            >
+              <MaterialCommunityIcons name="account-group" size={14} color="#0F172A" />
+              <Text style={styles.btnHeaderSettingsText}>Familia</Text>
+            </TouchableOpacity>
+
             <View
               style={styles.clockHeaderBadge}
               accessibilityRole="text"
@@ -555,6 +620,7 @@ export default function App() {
                 onTakeDose={(id) => handleTakeDose(id, 'patient')}
                 onPostponeDose={handlePostponeDose}
                 adherencePercentage={adherence.adherencePercentage}
+                onOpenAddMedicine={handleOpenAddModal}
               />
             </View>
 
@@ -643,6 +709,8 @@ export default function App() {
                           clinicalReport={clinicalReport}
                           onOpenReport={() => setIsReportModalVisible(true)}
                           onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                          onOpenFamilyPairing={handleOpenFamilyPairing}
+                          onTestNotification={handleTestNotification}
                         />
                       )}
                       {effectiveRightTab === 'stock' && (
@@ -676,6 +744,7 @@ export default function App() {
                         <EmergencyProfileCard
                           emergencyProfile={emergencyProfile}
                           onCallEmergency={handleCallEmergency}
+                          onOpenFamilyPairing={handleOpenFamilyPairing}
                         />
                       )}
                     </View>
@@ -697,6 +766,7 @@ export default function App() {
                 onTakeDose={(id) => handleTakeDose(id, 'patient')}
                 onPostponeDose={handlePostponeDose}
                 adherencePercentage={adherence.adherencePercentage}
+                onOpenAddMedicine={handleOpenAddModal}
               />
             )}
 
@@ -707,6 +777,8 @@ export default function App() {
                 clinicalReport={clinicalReport}
                 onOpenReport={() => setIsReportModalVisible(true)}
                 onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                onOpenFamilyPairing={handleOpenFamilyPairing}
+                onTestNotification={handleTestNotification}
               />
             )}
 
@@ -742,6 +814,7 @@ export default function App() {
               <EmergencyProfileCard
                 emergencyProfile={emergencyProfile}
                 onCallEmergency={handleCallEmergency}
+                onOpenFamilyPairing={handleOpenFamilyPairing}
               />
             )}
 
@@ -793,6 +866,18 @@ export default function App() {
         iconName="trash-can-outline"
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      {/* MODAL 5: ENLACE FAMILIAR, PERFIL REAL Y GESTIÓN DE DATOS */}
+      <FamilyPairingModal
+        visible={isFamilyPairingModalVisible}
+        onClose={handleCloseFamilyPairing}
+        emergencyProfile={emergencyProfile}
+        onUpdateProfile={handleUpdateProfile}
+        onClearDemoData={handleClearDemoData}
+        onRestoreDemoData={handleRestoreDemoData}
+        onTestNotification={handleTestNotification}
+        activeRole={activeRole}
       />
     </View>
   );
@@ -938,6 +1023,23 @@ const styles = StyleSheet.create({
   modeButtonTextActive: {
     color: '#0F172A',
     fontWeight: '700',
+  },
+
+  btnHeaderSettings: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  btnHeaderSettingsText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0F172A',
   },
 
   clockHeaderBadge: {

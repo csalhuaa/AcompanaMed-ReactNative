@@ -6,11 +6,13 @@ import { EmergencyProfile } from '../../domain';
 interface Props {
   emergencyProfile: EmergencyProfile;
   onCallEmergency: (phone: string, name: string) => void;
+  onOpenFamilyPairing?: () => void;
 }
 
 export const EmergencyProfileCard: React.FC<Props> = ({
   emergencyProfile,
   onCallEmergency,
+  onOpenFamilyPairing,
 }) => {
   return (
     <ScrollView
@@ -30,6 +32,15 @@ export const EmergencyProfileCard: React.FC<Props> = ({
               {emergencyProfile.age} años • {emergencyProfile.healthInsurance}
             </Text>
           </View>
+          {onOpenFamilyPairing && (
+            <TouchableOpacity
+              style={styles.btnEditHeader}
+              onPress={onOpenFamilyPairing}
+              accessibilityLabel="Editar ficha y vincular familia"
+            >
+              <MaterialCommunityIcons name="cog-outline" size={20} color="#0284C7" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Alerta de Alergias Severas */}
@@ -101,6 +112,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     gap: 14,
+  },
+  btnEditHeader: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    alignSelf: 'center',
   },
   headerCardRow: {
     flexDirection: 'row',

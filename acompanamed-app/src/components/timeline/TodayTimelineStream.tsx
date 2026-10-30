@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScheduledDoseItem } from '../../domain';
 import { DoseTimelineCard } from './DoseTimelineCard';
@@ -11,6 +11,7 @@ interface Props {
   onTakeDose: (id: string) => void;
   onPostponeDose: (id: string) => void;
   adherencePercentage: number;
+  onOpenAddMedicine?: () => void;
 }
 
 export const TodayTimelineStream: React.FC<Props> = ({
@@ -20,6 +21,7 @@ export const TodayTimelineStream: React.FC<Props> = ({
   onTakeDose,
   onPostponeDose,
   adherencePercentage,
+  onOpenAddMedicine,
 }) => {
   const completedCount = dailySchedule.filter((d) => d.isTakenToday).length;
 
@@ -46,10 +48,21 @@ export const TodayTimelineStream: React.FC<Props> = ({
       {dailySchedule.length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="pill-off" size={48} color="#94A3B8" />
-          <Text style={styles.emptyTitle}>Sin Dosis Programadas</Text>
+          <Text style={styles.emptyTitle}>Sin Medicamentos Registrados</Text>
           <Text style={styles.emptyText}>
-            No hay medicamentos agendados para el día de hoy.
+            El botiquín está vacío. Agregue el primer medicamento recetado por el médico tratante.
           </Text>
+          {onOpenAddMedicine && (
+            <TouchableOpacity
+              style={styles.btnAddFirstMed}
+              onPress={onOpenAddMedicine}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons name="plus-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.btnAddFirstMedText}>Registrar Primer Medicamento</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <View style={styles.timelineStream}>
@@ -144,5 +157,20 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
     textAlign: 'center',
+  },
+  btnAddFirstMed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    gap: 8,
+    marginTop: 16,
+  },
+  btnAddFirstMedText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

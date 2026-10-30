@@ -9,6 +9,8 @@ interface Props {
   clinicalReport: ClinicalSummaryReport;
   onOpenReport: () => void;
   onSimulateEscalationAlert: () => void;
+  onOpenFamilyPairing?: () => void;
+  onTestNotification?: () => void;
 }
 
 export const CaregiverDashboard: React.FC<Props> = ({
@@ -17,6 +19,8 @@ export const CaregiverDashboard: React.FC<Props> = ({
   clinicalReport,
   onOpenReport,
   onSimulateEscalationAlert,
+  onOpenFamilyPairing,
+  onTestNotification,
 }) => {
   return (
     <ScrollView
@@ -105,6 +109,34 @@ export const CaregiverDashboard: React.FC<Props> = ({
             Simular Disparo de Alerta a WhatsApp del Cuidador
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.caregiverSecondaryActionsRow}>
+          {onOpenFamilyPairing && (
+            <TouchableOpacity
+              style={styles.btnPairingAction}
+              onPress={onOpenFamilyPairing}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Ver código de enlace familiar"
+            >
+              <MaterialCommunityIcons name="cellphone-link" size={16} color="#0284C7" />
+              <Text style={styles.btnPairingActionText}>Código de Enlace</Text>
+            </TouchableOpacity>
+          )}
+
+          {onTestNotification && (
+            <TouchableOpacity
+              style={styles.btnTestNotifAction}
+              onPress={onTestNotification}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Probar notificación local"
+            >
+              <MaterialCommunityIcons name="bell-ring-outline" size={16} color="#059669" />
+              <Text style={styles.btnTestNotifActionText}>Probar Notificación</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* 3. Dashboard Cuantitativo de Adherencia */}
@@ -322,6 +354,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  caregiverSecondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  btnPairingAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    paddingVertical: 10,
+    borderRadius: 6,
+    gap: 6,
+  },
+  btnPairingActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  btnTestNotifAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingVertical: 10,
+    borderRadius: 6,
+    gap: 6,
+  },
+  btnTestNotifActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#047857',
   },
   adherenceScoreContainer: {
     flexDirection: 'row',
