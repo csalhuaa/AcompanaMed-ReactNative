@@ -32,5 +32,6 @@ scratch/
 .cursor/
 .codex/
 .agents/
+.taste-skill/
 skills-lock.json
 
