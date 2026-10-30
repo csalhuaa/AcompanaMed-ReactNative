@@ -3,13 +3,15 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
   useWindowDimensions,
   TouchableOpacity,
+  Platform,
+  StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Medicine,
@@ -29,6 +31,7 @@ import {
   defaultHapticService,
   defaultNotificationService,
   formatConfirmationSpeech,
+  CommunicationService,
 } from './src/infrastructure';
 import {
   AppNavTab,
@@ -43,6 +46,7 @@ import {
   RestockModal,
   FamilyPairingModal,
   PillInspectionModal,
+  OnboardingModal,
   NewMedicineData,
 } from './src/components';
 
@@ -160,10 +164,13 @@ const DEFAULT_PROFILE: EmergencyProfile = {
   },
 };
 
-export default function App() {
+function MainApp() {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
   const isDesktop = width >= 1024;
+  const statusBarHeight = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) : insets.top;
+  const topInset = Math.max(insets.top, statusBarHeight);
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<AppNavTab>('today');
@@ -190,6 +197,7 @@ export default function App() {
 
   const [isFamilyPairingModalVisible, setIsFamilyPairingModalVisible] = useState(false);
   const [inspectingMedicine, setInspectingMedicine] = useState<Medicine | null>(null);
+  const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
 
   const handleUpdateMedicinePhoto = (medicineId: string, newPhotoUri: string) => {
     setMedicines((prev) =>
@@ -222,6 +230,11 @@ export default function App() {
         setLogs(storedLogs);
         setEmergencyProfile(storedProfile);
         setActiveRole(storedRole);
+
+        const hasCompleted = await defaultStorageService.loadOnboardingCompleted();
+        if (!hasCompleted) {
+          setIsOnboardingVisible(true);
+        }
 
         if (storedMeds.length > 0) {
           setExpandedMedId(storedMeds[0].id);
@@ -440,24 +453,35 @@ export default function App() {
   };
 
   // Acción: Llamada de auxilio ICE
-  const handleCallEmergency = (phone: string, contactName: string) => {
-    Alert.alert('Llamada de Emergencia', `Conectando con contacto de auxilio (${contactName}): ${phone}`);
+  const handleCallEmergency = (phone: string, _contactName: string) => {
+    CommunicationService.makePhoneCall(phone);
   };
 
-  // Acción: Exportar reporte clínico
+  // Acción: Exportar reporte clínico hacia WhatsApp
   const handleExportReport = () => {
-    Alert.alert(
-      'Informe Exportado',
-      'El reporte de adherencia fue copiado al portapapeles y está listo para WhatsApp o impresión médica.'
+    const summary = generateClinicalSummary(
+      medicines,
+      logs,
+      emergencyProfile
+    );
+    CommunicationService.openWhatsApp(
+      emergencyProfile.emergencyContact.phone,
+      summary.formattedReportText
     );
   };
 
-  // Acción: Simular Alerta WhatsApp a Cuidador
+  // Acción: Alerta Real WhatsApp a Cuidador
   const handleSimulateEscalationAlert = () => {
-    Alert.alert(
-      'Alerta Despachada a WhatsApp',
-      `Destinatario: ${emergencyProfile.emergencyContact.name} (${emergencyProfile.emergencyContact.phone})\n\n"⚠️ ALERTA MÉDICA ACOMPAÑAMED:\nDon Manuel (82 años) no ha confirmado la toma de Losartán Potásico (50 mg) de las 08:00 hrs tras 30 minutos de gracia.\n\nPor favor comuníquese con él de inmediato."`
+    const message = `⚠️ ALERTA MÉDICA ACOMPAÑAMED:\n${emergencyProfile.patientFullName} (${emergencyProfile.age} años) no ha confirmado su toma tras 30 minutos de gracia.\n\nPor favor comuníquese de inmediato.`;
+    CommunicationService.openWhatsApp(
+      emergencyProfile.emergencyContact.phone,
+      message
     );
+  };
+
+  // Acción: Llamada telefónica directa a la cuidadora
+  const handleCallCaregiver = () => {
+    CommunicationService.makePhoneCall(emergencyProfile.emergencyContact.phone);
   };
 
   // Acciones de Enlace Familiar y Configuración
@@ -498,6 +522,43 @@ export default function App() {
     Alert.alert('Caso Demo Restaurado', 'Se cargaron los 3 medicamentos de prueba de Don Manuel.');
   };
 
+  const handleFinishOnboarding = async (data: {
+    role: ActorRole;
+    startMode: 'empty' | 'demo';
+    patientName: string;
+  }) => {
+    setActiveRole(data.role);
+    await defaultStorageService.saveActiveRole(data.role);
+    await defaultStorageService.saveOnboardingCompleted(true);
+
+    const updatedProfile: EmergencyProfile = {
+      ...emergencyProfile,
+      patientFullName: data.patientName,
+    };
+    setEmergencyProfile(updatedProfile);
+    await defaultStorageService.saveEmergencyProfile(updatedProfile);
+
+    if (data.startMode === 'empty') {
+      setMedicines([]);
+      setScheduleTimes({});
+      setLogs([]);
+      setExpandedMedId('');
+      await defaultStorageService.saveMedicines([]);
+      await defaultStorageService.saveSchedules({});
+      await defaultStorageService.saveLogs([]);
+    } else {
+      setMedicines(INITIAL_MEDICINES);
+      setScheduleTimes(INITIAL_SCHEDULE_TIMES);
+      setLogs(INITIAL_LOGS);
+      setExpandedMedId(INITIAL_MEDICINES[0].id);
+      await defaultStorageService.saveMedicines(INITIAL_MEDICINES);
+      await defaultStorageService.saveSchedules(INITIAL_SCHEDULE_TIMES);
+      await defaultStorageService.saveLogs(INITIAL_LOGS);
+    }
+
+    setIsOnboardingVisible(false);
+  };
+
   const handleTestNotification = async () => {
     const success = await defaultNotificationService.triggerImmediateTestNotification(
       '🔔 AcompañaMed: ¡Alarma de Dosis Activa!',
@@ -513,13 +574,13 @@ export default function App() {
   if (!isLoaded) {
     return (
       <View style={styles.desktopOuterCanvas}>
-        <SafeAreaView style={[styles.appShellFrame, styles.centerContent]}>
+        <View style={[styles.appShellFrame, styles.centerContent, { paddingTop: topInset }]}>
           <StatusBar style="dark" />
           <MaterialCommunityIcons name="pill" size={48} color="#0F172A" />
           <Text style={styles.loadingTitle}>AcompañaMed</Text>
           <Text style={styles.loadingSubtitle}>Cargando plan de medicación...</Text>
           <ActivityIndicator size="small" color="#0F172A" style={{ marginTop: 20 }} />
-        </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -539,43 +600,20 @@ export default function App() {
         ]}
       >
         {/* CABECERA MINIMALISTA HOSPITALARIA */}
-        <View style={styles.topAppHeader}>
+        <View style={[styles.topAppHeader, { paddingTop: isDesktop ? 12 : topInset + 6 }]}>
           <View style={styles.headerTitleGroup}>
             <Text style={styles.appNameLabel}>AcompañaMed</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <Text style={styles.patientSubLabel}>Perfil:</Text>
-              {/* Selector de Rol Activo (Paciente vs Cuidador) */}
-              <View style={styles.roleSelectorPill}>
-                <TouchableOpacity
-                  style={[styles.roleOptionBtn, activeRole === 'patient' && styles.roleOptionBtnActive]}
-                  onPress={() => setActiveRole('patient')}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons
-                    name="account"
-                    size={13}
-                    color={activeRole === 'patient' ? '#0F172A' : '#64748B'}
-                  />
-                  <Text style={[styles.roleOptionText, activeRole === 'patient' && styles.roleOptionTextActive]}>
-                    Don Manuel
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.roleOptionBtn, activeRole === 'caregiver' && styles.roleOptionBtnActive]}
-                  onPress={() => setActiveRole('caregiver')}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons
-                    name="shield-check"
-                    size={13}
-                    color={activeRole === 'caregiver' ? '#0F172A' : '#64748B'}
-                  />
-                  <Text style={[styles.roleOptionText, activeRole === 'caregiver' && styles.roleOptionTextActive]}>
-                    Cuidadora
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <MaterialCommunityIcons
+                name={activeRole === 'patient' ? 'account-heart' : 'shield-account'}
+                size={14}
+                color={activeRole === 'patient' ? '#0284C7' : '#059669'}
+              />
+              <Text style={styles.patientSubLabel}>
+                {activeRole === 'patient'
+                  ? `Modo Paciente (${emergencyProfile.patientFullName})`
+                  : `Modo Cuidadora (${emergencyProfile.emergencyContact.name})`}
+              </Text>
             </View>
           </View>
 
@@ -631,28 +669,17 @@ export default function App() {
               </View>
             )}
 
-            {/* Botón Familia y Ajustes */}
+            {/* Botón Ajustes / Perfil */}
             <TouchableOpacity
               style={styles.btnHeaderSettings}
               onPress={handleOpenFamilyPairing}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Configuración de familia, enlace y datos reales"
+              accessibilityLabel="Configuración, cambio de rol y ajustes"
             >
-              <MaterialCommunityIcons name="account-group" size={14} color="#0F172A" />
-              <Text style={styles.btnHeaderSettingsText}>Familia</Text>
+              <MaterialCommunityIcons name="cog-outline" size={16} color="#0F172A" />
+              <Text style={styles.btnHeaderSettingsText}>Ajustes</Text>
             </TouchableOpacity>
-
-            <View
-              style={styles.clockHeaderBadge}
-              accessibilityRole="text"
-              accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-            >
-              <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
-              <Text style={styles.clockHeaderText}>
-                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
           </View>
         </View>
 
@@ -765,6 +792,7 @@ export default function App() {
                           clinicalReport={clinicalReport}
                           onOpenReport={() => setIsReportModalVisible(true)}
                           onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                          onCallCaregiver={handleCallCaregiver}
                           onOpenFamilyPairing={handleOpenFamilyPairing}
                           onTestNotification={handleTestNotification}
                         />
@@ -835,6 +863,7 @@ export default function App() {
                 clinicalReport={clinicalReport}
                 onOpenReport={() => setIsReportModalVisible(true)}
                 onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                onCallCaregiver={handleCallCaregiver}
                 onOpenFamilyPairing={handleOpenFamilyPairing}
                 onTestNotification={handleTestNotification}
               />
@@ -937,6 +966,7 @@ export default function App() {
         onRestoreDemoData={handleRestoreDemoData}
         onTestNotification={handleTestNotification}
         activeRole={activeRole}
+        onSelectRole={setActiveRole}
       />
 
       {/* MODAL 6: LUPA DE INSPECCIÓN Y VERIFICACIÓN FOTOGRÁFICA DE BLÍSTER */}
@@ -946,7 +976,21 @@ export default function App() {
         onClose={() => setInspectingMedicine(null)}
         onUpdatePhoto={handleUpdateMedicinePhoto}
       />
+
+      {/* MODAL 7: BIENVENIDA Y CONFIGURACIÓN INICIAL (ONBOARDING) */}
+      <OnboardingModal
+        visible={isOnboardingVisible}
+        onFinishOnboarding={handleFinishOnboarding}
+      />
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <MainApp />
+    </SafeAreaProvider>
   );
 }
 

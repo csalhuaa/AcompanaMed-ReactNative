@@ -11,3 +11,4 @@ export * from './modals/ConfirmDialogModal';
 export * from './modals/RestockModal';
 export * from './modals/FamilyPairingModal';
 export * from './modals/PillInspectionModal';
+export * from './onboarding/OnboardingModal';

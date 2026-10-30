@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type AppNavTab = 'today' | 'caregiver' | 'stock' | 'emergency';
 
@@ -44,8 +45,11 @@ const TABS: TabConfig[] = [
 ];
 
 export const BottomNavBar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+
   return (
-    <View style={styles.container} accessibilityRole="tablist">
+    <View style={[styles.container, { paddingBottom: bottomPadding }]} accessibilityRole="tablist">
       {TABS.map((tab) => {
         const isActive = activeTab === tab.key;
         return (

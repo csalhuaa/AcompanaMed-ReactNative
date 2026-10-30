@@ -22,6 +22,7 @@ interface Props {
   onRestoreDemoData: () => void;
   onTestNotification: () => void;
   activeRole: 'patient' | 'caregiver';
+  onSelectRole: (role: 'patient' | 'caregiver') => void;
 }
 
 export const FamilyPairingModal: React.FC<Props> = ({
@@ -33,6 +34,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   onRestoreDemoData,
   onTestNotification,
   activeRole,
+  onSelectRole,
 }) => {
   const [patientName, setPatientName] = useState(emergencyProfile.patientFullName);
   const [age, setAge] = useState(String(emergencyProfile.age));
@@ -95,8 +97,8 @@ export const FamilyPairingModal: React.FC<Props> = ({
           {/* Cabecera del Modal */}
           <View style={styles.modalHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <MaterialCommunityIcons name="account-group" size={24} color="#0284C7" />
-              <Text style={styles.modalTitle}>Familia, Enlace y Ajustes</Text>
+              <MaterialCommunityIcons name="cog-outline" size={24} color="#0284C7" />
+              <Text style={styles.modalTitle}>Configuración, Perfil y Familia</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.btnClose} accessibilityLabel="Cerrar modal">
               <MaterialCommunityIcons name="close" size={20} color="#475569" />
@@ -104,6 +106,62 @@ export const FamilyPairingModal: React.FC<Props> = ({
           </View>
 
           <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
+            {/* SECCIÓN 0: ROL ACTIVO EN ESTE DISPOSITIVO */}
+            <View style={styles.sectionBox}>
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons name="badge-account-horizontal" size={20} color="#7C3AED" />
+                <Text style={styles.sectionTitle}>Modo de Operación en este Dispositivo</Text>
+              </View>
+
+              <Text style={styles.sectionDesc}>
+                Indique quién utiliza este teléfono para adaptar los botones y niveles de seguridad:
+              </Text>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.roleCard,
+                    activeRole === 'patient' && styles.roleCardActive,
+                  ]}
+                  onPress={() => onSelectRole('patient')}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons
+                    name="account-heart"
+                    size={28}
+                    color={activeRole === 'patient' ? '#0284C7' : '#64748B'}
+                  />
+                  <Text style={[styles.roleCardTitle, activeRole === 'patient' && styles.roleCardTitleActive]}>
+                    Soy el Paciente
+                  </Text>
+                  <Text style={styles.roleCardSub}>
+                    Botones gigantes (54dp), lectura por voz y botiquín protegido.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.roleCard,
+                    activeRole === 'caregiver' && styles.roleCardActive,
+                  ]}
+                  onPress={() => onSelectRole('caregiver')}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons
+                    name="shield-check"
+                    size={28}
+                    color={activeRole === 'caregiver' ? '#059669' : '#64748B'}
+                  />
+                  <Text style={[styles.roleCardTitle, activeRole === 'caregiver' && styles.roleCardTitleActive]}>
+                    Soy el Cuidador
+                  </Text>
+                  <Text style={styles.roleCardSub}>
+                    Gestión total del botiquín, informes clínicos y adherencia.
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* SECCIÓN 1: VINCULACIÓN FAMILIAR MULTI-DISPOSITIVO (PAIRING) */}
             <View style={styles.sectionBox}>
               <View style={styles.sectionHeader}>
@@ -375,6 +433,35 @@ const styles = StyleSheet.create({
     color: '#475569',
     lineHeight: 18,
     marginBottom: 12,
+  },
+  roleCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    gap: 4,
+  },
+  roleCardActive: {
+    borderColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
+  },
+  roleCardTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#334155',
+    textAlign: 'center',
+  },
+  roleCardTitleActive: {
+    color: '#0284C7',
+  },
+  roleCardSub: {
+    fontSize: 10,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   pairingCodeCard: {
     backgroundColor: '#0F172A',
