@@ -5,3 +5,4 @@ export * from './AdherenceCalculator';
 export * from './EscalationEngine';
 export * from './ScheduleTimelineEngine';
 export * from './ClinicalReportEngine';
+export * from './communicationEngines';

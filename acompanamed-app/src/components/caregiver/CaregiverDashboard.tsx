@@ -9,6 +9,7 @@ interface Props {
   clinicalReport: ClinicalSummaryReport;
   onOpenReport: () => void;
   onSimulateEscalationAlert: () => void;
+  onCallCaregiver?: () => void;
   onOpenFamilyPairing?: () => void;
   onTestNotification?: () => void;
 }
@@ -19,6 +20,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
   clinicalReport,
   onOpenReport,
   onSimulateEscalationAlert,
+  onCallCaregiver,
   onOpenFamilyPairing,
   onTestNotification,
 }) => {
@@ -92,23 +94,38 @@ export const CaregiverDashboard: React.FC<Props> = ({
               <Text style={styles.stepBulletText}>3</Text>
             </View>
             <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> Push Notification y Alerta WhatsApp directa a María.
+              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> Notificación push y enlace directo a WhatsApp/Llamada para el cuidador.
             </Text>
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.btnSimulateAlert}
-          onPress={onSimulateEscalationAlert}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Simular envío de alerta de escalamiento a WhatsApp"
-        >
-          <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
-          <Text style={styles.btnSimulateAlertText}>
-            Simular Disparo de Alerta a WhatsApp del Cuidador
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <TouchableOpacity
+            style={[styles.btnSimulateAlert, { flex: 1.3, marginTop: 0 }]}
+            onPress={onSimulateEscalationAlert}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir WhatsApp para alertar al cuidador"
+          >
+            <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
+            <Text style={styles.btnSimulateAlertText}>
+              Alertar por WhatsApp
+            </Text>
+          </TouchableOpacity>
+
+          {onCallCaregiver && (
+            <TouchableOpacity
+              style={styles.btnCallCaregiver}
+              onPress={onCallCaregiver}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Llamar al cuidador por teléfono"
+            >
+              <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
+              <Text style={styles.btnCallCaregiverText}>Llamar</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.caregiverSecondaryActionsRow}>
           {onOpenFamilyPairing && (
@@ -351,6 +368,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   btnSimulateAlertText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  btnCallCaregiver: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0284C7',
+    paddingVertical: 12,
+    minHeight: 46,
+    borderRadius: 6,
+    gap: 6,
+  },
+  btnCallCaregiverText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
