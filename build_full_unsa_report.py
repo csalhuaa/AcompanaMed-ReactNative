@@ -933,11 +933,14 @@ def generate_report():
     )
 
     b_anex = [
-        ("Repositorio GitHub Oficial: ", "https://github.com/usuario/acompanamed-plataformas-emergentes (Código fuente completo, ramas de trabajo y commits estructurados bajo Conventional Commits)."),
+        ("Repositorio GitHub Oficial: ", "https://github.com/csalhuaa/AcompanaMed-ReactNative (Código fuente completo, ramas de trabajo, releases y commits bajo estándar Conventional Commits)."),
+        ("Despliegue Web en Vivo (Producción Firebase Hosting): ", "https://acompanamed-unsa-2026.web.app (Despliegue accesible en la nube de Google con soporte multiplataforma responsivo y SSL)."),
+        ("Proyecto Firebase BaaS Configurado: ", "acompanamed-unsa-2026 (Consola: https://console.firebase.google.com/project/acompanamed-unsa-2026/overview)."),
         ("Instalación de Dependencias: ", "cd acompanamed-app && pnpm install (Gestor rápido de paquetes con enlaces rígidos optimizados)."),
         ("Ejecución de Pruebas Unitarias TDD: ", "pnpm test (Ejecuta 35 tests unitarios en Node Test Runner con soporte nativo de TypeScript mediante tsx)."),
         ("Verificación de Tipos TypeScript: ", "pnpm typecheck (Ejecuta tsc --noEmit, garantizando cero advertencias ni coerciones de tipo inseguras)."),
         ("Compilación y Exportación Web: ", "npx expo export -p web (Genera el bundle estático para producción en la carpeta dist/)."),
+        ("Despliegue a Firebase Hosting: ", "firebase deploy --only hosting (Despliega la aplicación estática a los servidores globales CDN de Google)."),
         ("Servidor Web Local para Demostración: ", "python serve_fresh.py (Sirve la aplicación en http://localhost:5056 con soporte para Playwright E2E)."),
     ]
     for ba_t, ba_d in b_anex:

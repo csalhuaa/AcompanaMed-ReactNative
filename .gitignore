@@ -6,6 +6,7 @@ node_modules/
 .expo/
 dist/
 web-dist/
+.firebase/
 *.jks
 *.p8
 *.p12
