@@ -26,13 +26,20 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# Antigravity / Brain
+# Documents and Academic PDFs/Word
+*.docx
+*.pdf
+
+# AI Tools, Skills & Internal Metadata
+.impeccable/
+odd/
+**/.agents/
+**/skills/
 .system_generated/
 scratch/
 .gemini/
 .cursor/
 .codex/
-.agents/
 .taste-skill/
 skills-lock.json
 
