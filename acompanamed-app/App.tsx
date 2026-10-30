@@ -6,6 +6,8 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -125,8 +127,14 @@ const DEFAULT_PROFILE: EmergencyProfile = {
 };
 
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 768;
+  const isDesktop = width >= 1024;
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<AppNavTab>('today');
+  const [desktopLayoutMode, setDesktopLayoutMode] = useState<'mobile_shell' | 'desktop_split'>('mobile_shell');
+
   const [medicines, setMedicines] = useState<Medicine[]>(INITIAL_MEDICINES);
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>(INITIAL_SCHEDULE_TIMES);
   const [logs, setLogs] = useState<DoseLog[]>(INITIAL_LOGS);
@@ -312,83 +320,281 @@ export default function App() {
 
   if (!isLoaded) {
     return (
-      <SafeAreaView style={[styles.safeContainer, styles.centerContent]}>
-        <StatusBar style="dark" />
-        <MaterialCommunityIcons name="pill" size={48} color="#0F172A" />
-        <Text style={styles.loadingTitle}>AcompañaMed</Text>
-        <Text style={styles.loadingSubtitle}>Cargando plan de medicación...</Text>
-        <ActivityIndicator size="small" color="#0F172A" style={{ marginTop: 20 }} />
-      </SafeAreaView>
+      <View style={styles.desktopOuterCanvas}>
+        <SafeAreaView style={[styles.appShellFrame, styles.centerContent]}>
+          <StatusBar style="dark" />
+          <MaterialCommunityIcons name="pill" size={48} color="#0F172A" />
+          <Text style={styles.loadingTitle}>AcompañaMed</Text>
+          <Text style={styles.loadingSubtitle}>Cargando plan de medicación...</Text>
+          <ActivityIndicator size="small" color="#0F172A" style={{ marginTop: 20 }} />
+        </SafeAreaView>
+      </View>
     );
   }
 
+  // MODO 1: ESCRITORIO DIVIDIDO EN 2 COLUMNAS (DESKTOP WORKSPACE)
+  const isSplitModeActive = isDesktop && desktopLayoutMode === 'desktop_split';
+
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <View style={styles.desktopOuterCanvas}>
       <StatusBar style="dark" />
 
-      {/* CABECERA MINIMALISTA HOSPITALARIA */}
-      <View style={styles.topAppHeader}>
-        <View style={styles.headerTitleGroup}>
-          <Text style={styles.appNameLabel}>AcompañaMed</Text>
-          <Text style={styles.patientSubLabel}>
-            Paciente: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Don Manuel (82 años)</Text>
-          </Text>
+      {/* CONTENEDOR ADAPTATIVO ERGONÓMICO */}
+      <View
+        style={[
+          styles.appShellFrame,
+          isLargeScreen && styles.appShellFrameLarge,
+          isSplitModeActive && styles.appShellFrameSplit,
+        ]}
+      >
+        {/* CABECERA MINIMALISTA HOSPITALARIA */}
+        <View style={styles.topAppHeader}>
+          <View style={styles.headerTitleGroup}>
+            <Text style={styles.appNameLabel}>AcompañaMed</Text>
+            <Text style={styles.patientSubLabel}>
+              Paciente: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Don Manuel (82 años)</Text>
+            </Text>
+          </View>
+
+          {/* Selector de Modo en Desktop para Demostración Multiplataforma */}
+          {isDesktop && (
+            <View style={styles.desktopModeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  desktopLayoutMode === 'mobile_shell' && styles.modeButtonActive,
+                ]}
+                onPress={() => setDesktopLayoutMode('mobile_shell')}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="cellphone"
+                  size={14}
+                  color={desktopLayoutMode === 'mobile_shell' ? '#0F172A' : '#64748B'}
+                />
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    desktopLayoutMode === 'mobile_shell' && styles.modeButtonTextActive,
+                  ]}
+                >
+                  Móvil Ergonómico
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modeButton,
+                  desktopLayoutMode === 'desktop_split' && styles.modeButtonActive,
+                ]}
+                onPress={() => setDesktopLayoutMode('desktop_split')}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="monitor-dashboard"
+                  size={14}
+                  color={desktopLayoutMode === 'desktop_split' ? '#0F172A' : '#64748B'}
+                />
+                <Text
+                  style={[
+                    styles.modeButtonText,
+                    desktopLayoutMode === 'desktop_split' && styles.modeButtonTextActive,
+                  ]}
+                >
+                  Panel Clínico PC
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View
+            style={styles.clockHeaderBadge}
+            accessibilityRole="text"
+            accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+          >
+            <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
+            <Text style={styles.clockHeaderText}>
+              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
         </View>
 
-        <View
-          style={styles.clockHeaderBadge}
-          accessibilityRole="text"
-          accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-        >
-          <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
-          <Text style={styles.clockHeaderText}>
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
+        {/* CUERPO PRINCIPAL */}
+        {isSplitModeActive ? (
+          /* ============================================================== */
+          /* MODO ESCRITORIO PROFESIONAL: 2 COLUMNAS SIN ELEMENTOS ESTIRADOS */
+          /* ============================================================== */
+          <View style={styles.splitDesktopContainer}>
+            {/* Columna Izquierda: Plan del Día para el Paciente */}
+            <View style={styles.splitLeftColumn}>
+              <View style={styles.columnHeaderTitleRow}>
+                <MaterialCommunityIcons name="pill" size={18} color="#0F172A" />
+                <Text style={styles.columnHeaderTitleText}>Plan Cronológico de Hoy</Text>
+              </View>
+              <TodayTimelineStream
+                dailySchedule={dailySchedule}
+                expandedMedId={expandedMedId}
+                onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
+                onTakeDose={(id) => handleTakeDose(id, 'patient')}
+                onPostponeDose={handlePostponeDose}
+                adherencePercentage={adherence.adherencePercentage}
+              />
+            </View>
+
+            {/* Separador Vertical */}
+            <View style={styles.splitVerticalDivider} />
+
+            {/* Columna Derecha: Panel del Cuidador / Botiquín / Emergencia */}
+            <View style={styles.splitRightColumn}>
+              {(() => {
+                const effectiveRightTab = activeTab === 'today' ? 'caregiver' : activeTab;
+                return (
+                  <>
+                    <View style={styles.splitSubTabsHeader}>
+                      <TouchableOpacity
+                        style={[
+                          styles.splitSubTabItem,
+                          effectiveRightTab === 'caregiver' && styles.splitSubTabItemActive,
+                        ]}
+                        onPress={() => setActiveTab('caregiver')}
+                      >
+                        <MaterialCommunityIcons
+                          name="chart-timeline-variant"
+                          size={16}
+                          color={effectiveRightTab === 'caregiver' ? '#0F172A' : '#64748B'}
+                        />
+                        <Text
+                          style={[
+                            styles.splitSubTabLabel,
+                            effectiveRightTab === 'caregiver' && styles.splitSubTabLabelActive,
+                          ]}
+                        >
+                          Cuidador
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.splitSubTabItem,
+                          effectiveRightTab === 'stock' && styles.splitSubTabItemActive,
+                        ]}
+                        onPress={() => setActiveTab('stock')}
+                      >
+                        <MaterialCommunityIcons
+                          name="medical-bag"
+                          size={16}
+                          color={effectiveRightTab === 'stock' ? '#0F172A' : '#64748B'}
+                        />
+                        <Text
+                          style={[
+                            styles.splitSubTabLabel,
+                            effectiveRightTab === 'stock' && styles.splitSubTabLabelActive,
+                          ]}
+                        >
+                          Botiquín
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.splitSubTabItem,
+                          effectiveRightTab === 'emergency' && styles.splitSubTabItemActive,
+                        ]}
+                        onPress={() => setActiveTab('emergency')}
+                      >
+                        <MaterialCommunityIcons
+                          name="shield-alert-outline"
+                          size={16}
+                          color={effectiveRightTab === 'emergency' ? '#0F172A' : '#64748B'}
+                        />
+                        <Text
+                          style={[
+                            styles.splitSubTabLabel,
+                            effectiveRightTab === 'emergency' && styles.splitSubTabLabelActive,
+                          ]}
+                        >
+                          Emergencia
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      {effectiveRightTab === 'caregiver' && (
+                        <CaregiverDashboard
+                          escalation={escalation}
+                          adherence={adherence}
+                          clinicalReport={clinicalReport}
+                          onOpenReport={() => setIsReportModalVisible(true)}
+                        />
+                      )}
+                      {effectiveRightTab === 'stock' && (
+                        <MedicineInventoryPanel
+                          medicines={medicines}
+                          scheduleTimes={scheduleTimes}
+                          onRestock={handleRestockMedicine}
+                          onDelete={handleDeleteMedicine}
+                          onOpenAddModal={() => setIsAddModalVisible(true)}
+                        />
+                      )}
+                      {effectiveRightTab === 'emergency' && (
+                        <EmergencyProfileCard
+                          emergencyProfile={emergencyProfile}
+                          onCallEmergency={handleCallEmergency}
+                        />
+                      )}
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          </View>
+        ) : (
+          /* ============================================================== */
+          /* MODO MÓVIL ERGONÓMICO (1 COLUMNA CON CHASSIS CENTRADO EN PC)   */
+          /* ============================================================== */
+          <View style={styles.mainContainer}>
+            {activeTab === 'today' && (
+              <TodayTimelineStream
+                dailySchedule={dailySchedule}
+                expandedMedId={expandedMedId}
+                onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
+                onTakeDose={(id) => handleTakeDose(id, 'patient')}
+                onPostponeDose={handlePostponeDose}
+                adherencePercentage={adherence.adherencePercentage}
+              />
+            )}
+
+            {activeTab === 'caregiver' && (
+              <CaregiverDashboard
+                escalation={escalation}
+                adherence={adherence}
+                clinicalReport={clinicalReport}
+                onOpenReport={() => setIsReportModalVisible(true)}
+              />
+            )}
+
+            {activeTab === 'stock' && (
+              <MedicineInventoryPanel
+                medicines={medicines}
+                scheduleTimes={scheduleTimes}
+                onRestock={handleRestockMedicine}
+                onDelete={handleDeleteMedicine}
+                onOpenAddModal={() => setIsAddModalVisible(true)}
+              />
+            )}
+
+            {activeTab === 'emergency' && (
+              <EmergencyProfileCard
+                emergencyProfile={emergencyProfile}
+                onCallEmergency={handleCallEmergency}
+              />
+            )}
+
+            {/* Barra de Navegación Inferior (Contenida en el Chasis Móvil) */}
+            <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
+          </View>
+        )}
       </View>
-
-      {/* CUERPO PRINCIPAL */}
-      <View style={styles.mainContainer}>
-        {activeTab === 'today' && (
-          <TodayTimelineStream
-            dailySchedule={dailySchedule}
-            expandedMedId={expandedMedId}
-            onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
-            onTakeDose={(id) => handleTakeDose(id, 'patient')}
-            onPostponeDose={handlePostponeDose}
-            adherencePercentage={adherence.adherencePercentage}
-          />
-        )}
-
-        {activeTab === 'caregiver' && (
-          <CaregiverDashboard
-            escalation={escalation}
-            adherence={adherence}
-            clinicalReport={clinicalReport}
-            onOpenReport={() => setIsReportModalVisible(true)}
-          />
-        )}
-
-        {activeTab === 'stock' && (
-          <MedicineInventoryPanel
-            medicines={medicines}
-            scheduleTimes={scheduleTimes}
-            onRestock={handleRestockMedicine}
-            onDelete={handleDeleteMedicine}
-            onOpenAddModal={() => setIsAddModalVisible(true)}
-          />
-        )}
-
-        {activeTab === 'emergency' && (
-          <EmergencyProfileCard
-            emergencyProfile={emergencyProfile}
-            onCallEmergency={handleCallEmergency}
-          />
-        )}
-      </View>
-
-      {/* BARRA DE NAVEGACIÓN INFERIOR NATIVA */}
-      <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
 
       {/* MODAL: REGISTRAR NUEVO MEDICAMENTO */}
       <AddMedicineModal
@@ -404,15 +610,40 @@ export default function App() {
         onClose={() => setIsReportModalVisible(false)}
         onExport={handleExportReport}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
+  // CANVAS EXTERIOR DE ESCRITORIO
+  desktopOuterCanvas: {
     flex: 1,
+    backgroundColor: '#EEF2F6', // Fondo neutro suave para pantallas anchas
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // CHASIS DE LA APLICACIÓN (RESPONSIVE SHELL)
+  appShellFrame: {
+    flex: 1,
+    width: '100%',
     backgroundColor: '#F8FAFC',
   },
+  appShellFrameLarge: {
+    maxWidth: 480, // Ancho ergonómico estándar para vista móvil centrada
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#CBD5E1',
+    // Sombra sutil en navegador web
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+  },
+  appShellFrameSplit: {
+    maxWidth: 1040, // Ancho de estación de trabajo clínica en escritorio
+  },
+
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -428,6 +659,8 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
   },
+
+  // CABECERA SUPERIOR
   topAppHeader: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -438,6 +671,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 10,
   },
   headerTitleGroup: {
     gap: 2,
@@ -452,6 +686,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#334155',
   },
+
+  // Selector de Modo Desktop
+  desktopModeSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    gap: 4,
+  },
+  modeButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  modeButtonText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  modeButtonTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+
   clockHeaderBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -469,7 +739,74 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontVariant: ['tabular-nums'],
   },
+
   mainContainer: {
     flex: 1,
+  },
+
+  // ESTRUCTURA SPLIT DE 2 COLUMNAS PARA ESCRITORIO
+  splitDesktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+  },
+  splitLeftColumn: {
+    flex: 5.5,
+    borderRightWidth: 1,
+    borderRightColor: '#E2E8F0',
+  },
+  columnHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    gap: 8,
+  },
+  columnHeaderTitleText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  splitVerticalDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  splitRightColumn: {
+    flex: 4.5,
+    backgroundColor: '#FFFFFF',
+  },
+  splitSubTabsHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    padding: 6,
+    gap: 6,
+  },
+  splitSubTabItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  splitSubTabItemActive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  splitSubTabLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  splitSubTabLabelActive: {
+    color: '#0F172A',
+    fontWeight: '700',
   },
 });

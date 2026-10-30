@@ -250,6 +250,25 @@ def create_report():
     p_sol_ico.add_run("@expo/vector-icons (MaterialCommunityIcons)").bold = True
     p_sol_ico.add_run(", garantizando iconos vectoriales SVG limpios, escalables a cualquier densidad de píxeles, con colorización reactiva según el contraste WCAG AAA y etiquetas de accesibilidad explícitas (accessibilityLabel y accessibilityRole).")
 
+    add_heading_2("C. Multiplataforma en React Native: Del Antipatrón 'Móvil Inflado' a la Arquitectura Adaptativa")
+    p_multi = doc.add_paragraph()
+    p_multi.add_run("Un dilema común en el desarrollo con React Native for Web es el denominado ")
+    p_multi.add_run("antipatrón del móvil inflado (Blown-up Mobile Anti-pattern)").italic = True
+    p_multi.add_run(". React Native nació originalmente para sistemas operativos móviles (Android e iOS). Al exportar a la Web, el motor Flexbox de React Native interpreta un ancho de '100%' contra el viewport completo del monitor del computador (1920px o más), provocando que botones clínicos y tarjetas se estiren horizontalmente de forma desproporcionada e inaccesible.\n\n")
+    p_multi.add_run("Para resolver esto y elevar la aplicación al estándar de la industria (similar a Twitter/X Web, Slack o WhatsApp Web), se implementó un sistema de diseño adaptativo con ")
+    p_multi.add_run("useWindowDimensions()").bold = True
+    p_multi.add_run(" que ofrece dos experiencias según el dispositivo:\n")
+
+    multi_bullets = [
+        ("Móvil Nativo (<768px): ", "Disposición pura a 1 columna vertical con barra inferior de navegación (Bottom Navigation) accesible al alcance del pulgar."),
+        ("Modo 1 Desktop — Shell Ergonómico Centrado: ", "En monitores de escritorio, la aplicación confina su chasis a 480px centrados en un canvas neutro (#EEF2F6) con sutil elevación y bordes de delimitación. Esto evita que los botones clínicos se estiren y preserva la ergonomía humana."),
+        ("Modo 2 Desktop — Estación de Trabajo Clínica (Split View de 2 Columnas): ", "Aprovecha la pantalla ancha (>=1024px) dividiendo el espacio en dos columnas paralelas: a la izquierda el Plan Cronológico del Paciente y a la derecha el Panel del Cuidador, Botiquín y Emergencia en tiempo real. Esto permite a médicos y familiares supervisar y registrar sin alternar pestañas."),
+    ]
+    for mt, md in multi_bullets:
+        mp = doc.add_paragraph(style='List Bullet')
+        mp.add_run(mt).bold = True
+        mp.add_run(md)
+
     # ==========================================
     # 4. CAPTURAS Y EVIDENCIAS DE LA APLICACIÓN
     # ==========================================
@@ -259,10 +278,12 @@ def create_report():
     figures_dir = r"C:\Users\LENOVO\.gemini\antigravity-cli\brain\5fde4a88-f11a-409e-95ae-c632e1c16083\figures"
 
     screens = [
-        ("modular_app_today.png", "Figura 1: Pantalla Principal 'Hoy' — Hilo Cronológico con Botonera Vertical Apilada e Identificación Anatómica de Pastillas"),
-        ("modular_app_caregiver.png", "Figura 2: Pestaña 'Cuidador' — Telemetría de Adherencia (100%), Período de Gracia de 30 min y Desglose por Fármaco"),
-        ("modular_app_stock.png", "Figura 3: Pestaña 'Botiquín' — Control de Inventario, Días Restantes de Autonomía y Reposición +30"),
-        ("modular_app_emergency.png", "Figura 4: Pestaña 'Emergencia' — Ficha Médica Hospitalaria ICE con Tipo de Sangre O+, Alergias y Discado SAMU"),
+        ("modular_app_today.png", "Figura 1: Pantalla Principal 'Hoy' (Móvil) — Hilo Cronológico con Botonera Vertical Apilada"),
+        ("modular_app_caregiver.png", "Figura 2: Pestaña 'Cuidador' (Móvil) — Telemetría de Adherencia (100%) y Período de Gracia"),
+        ("desktop_mode_mobile_shell.png", "Figura 3: Ejecución en Navegador Web Desktop — Modo Móvil Ergonómico Centrado (Cero Elementos Estirados)"),
+        ("desktop_mode_split_view.png", "Figura 4: Ejecución en Navegador Web Desktop — Modo Panel Clínico PC (Split View de 2 Columnas Paralelas)"),
+        ("modular_app_stock.png", "Figura 5: Pestaña 'Botiquín' — Control de Inventario y Reposición +30"),
+        ("modular_app_emergency.png", "Figura 6: Pestaña 'Emergencia' — Ficha Médica Hospitalaria ICE con Discado SAMU 106"),
     ]
 
     for img_name, caption in screens:
