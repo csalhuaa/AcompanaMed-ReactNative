@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -32,6 +32,10 @@ import {
   defaultNotificationService,
   formatConfirmationSpeech,
   CommunicationService,
+  defaultCloudSyncService,
+  FamilySyncPayload,
+  sanitizeFamilyCode,
+  isStateNewer,
 } from './src/infrastructure';
 import {
   AppNavTab,
@@ -199,6 +203,30 @@ function MainApp() {
   const [inspectingMedicine, setInspectingMedicine] = useState<Medicine | null>(null);
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
 
+  // Estados de Sincronización en la Nube (Multi-Dispositivo)
+  const [familyCode, setFamilyCode] = useState<string>('MED-MANU-74');
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('');
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+
+  // Referencia mutable para sincronización atómica sin stale closures
+  const localStateRef = useRef({
+    medicines,
+    logs,
+    scheduleTimes,
+    emergencyProfile,
+    lastUpdateIso: new Date().toISOString(),
+  });
+
+  useEffect(() => {
+    localStateRef.current = {
+      medicines,
+      logs,
+      scheduleTimes,
+      emergencyProfile,
+      lastUpdateIso: localStateRef.current.lastUpdateIso,
+    };
+  }, [medicines, logs, scheduleTimes, emergencyProfile]);
+
   const handleUpdateMedicinePhoto = (medicineId: string, newPhotoUri: string) => {
     setMedicines((prev) =>
       prev.map((m) =>
@@ -224,7 +252,13 @@ function MainApp() {
         const storedLogs = await defaultStorageService.loadLogs(INITIAL_LOGS);
         const storedProfile = await defaultStorageService.loadEmergencyProfile(DEFAULT_PROFILE);
         const storedRole = await defaultStorageService.loadActiveRole('caregiver');
+        const storedCode = await defaultStorageService.loadFamilyCode();
 
+        const defaultCode = `MED-${storedProfile.patientFullName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${storedProfile.age || '82'}`;
+        const activeCode = storedCode || defaultCode;
+        setFamilyCode(activeCode);
+
+        // Inicializar datos locales
         setMedicines(storedMeds);
         setScheduleTimes(storedTimes);
         setLogs(storedLogs);
@@ -234,6 +268,23 @@ function MainApp() {
         const hasCompleted = await defaultStorageService.loadOnboardingCompleted();
         if (!hasCompleted) {
           setIsOnboardingVisible(true);
+        } else {
+          // Solo si ya completó onboarding hacemos sync caliente con Firebase en el arranque
+          try {
+            const cloudData = await defaultCloudSyncService.fetchFamilyState(activeCode);
+            if (cloudData && cloudData.medicines && cloudData.medicines.length > 0) {
+              setMedicines(cloudData.medicines);
+              setScheduleTimes(cloudData.schedules || {});
+              setLogs(cloudData.logs || []);
+              if (cloudData.emergencyProfile) {
+                setEmergencyProfile(cloudData.emergencyProfile);
+              }
+              localStateRef.current.lastUpdateIso = cloudData.updatedAt || new Date().toISOString();
+              setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            }
+          } catch {
+            // Si no hay red, opera offline de forma transparente
+          }
         }
 
         if (storedMeds.length > 0) {
@@ -274,6 +325,163 @@ function MainApp() {
   const adherence = calculateAdherence(logs);
   const clinicalReport = generateClinicalSummary(medicines, logs, emergencyProfile);
 
+  // Sincronización transparente con Firebase Realtime Database
+  const syncToCloud = async (
+    overrideMeds?: Medicine[],
+    overrideLogs?: DoseLog[],
+    overrideTimes?: Record<string, string>,
+    overrideProfile?: EmergencyProfile
+  ) => {
+    if (!familyCode) return;
+    const nowIso = new Date().toISOString();
+    localStateRef.current.lastUpdateIso = nowIso;
+    try {
+      const payload: FamilySyncPayload = {
+        familyCode,
+        updatedAt: nowIso,
+        updatedBy: activeRole,
+        patientName: (overrideProfile || emergencyProfile).patientFullName,
+        medicines: overrideMeds || medicines,
+        schedules: overrideTimes || scheduleTimes,
+        logs: overrideLogs || logs,
+        emergencyProfile: overrideProfile || emergencyProfile,
+      };
+      await defaultCloudSyncService.pushFamilyState(payload);
+      setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (e) {
+      console.warn('Sync to cloud error:', e);
+    }
+  };
+
+  // Sondeo en tiempo real cada 3.5 segundos entre dispositivos
+  useEffect(() => {
+    if (!isLoaded || !familyCode) return;
+
+    const stopPolling = defaultCloudSyncService.startSyncPolling(
+      familyCode,
+      (cloudData) => {
+        if (!cloudData || !cloudData.updatedAt) return;
+
+        const currentLocal = localStateRef.current;
+        const cloudTime = new Date(cloudData.updatedAt).getTime();
+        const localTime = new Date(currentLocal.lastUpdateIso).getTime();
+
+        const localMedsStr = JSON.stringify(currentLocal.medicines);
+        const cloudMedsStr = JSON.stringify(cloudData.medicines || []);
+        const localLogsStr = JSON.stringify(currentLocal.logs);
+        const cloudLogsStr = JSON.stringify(cloudData.logs || []);
+        const localTimesStr = JSON.stringify(currentLocal.scheduleTimes);
+        const cloudTimesStr = JSON.stringify(cloudData.schedules || {});
+
+        const hasDifference =
+          localMedsStr !== cloudMedsStr ||
+          localLogsStr !== cloudLogsStr ||
+          localTimesStr !== cloudTimesStr;
+
+        if (hasDifference && cloudTime >= localTime) {
+          localStateRef.current.lastUpdateIso = cloudData.updatedAt;
+          setMedicines(cloudData.medicines || []);
+          setScheduleTimes(cloudData.schedules || {});
+          setLogs(cloudData.logs || []);
+          if (cloudData.emergencyProfile) {
+            setEmergencyProfile(cloudData.emergencyProfile);
+          }
+          setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        }
+      },
+      3500
+    );
+
+    return () => stopPolling();
+  }, [isLoaded, familyCode]);
+
+  const handleConnectFamilyCode = async (
+    targetCode: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const clean = sanitizeFamilyCode(targetCode);
+    if (!clean) return { success: false, message: 'Por favor ingrese un código válido.' };
+
+    setIsCloudSyncing(true);
+    try {
+      const cloudData = await defaultCloudSyncService.fetchFamilyState(clean);
+      if (!cloudData) {
+        if (activeRole === 'caregiver') {
+          setIsCloudSyncing(false);
+          return {
+            success: false,
+            message: `No se encontró ningún paciente con el código [${clean}]. Verifique que el paciente tenga AcompañaMed abierto con dicho código.`,
+          };
+        }
+
+        // El código no existía aún en la nube y es Paciente: lo creamos con el estado actual
+        const nowIso = new Date().toISOString();
+        const payload: FamilySyncPayload = {
+          familyCode: clean,
+          updatedAt: nowIso,
+          updatedBy: activeRole,
+          patientName: emergencyProfile.patientFullName,
+          medicines,
+          schedules: scheduleTimes,
+          logs,
+          emergencyProfile,
+        };
+        await defaultCloudSyncService.pushFamilyState(payload);
+        setFamilyCode(clean);
+        await defaultStorageService.saveFamilyCode(clean);
+        localStateRef.current.lastUpdateIso = nowIso;
+        setIsCloudSyncing(false);
+        setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        return {
+          success: true,
+          message: `Código [${clean}] activado en Firebase. Comparta este código con el otro dispositivo.`,
+        };
+      }
+
+      // El código ya existe en la nube: descargar y sincronizar todo
+      const downloadedMeds = cloudData.medicines || [];
+      const downloadedSchedules = cloudData.schedules || {};
+      const downloadedLogs = cloudData.logs || [];
+      const downloadedProfile = cloudData.emergencyProfile || emergencyProfile;
+
+      setMedicines(downloadedMeds);
+      setScheduleTimes(downloadedSchedules);
+      setLogs(downloadedLogs);
+      if (cloudData.emergencyProfile) {
+        setEmergencyProfile(downloadedProfile);
+        await defaultStorageService.saveEmergencyProfile(downloadedProfile);
+      }
+      setFamilyCode(clean);
+      await defaultStorageService.saveFamilyCode(clean);
+      await defaultStorageService.saveMedicines(downloadedMeds);
+      await defaultStorageService.saveSchedules(downloadedSchedules);
+      await defaultStorageService.saveLogs(downloadedLogs);
+      if (downloadedMeds.length > 0) {
+        setExpandedMedId(downloadedMeds[0].id);
+      }
+
+      localStateRef.current = {
+        medicines: downloadedMeds,
+        logs: downloadedLogs,
+        scheduleTimes: downloadedSchedules,
+        emergencyProfile: downloadedProfile,
+        lastUpdateIso: cloudData.updatedAt || new Date().toISOString(),
+      };
+
+      setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setIsCloudSyncing(false);
+      return {
+        success: true,
+        message: `¡Conectado exitosamente con ${cloudData.patientName}! Se descargaron ${downloadedMeds.length} medicamentos y el historial médico en tiempo real.`,
+      };
+    } catch {
+      setIsCloudSyncing(false);
+      return {
+        success: false,
+        message: 'No se pudo conectar al servidor de Firebase. Verifique su conexión a internet.',
+      };
+    }
+  };
+
   // Escalamiento simulado (40 min desde las 08:00)
   const simulatedScheduledTime = new Date('2026-10-29T08:00:00.000Z');
   const simulatedNowTime = new Date('2026-10-29T08:40:00.000Z');
@@ -291,7 +499,7 @@ function MainApp() {
     }
 
     const updated = decrementStock(med, 1);
-    setMedicines((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    const newMeds = medicines.map((m) => (m.id === updated.id ? updated : m));
 
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
@@ -301,11 +509,15 @@ function MainApp() {
       status: 'taken',
       registeredBy: actor,
     };
-    setLogs((prev) => [newLog, ...prev]);
+    const newLogs = [newLog, ...logs];
+
+    setMedicines(newMeds);
+    setLogs(newLogs);
+    syncToCloud(newMeds, newLogs);
 
     if (actor === 'patient') {
       defaultHapticService.vibrateSuccess();
-      defaultSpeechService.speak(formatConfirmationSpeech('Don Manuel', med.name, updated.stock));
+      defaultSpeechService.speak(formatConfirmationSpeech(emergencyProfile.patientFullName, med.name, updated.stock));
     }
 
     Alert.alert('Dosis Confirmada', `Toma de ${med.name} registrada. Quedan ${updated.stock} comprimidos.`);
@@ -324,7 +536,9 @@ function MainApp() {
       registeredBy: activeRole,
       notes: 'Pospuesto 15 minutos por el paciente',
     };
-    setLogs((prev) => [newLog, ...prev]);
+    const newLogs = [newLog, ...logs];
+    setLogs(newLogs);
+    syncToCloud(undefined, newLogs);
 
     defaultHapticService.vibrateWarning();
     defaultSpeechService.speak(`Toma de ${med.name} pospuesta 15 minutos.`);
@@ -341,9 +555,9 @@ function MainApp() {
   };
 
   const handleConfirmRestock = (medId: string, amount: number) => {
-    setMedicines((prev) =>
-      prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + amount } : m))
-    );
+    const newMeds = medicines.map((m) => (m.id === medId ? { ...m, stock: m.stock + amount } : m));
+    setMedicines(newMeds);
+    syncToCloud(newMeds);
     const target = medicines.find((m) => m.id === medId);
     const name = target ? target.name : 'medicamento';
     Alert.alert('Inventario Actualizado', `Se añadieron ${amount} unidades al stock de ${name}.`);
@@ -361,30 +575,31 @@ function MainApp() {
 
   const handleSaveMedicine = (data: NewMedicineData) => {
     if (data.id) {
-      setMedicines((prev) =>
-        prev.map((m) =>
-          m.id === data.id
-            ? {
-                ...m,
-                name: data.name,
-                doseDescription: data.doseDescription,
-                instructions: data.instructions,
-                visualPill: {
-                  ...m.visualPill,
-                  shape: data.shape,
-                  colorHex: data.color.hex,
-                  colorName: data.color.name,
-                  photoUri: data.photoUri || m.visualPill.photoUri,
-                  imprint: data.imprint !== undefined ? data.imprint : m.visualPill.imprint,
-                  canSplit: data.canSplit !== undefined ? data.canSplit : m.visualPill.canSplit,
-                },
-                stock: data.stock,
-                minStockAlert: data.minStockAlert,
-              }
-            : m
-        )
+      const newMeds = medicines.map((m) =>
+        m.id === data.id
+          ? {
+              ...m,
+              name: data.name,
+              doseDescription: data.doseDescription,
+              instructions: data.instructions,
+              visualPill: {
+                ...m.visualPill,
+                shape: data.shape,
+                colorHex: data.color.hex,
+                colorName: data.color.name,
+                photoUri: data.photoUri || m.visualPill.photoUri,
+                imprint: data.imprint !== undefined ? data.imprint : m.visualPill.imprint,
+                canSplit: data.canSplit !== undefined ? data.canSplit : m.visualPill.canSplit,
+              },
+              stock: data.stock,
+              minStockAlert: data.minStockAlert,
+            }
+          : m
       );
-      setScheduleTimes((prev) => ({ ...prev, [data.id!]: data.scheduleTime }));
+      const newTimes = { ...scheduleTimes, [data.id!]: data.scheduleTime };
+      setMedicines(newMeds);
+      setScheduleTimes(newTimes);
+      syncToCloud(newMeds, undefined, newTimes);
       Alert.alert('Prescripción Actualizada', `Los cambios para ${data.name} fueron guardados.`);
     } else {
       const newId = `med-${Date.now()}`;
@@ -406,8 +621,11 @@ function MainApp() {
         minStockAlert: data.minStockAlert,
         createdAt: new Date().toISOString(),
       };
-      setMedicines((prev) => [...prev, newMed]);
-      setScheduleTimes((prev) => ({ ...prev, [newId]: data.scheduleTime }));
+      const newMeds = [...medicines, newMed];
+      const newTimes = { ...scheduleTimes, [newId]: data.scheduleTime };
+      setMedicines(newMeds);
+      setScheduleTimes(newTimes);
+      syncToCloud(newMeds, undefined, newTimes);
       defaultNotificationService.scheduleDoseReminder(newMed, data.scheduleTime);
       Alert.alert('Medicamento Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
     }
@@ -430,16 +648,16 @@ function MainApp() {
     const id = deletingMedicine.id;
     const name = deletingMedicine.name;
 
-    setMedicines((prev) => prev.filter((m) => m.id !== id));
-    setScheduleTimes((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
+    const newMeds = medicines.filter((m) => m.id !== id);
+    const newTimes = { ...scheduleTimes };
+    delete newTimes[id];
 
-    if (expandedMedId === id && medicines.length > 1) {
-      const other = medicines.find((m) => m.id !== id);
-      if (other) setExpandedMedId(other.id);
+    setMedicines(newMeds);
+    setScheduleTimes(newTimes);
+    syncToCloud(newMeds, undefined, newTimes);
+
+    if (expandedMedId === id && newMeds.length > 0) {
+      setExpandedMedId(newMeds[0].id);
     }
 
     setIsDeleteConfirmVisible(false);
@@ -496,6 +714,7 @@ function MainApp() {
   const handleUpdateProfile = (updated: EmergencyProfile) => {
     setEmergencyProfile(updated);
     defaultStorageService.saveEmergencyProfile(updated);
+    syncToCloud(undefined, undefined, undefined, updated);
   };
 
   const handleClearDemoData = () => {
@@ -506,6 +725,7 @@ function MainApp() {
     defaultStorageService.saveMedicines([]);
     defaultStorageService.saveSchedules({});
     defaultStorageService.saveLogs([]);
+    syncToCloud([], [], {});
     setIsFamilyPairingModalVisible(false);
     Alert.alert('Datos Vaciados', 'Se eliminaron los datos de prueba. Ahora puede registrar su propia receta médica real.');
   };
@@ -518,18 +738,30 @@ function MainApp() {
     defaultStorageService.saveMedicines(INITIAL_MEDICINES);
     defaultStorageService.saveSchedules(INITIAL_SCHEDULE_TIMES);
     defaultStorageService.saveLogs(INITIAL_LOGS);
+    syncToCloud(INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_SCHEDULE_TIMES);
     setIsFamilyPairingModalVisible(false);
     Alert.alert('Caso Demo Restaurado', 'Se cargaron los 3 medicamentos de prueba de Don Manuel.');
   };
 
   const handleFinishOnboarding = async (data: {
     role: ActorRole;
-    startMode: 'empty' | 'demo';
+    startMode: 'empty' | 'demo' | 'pair';
     patientName: string;
+    pairCode?: string;
   }) => {
     setActiveRole(data.role);
     await defaultStorageService.saveActiveRole(data.role);
     await defaultStorageService.saveOnboardingCompleted(true);
+
+    if (data.startMode === 'pair' && data.pairCode) {
+      const clean = sanitizeFamilyCode(data.pairCode);
+      const res = await handleConnectFamilyCode(clean);
+      if (!res.success) {
+        Alert.alert('Aviso de Enlace', res.message);
+      }
+      setIsOnboardingVisible(false);
+      return;
+    }
 
     const updatedProfile: EmergencyProfile = {
       ...emergencyProfile,
@@ -539,6 +771,12 @@ function MainApp() {
     await defaultStorageService.saveEmergencyProfile(updatedProfile);
 
     if (data.startMode === 'empty') {
+      const uniqueSuffix = Math.floor(10 + Math.random() * 89);
+      const codePrefix = data.role === 'caregiver' ? 'FAM' : (data.patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'PACI');
+      const newCode = `MED-${codePrefix}-${uniqueSuffix}`;
+      setFamilyCode(newCode);
+      await defaultStorageService.saveFamilyCode(newCode);
+
       setMedicines([]);
       setScheduleTimes({});
       setLogs([]);
@@ -546,7 +784,16 @@ function MainApp() {
       await defaultStorageService.saveMedicines([]);
       await defaultStorageService.saveSchedules({});
       await defaultStorageService.saveLogs([]);
+
+      // Si es paciente, inicializa su nube privada vacía
+      if (data.role === 'patient') {
+        syncToCloud([], [], {}, updatedProfile);
+      }
     } else {
+      const demoCode = 'MED-MANU-74';
+      setFamilyCode(demoCode);
+      await defaultStorageService.saveFamilyCode(demoCode);
+
       setMedicines(INITIAL_MEDICINES);
       setScheduleTimes(INITIAL_SCHEDULE_TIMES);
       setLogs(INITIAL_LOGS);
@@ -554,6 +801,7 @@ function MainApp() {
       await defaultStorageService.saveMedicines(INITIAL_MEDICINES);
       await defaultStorageService.saveSchedules(INITIAL_SCHEDULE_TIMES);
       await defaultStorageService.saveLogs(INITIAL_LOGS);
+      syncToCloud(INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_SCHEDULE_TIMES, updatedProfile);
     }
 
     setIsOnboardingVisible(false);
@@ -613,6 +861,11 @@ function MainApp() {
                 {activeRole === 'patient'
                   ? `Modo Paciente (${emergencyProfile.patientFullName})`
                   : `Modo Cuidadora (${emergencyProfile.emergencyContact.name})`}
+              </Text>
+              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#94A3B8' }} />
+              <MaterialCommunityIcons name="cloud-check" size={12} color="#059669" />
+              <Text style={{ fontSize: 10, color: '#059669', fontWeight: '700' }}>
+                {familyCode}
               </Text>
             </View>
           </View>
@@ -967,6 +1220,10 @@ function MainApp() {
         onTestNotification={handleTestNotification}
         activeRole={activeRole}
         onSelectRole={setActiveRole}
+        familyCode={familyCode}
+        onConnectFamilyCode={handleConnectFamilyCode}
+        isSyncing={isCloudSyncing}
+        lastSyncTime={lastCloudSyncTime}
       />
 
       {/* MODAL 6: LUPA DE INSPECCIÓN Y VERIFICACIÓN FOTOGRÁFICA DE BLÍSTER */}

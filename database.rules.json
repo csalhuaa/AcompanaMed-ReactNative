@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "families": {
+      "$familyCode": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

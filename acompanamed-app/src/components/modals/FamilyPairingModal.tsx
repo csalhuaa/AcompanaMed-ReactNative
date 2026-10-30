@@ -23,6 +23,10 @@ interface Props {
   onTestNotification: () => void;
   activeRole: 'patient' | 'caregiver';
   onSelectRole: (role: 'patient' | 'caregiver') => void;
+  familyCode?: string;
+  onConnectFamilyCode?: (code: string) => Promise<{ success: boolean; message: string }>;
+  isSyncing?: boolean;
+  lastSyncTime?: string;
 }
 
 export const FamilyPairingModal: React.FC<Props> = ({
@@ -35,6 +39,10 @@ export const FamilyPairingModal: React.FC<Props> = ({
   onTestNotification,
   activeRole,
   onSelectRole,
+  familyCode: propFamilyCode,
+  onConnectFamilyCode,
+  isSyncing,
+  lastSyncTime,
 }) => {
   const [patientName, setPatientName] = useState(emergencyProfile.patientFullName);
   const [age, setAge] = useState(String(emergencyProfile.age));
@@ -45,9 +53,11 @@ export const FamilyPairingModal: React.FC<Props> = ({
 
   const [enteredPairingCode, setEnteredPairingCode] = useState('');
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Generación de código único de familia basado en las iniciales y edad del paciente
-  const familyCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
+  const generatedCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
+  const effectiveFamilyCode = propFamilyCode || generatedCode;
 
   const handleSaveProfile = () => {
     const updated: EmergencyProfile = {
@@ -72,22 +82,33 @@ export const FamilyPairingModal: React.FC<Props> = ({
 
   const handleCopyCode = () => {
     try {
-      Clipboard.setString(familyCode);
-      Alert.alert('Código Copiado', `El código de enlace familiar "${familyCode}" fue copiado al portapapeles.`);
+      Clipboard.setString(effectiveFamilyCode);
+      Alert.alert('Código Copiado', `El código de enlace familiar "${effectiveFamilyCode}" fue copiado al portapapeles.`);
     } catch {
-      Alert.alert('Código Familiar', `Su código es: ${familyCode}`);
+      Alert.alert('Código Familiar', `Su código es: ${effectiveFamilyCode}`);
     }
   };
 
-  const handleConnectCaregiver = () => {
+  const handleConnectCaregiver = async () => {
     const code = enteredPairingCode.trim().toUpperCase();
     if (!code) {
-      Alert.alert('Código Requerido', 'Por favor ingrese el código de 6 caracteres del paciente.');
+      Alert.alert('Código Requerido', 'Por favor ingrese el código de enlace del paciente.');
       return;
     }
-    setPairingSuccessMsg(`¡Dispositivo enlazado con éxito al paciente con código [${code}] mediante Firebase Firestore!`);
-    Alert.alert('Vínculo Exitoso', `Dispositivo conectado telemétricamente al paciente con código: ${code}`);
-    setEnteredPairingCode('');
+    if (onConnectFamilyCode) {
+      setIsConnecting(true);
+      const res = await onConnectFamilyCode(code);
+      setIsConnecting(false);
+      setPairingSuccessMsg(res.message);
+      Alert.alert(res.success ? '¡Conexión Exitosa!' : 'Aviso de Conexión', res.message);
+      if (res.success) {
+        setEnteredPairingCode('');
+      }
+    } else {
+      setPairingSuccessMsg(`¡Dispositivo enlazado con éxito al paciente con código [${code}]!`);
+      Alert.alert('Vínculo Exitoso', `Dispositivo conectado telemétricamente al paciente con código: ${code}`);
+      setEnteredPairingCode('');
+    }
   };
 
   return (
@@ -177,7 +198,12 @@ export const FamilyPairingModal: React.FC<Props> = ({
               {/* Tarjeta del Código de Don Manuel */}
               <View style={styles.pairingCodeCard}>
                 <Text style={styles.pairingCodeLabel}>CÓDIGO ÚNICO DE ESTE PACIENTE:</Text>
-                <Text style={styles.pairingCodeValue}>{familyCode}</Text>
+                <Text style={styles.pairingCodeValue}>{effectiveFamilyCode}</Text>
+                {lastSyncTime ? (
+                  <Text style={{ fontSize: 10, color: '#38BDF8', marginTop: 2, marginBottom: 6 }}>
+                    ☁️ Sincronizado en la nube: {lastSyncTime}
+                  </Text>
+                ) : null}
                 <TouchableOpacity style={styles.btnCopyCode} onPress={handleCopyCode} activeOpacity={0.85}>
                   <MaterialCommunityIcons name="content-copy" size={16} color="#FFFFFF" />
                   <Text style={styles.btnCopyCodeText}>Copiar Código para la Hija / Cuidador</Text>
@@ -196,8 +222,15 @@ export const FamilyPairingModal: React.FC<Props> = ({
                     onChangeText={setEnteredPairingCode}
                     autoCapitalize="characters"
                   />
-                  <TouchableOpacity style={styles.btnConnect} onPress={handleConnectCaregiver} activeOpacity={0.85}>
-                    <Text style={styles.btnConnectText}>Conectar</Text>
+                  <TouchableOpacity
+                    style={[styles.btnConnect, isConnecting && { opacity: 0.6 }]}
+                    onPress={handleConnectCaregiver}
+                    disabled={isConnecting}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.btnConnectText}>
+                      {isConnecting ? 'Conectando...' : 'Conectar'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
                 {pairingSuccessMsg ? (

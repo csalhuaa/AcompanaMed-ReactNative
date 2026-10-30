@@ -4,3 +4,4 @@ export * from './SpeechService';
 export * from './HapticService';
 export * from './NotificationService';
 export * from './CommunicationService';
+export * from './CloudSyncService';

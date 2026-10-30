@@ -53,6 +53,7 @@ export const STORAGE_KEYS = {
   ROLE: '@acompanamed:active_role',
   PROFILE: '@acompanamed:emergency_profile',
   ONBOARDING: '@acompanamed:onboarding_completed',
+  FAMILY_CODE: '@acompanamed:family_code',
 } as const;
 
 export class StorageService {
@@ -172,6 +173,19 @@ export class StorageService {
     }
   }
 
+  async saveFamilyCode(code: string): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.FAMILY_CODE, code);
+  }
+
+  async loadFamilyCode(defaultCode = ''): Promise<string> {
+    try {
+      const val = await this.adapter.getItem(STORAGE_KEYS.FAMILY_CODE);
+      return val ? val.trim() : defaultCode;
+    } catch {
+      return defaultCode;
+    }
+  }
+
   async clearAllData(): Promise<void> {
     await this.adapter.removeItem(STORAGE_KEYS.MEDICINES);
     await this.adapter.removeItem(STORAGE_KEYS.SCHEDULES);
@@ -179,6 +193,7 @@ export class StorageService {
     await this.adapter.removeItem(STORAGE_KEYS.ROLE);
     await this.adapter.removeItem(STORAGE_KEYS.PROFILE);
     await this.adapter.removeItem(STORAGE_KEYS.ONBOARDING);
+    await this.adapter.removeItem(STORAGE_KEYS.FAMILY_CODE);
   }
 }
 

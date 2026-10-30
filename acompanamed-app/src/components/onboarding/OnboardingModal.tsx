@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActorRole } from '../../domain';
@@ -15,8 +16,9 @@ interface Props {
   visible: boolean;
   onFinishOnboarding: (data: {
     role: ActorRole;
-    startMode: 'empty' | 'demo';
+    startMode: 'empty' | 'demo' | 'pair';
     patientName: string;
+    pairCode?: string;
   }) => void;
 }
 
@@ -25,13 +27,38 @@ export const OnboardingModal: React.FC<Props> = ({
   onFinishOnboarding,
 }) => {
   const [selectedRole, setSelectedRole] = useState<ActorRole>('patient');
-  const [startMode, setStartMode] = useState<'empty' | 'demo'>('empty');
+  const [startMode, setStartMode] = useState<'empty' | 'demo' | 'pair'>('empty');
   const [patientName, setPatientName] = useState('');
+  const [pairCode, setPairCode] = useState('');
+
+  const handleSelectRole = (role: ActorRole) => {
+    setSelectedRole(role);
+    if (role === 'caregiver' && startMode === 'empty') {
+      setStartMode('pair');
+    } else if (role === 'patient' && startMode === 'pair') {
+      setStartMode('empty');
+    }
+  };
 
   const handleStart = () => {
+    if (selectedRole === 'caregiver' && startMode === 'pair') {
+      const cleanCode = pairCode.trim().toUpperCase();
+      if (!cleanCode) {
+        Alert.alert('Código Requerido', 'Por favor ingrese el código familiar del paciente (ej. MED-MANU-74) para conectarse.');
+        return;
+      }
+      onFinishOnboarding({
+        role: 'caregiver',
+        startMode: 'pair',
+        patientName: patientName.trim() || 'Paciente',
+        pairCode: cleanCode,
+      });
+      return;
+    }
+
     onFinishOnboarding({
       role: selectedRole,
-      startMode,
+      startMode: startMode as 'empty' | 'demo',
       patientName: patientName.trim() || (startMode === 'demo' ? 'Manuel Jesús Alhua' : 'Mi Paciente'),
     });
   };
@@ -60,7 +87,7 @@ export const OnboardingModal: React.FC<Props> = ({
                   styles.roleCard,
                   selectedRole === 'patient' && styles.roleCardActive,
                 ]}
-                onPress={() => setSelectedRole('patient')}
+                onPress={() => handleSelectRole('patient')}
                 activeOpacity={0.85}
               >
                 <MaterialCommunityIcons
@@ -86,7 +113,7 @@ export const OnboardingModal: React.FC<Props> = ({
                   styles.roleCard,
                   selectedRole === 'caregiver' && styles.roleCardActive,
                 ]}
-                onPress={() => setSelectedRole('caregiver')}
+                onPress={() => handleSelectRole('caregiver')}
                 activeOpacity={0.85}
               >
                 <MaterialCommunityIcons
@@ -103,84 +130,199 @@ export const OnboardingModal: React.FC<Props> = ({
                   Cuidador / Familiar
                 </Text>
                 <Text style={styles.roleCardDesc}>
-                  Control total de botiquín, informes gerontológicos y telemetría.
+                  Control total de botiquín, enlace multi-dispositivo y telemetría.
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* PASO 2: MODO DE INICIO (REAL VS DEMO) */}
+            {/* PASO 2: MODO DE INICIO SEGÚN ROL */}
             <Text style={[styles.stepTitle, { marginTop: 18 }]}>
-              2. ¿Cómo desea configurar los medicamentos iniciales?
+              {selectedRole === 'caregiver'
+                ? '2. ¿Cómo desea comenzar como Cuidador?'
+                : '2. ¿Cómo desea configurar los medicamentos iniciales?'}
             </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.modeCard,
-                startMode === 'empty' && styles.modeCardActive,
-              ]}
-              onPress={() => setStartMode('empty')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.modeCardHeader}>
-                <MaterialCommunityIcons
-                  name="plus-circle-outline"
-                  size={20}
-                  color={startMode === 'empty' ? '#0284C7' : '#64748B'}
-                />
-                <Text
+            {selectedRole === 'caregiver' ? (
+              <>
+                <TouchableOpacity
                   style={[
-                    styles.modeCardTitle,
-                    startMode === 'empty' && styles.modeCardTitleActive,
+                    styles.modeCard,
+                    startMode === 'pair' && styles.modeCardActive,
                   ]}
+                  onPress={() => setStartMode('pair')}
+                  activeOpacity={0.85}
                 >
-                  Iniciar con Botiquín Vacío (Uso Real)
-                </Text>
-              </View>
-              <Text style={styles.modeCardDesc}>
-                Recomendado para pacientes reales. Comienza desde cero para ingresar los fármacos de su prescripción médica.
-              </Text>
-            </TouchableOpacity>
+                  <View style={styles.modeCardHeader}>
+                    <MaterialCommunityIcons
+                      name="cellphone-link"
+                      size={20}
+                      color={startMode === 'pair' ? '#0284C7' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.modeCardTitle,
+                        startMode === 'pair' && styles.modeCardTitleActive,
+                      ]}
+                    >
+                      Vincularme al Teléfono del Paciente (Recomendado)
+                    </Text>
+                  </View>
+                  <Text style={styles.modeCardDesc}>
+                    Conéctese en tiempo real al teléfono de su familiar para monitorear sus tomas y botiquín en la nube.
+                  </Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.modeCard,
-                startMode === 'demo' && styles.modeCardActive,
-                { marginTop: 10 },
-              ]}
-              onPress={() => setStartMode('demo')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.modeCardHeader}>
-                <MaterialCommunityIcons
-                  name="flask-outline"
-                  size={20}
-                  color={startMode === 'demo' ? '#0284C7' : '#64748B'}
-                />
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.modeCardTitle,
-                    startMode === 'demo' && styles.modeCardTitleActive,
+                    styles.modeCard,
+                    startMode === 'empty' && styles.modeCardActive,
+                    { marginTop: 10 },
                   ]}
+                  onPress={() => setStartMode('empty')}
+                  activeOpacity={0.85}
                 >
-                  Cargar Caso Clínico de Ejemplo (Don Manuel)
-                </Text>
-              </View>
-              <Text style={styles.modeCardDesc}>
-                Carga 3 medicamentos de prueba (Losartán, Metformina, Atorvastatina) para evaluar el sistema de inmediato.
-              </Text>
-            </TouchableOpacity>
+                  <View style={styles.modeCardHeader}>
+                    <MaterialCommunityIcons
+                      name="plus-circle-outline"
+                      size={20}
+                      color={startMode === 'empty' ? '#0284C7' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.modeCardTitle,
+                        startMode === 'empty' && styles.modeCardTitleActive,
+                      ]}
+                    >
+                      Configurar Nuevo Botiquín desde este Teléfono
+                    </Text>
+                  </View>
+                  <Text style={styles.modeCardDesc}>
+                    Para registrar recetas manualmente en este dispositivo sin vincular a otro teléfono.
+                  </Text>
+                </TouchableOpacity>
 
-            {/* PASO 3: NOMBRE DEL PACIENTE */}
-            <Text style={[styles.stepTitle, { marginTop: 18 }]}>
-              3. Nombre del paciente:
-            </Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder={startMode === 'demo' ? 'Manuel Jesús Alhua' : 'Ej. Rosa Martínez'}
-              placeholderTextColor="#94A3B8"
-              value={patientName}
-              onChangeText={setPatientName}
-            />
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    startMode === 'demo' && styles.modeCardActive,
+                    { marginTop: 10 },
+                  ]}
+                  onPress={() => setStartMode('demo')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.modeCardHeader}>
+                    <MaterialCommunityIcons
+                      name="flask-outline"
+                      size={20}
+                      color={startMode === 'demo' ? '#0284C7' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.modeCardTitle,
+                        startMode === 'demo' && styles.modeCardTitleActive,
+                      ]}
+                    >
+                      Cargar Caso Clínico de Ejemplo (Don Manuel)
+                    </Text>
+                  </View>
+                  <Text style={styles.modeCardDesc}>
+                    Carga el caso de prueba completo para probar de inmediato.
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    startMode === 'empty' && styles.modeCardActive,
+                  ]}
+                  onPress={() => setStartMode('empty')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.modeCardHeader}>
+                    <MaterialCommunityIcons
+                      name="plus-circle-outline"
+                      size={20}
+                      color={startMode === 'empty' ? '#0284C7' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.modeCardTitle,
+                        startMode === 'empty' && styles.modeCardTitleActive,
+                      ]}
+                    >
+                      Iniciar con Botiquín Vacío (Uso Real)
+                    </Text>
+                  </View>
+                  <Text style={styles.modeCardDesc}>
+                    Recomendado para pacientes reales. Comienza desde cero para ingresar los fármacos de su prescripción médica.
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    startMode === 'demo' && styles.modeCardActive,
+                    { marginTop: 10 },
+                  ]}
+                  onPress={() => setStartMode('demo')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.modeCardHeader}>
+                    <MaterialCommunityIcons
+                      name="flask-outline"
+                      size={20}
+                      color={startMode === 'demo' ? '#0284C7' : '#64748B'}
+                    />
+                    <Text
+                      style={[
+                        styles.modeCardTitle,
+                        startMode === 'demo' && styles.modeCardTitleActive,
+                      ]}
+                    >
+                      Cargar Caso Clínico de Ejemplo (Don Manuel)
+                    </Text>
+                  </View>
+                  <Text style={styles.modeCardDesc}>
+                    Carga 3 medicamentos de prueba (Losartán, Metformina, Atorvastatina) para evaluar el sistema de inmediato.
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* PASO 3: ENTRADA DE DATOS SEGÚN SELECCIÓN */}
+            {selectedRole === 'caregiver' && startMode === 'pair' ? (
+              <>
+                <Text style={[styles.stepTitle, { marginTop: 18 }]}>
+                  3. Código de Familia del Paciente:
+                </Text>
+                <TextInput
+                  style={[styles.textInput, { textTransform: 'uppercase', fontWeight: '700', letterSpacing: 1 }]}
+                  placeholder="Ej. MED-MANU-74"
+                  placeholderTextColor="#94A3B8"
+                  value={pairCode}
+                  onChangeText={(val) => setPairCode(val.toUpperCase())}
+                  autoCapitalize="characters"
+                />
+                <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4, lineHeight: 16 }}>
+                  💡 Este código aparece en la barra superior o en Ajustes del teléfono de su familiar.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.stepTitle, { marginTop: 18 }]}>
+                  3. Nombre del paciente:
+                </Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder={startMode === 'demo' ? 'Manuel Jesús Alhua' : 'Ej. Rosa Martínez'}
+                  placeholderTextColor="#94A3B8"
+                  value={patientName}
+                  onChangeText={setPatientName}
+                />
+              </>
+            )}
 
             {/* BOTÓN COMENZAR */}
             <TouchableOpacity
@@ -188,7 +330,11 @@ export const OnboardingModal: React.FC<Props> = ({
               onPress={handleStart}
               activeOpacity={0.85}
             >
-              <Text style={styles.btnStartText}>Comenzar a usar AcompañaMed</Text>
+              <Text style={styles.btnStartText}>
+                {selectedRole === 'caregiver' && startMode === 'pair'
+                  ? 'Conectar y Comenzar'
+                  : 'Comenzar a usar AcompañaMed'}
+              </Text>
               <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </ScrollView>
