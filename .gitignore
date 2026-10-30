@@ -29,6 +29,7 @@ pnpm-debug.log*
 # Documents and Academic PDFs/Word
 *.docx
 *.pdf
+figures/
 
 # AI Tools, Skills & Internal Metadata
 .impeccable/

@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { VisualPill } from '../../domain';
 
 interface Props {
@@ -42,6 +43,62 @@ export const PillVisualRenderer: React.FC<Props> = ({ visualPill, size = 'large'
     );
   }
 
+  if (visualPill.shape === 'scored') {
+    return (
+      <View
+        style={[
+          styles.roundContainer,
+          isLarge ? styles.roundLarge : styles.roundSmall,
+          { backgroundColor: visualPill.colorHex },
+        ]}
+        accessibilityRole="image"
+        accessibilityLabel={`Comprimido ranurado para fraccionar en mitades, color ${visualPill.colorName}`}
+      >
+        {/* Ranura cruzada profunda de partición */}
+        <View style={styles.scoreLine} />
+        <View style={[styles.scoreLine, { transform: [{ rotate: '90deg' }] }]} />
+      </View>
+    );
+  }
+
+  if (visualPill.shape === 'diamond') {
+    return (
+      <View style={isLarge ? styles.diamondWrapLarge : styles.diamondWrapSmall}>
+        <View
+          style={[
+            styles.diamondContainer,
+            isLarge ? styles.diamondLarge : styles.diamondSmall,
+            { backgroundColor: visualPill.colorHex },
+          ]}
+          accessibilityRole="image"
+          accessibilityLabel={`Comprimido romboide o diamante facetado, color ${visualPill.colorName}`}
+        >
+          <View style={[styles.scoreLine, { width: 1.5 }]} />
+        </View>
+      </View>
+    );
+  }
+
+  if (visualPill.shape === 'drop') {
+    return (
+      <View
+        style={[
+          styles.dropContainer,
+          isLarge ? styles.dropLarge : styles.dropSmall,
+          { backgroundColor: visualPill.colorHex },
+        ]}
+        accessibilityRole="image"
+        accessibilityLabel={`Solución líquida oral en gotas, color ${visualPill.colorName}`}
+      >
+        <MaterialCommunityIcons
+          name="water"
+          size={isLarge ? 20 : 14}
+          color="#FFFFFF"
+        />
+      </View>
+    );
+  }
+
   // Default: round tablet
   return (
     <View
@@ -51,7 +108,7 @@ export const PillVisualRenderer: React.FC<Props> = ({ visualPill, size = 'large'
         { backgroundColor: visualPill.colorHex },
       ]}
       accessibilityRole="image"
-      accessibilityLabel={`Comprimido redondo con ranura de corte, color ${visualPill.colorName}`}
+      accessibilityLabel={`Comprimido redondo estándar, color ${visualPill.colorName}`}
     >
       <View style={styles.scoreLine} />
     </View>
@@ -71,21 +128,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   capsuleLarge: {
-    width: 64,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 22,
+    borderRadius: 11,
   },
   capsuleHalf: {
     flex: 1,
+    height: '100%',
   },
   capsuleWhiteHalf: {
     backgroundColor: '#FFFFFF',
+    borderLeftWidth: 1,
+    borderLeftColor: '#CBD5E1',
   },
   ovalContainer: {
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
   },
   ovalSmall: {
     width: 32,
@@ -93,29 +153,76 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   ovalLarge: {
-    width: 60,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 24,
+    borderRadius: 12,
   },
   roundContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+  },
+  roundSmall: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  roundLarge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  scoreLine: {
+    position: 'absolute',
+    width: 1.5,
+    height: '60%',
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    borderRadius: 1,
+  },
+  diamondWrapLarge: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  diamondWrapSmall: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  diamondContainer: {
+    transform: [{ rotate: '45deg' }],
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roundSmall: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+  diamondSmall: {
+    width: 16,
+    height: 16,
+    borderRadius: 3,
   },
-  roundLarge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  diamondLarge: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
   },
-  scoreLine: {
-    width: '75%',
-    height: 2,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  dropContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+  },
+  dropSmall: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  dropLarge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
 });

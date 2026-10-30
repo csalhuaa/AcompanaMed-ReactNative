@@ -1,4 +1,4 @@
-export type PillShape = 'round' | 'capsule' | 'oval';
+export type PillShape = 'round' | 'capsule' | 'oval' | 'scored' | 'diamond' | 'drop';
 
 export interface VisualPill {
   shape: PillShape;

@@ -185,39 +185,42 @@ export const AddMedicineModal: React.FC<Props> = ({
               accessibilityLabel="Instrucciones médicas de ingestión"
             />
 
-            <Text style={styles.formInputLabel}>Forma Anatómica del Comprimido</Text>
+            <Text style={styles.formInputLabel}>Forma Anatómica y Presentación Farmacológica</Text>
             <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
-              {(['round', 'capsule', 'oval'] as PillShape[]).map((s) => (
+              {(
+                [
+                  { id: 'round', label: 'Redonda', icon: 'checkbox-blank-circle' },
+                  { id: 'capsule', label: 'Cápsula', icon: 'pill' },
+                  { id: 'oval', label: 'Ovalada', icon: 'circle-double' },
+                  { id: 'scored', label: 'Ranurada', icon: 'plus-circle-outline' },
+                  { id: 'diamond', label: 'Romboide', icon: 'rhombus-outline' },
+                  { id: 'drop', label: 'Gotas', icon: 'water' },
+                ] as const
+              ).map((item) => (
                 <TouchableOpacity
-                  key={s}
+                  key={item.id}
                   style={[
                     styles.shapeOptionBtn,
-                    shape === s && styles.shapeOptionBtnActive,
+                    shape === item.id && styles.shapeOptionBtnActive,
                   ]}
-                  onPress={() => setShape(s)}
+                  onPress={() => setShape(item.id)}
                   activeOpacity={0.8}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: shape === s }}
-                  accessibilityLabel={`Forma: ${s === 'round' ? 'Pastilla Redonda' : s === 'capsule' ? 'Cápsula' : 'Comprimido Oval'}`}
+                  accessibilityState={{ selected: shape === item.id }}
+                  accessibilityLabel={`Presentación: ${item.label}`}
                 >
                   <MaterialCommunityIcons
-                    name={
-                      s === 'capsule'
-                        ? 'pill'
-                        : s === 'oval'
-                        ? 'circle-double'
-                        : 'checkbox-blank-circle'
-                    }
-                    size={20}
-                    color={shape === s ? '#0F172A' : '#334155'}
+                    name={item.icon as any}
+                    size={18}
+                    color={shape === item.id ? '#0F172A' : '#475569'}
                   />
                   <Text
                     style={[
                       styles.shapeOptionText,
-                      shape === s && styles.shapeOptionTextActive,
+                      shape === item.id && styles.shapeOptionTextActive,
                     ]}
                   >
-                    {s === 'round' ? 'Redonda' : s === 'capsule' ? 'Cápsula' : 'Oval'}
+                    {item.label}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -349,10 +352,12 @@ const styles = StyleSheet.create({
   },
   shapeSelectorRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   shapeOptionBtn: {
-    flex: 1,
+    width: '31%',
+    minWidth: 92,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
