@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillShape, Medicine } from '../../domain';
+import { CLINICAL_MEDICINE_PRESETS, MedicinePreset } from '../../domain/medicineAssets';
 
 export const COLOR_PALETTE = [
   { hex: '#0284C7', name: 'Azul Clínico' },
@@ -31,6 +32,9 @@ export interface NewMedicineData {
   color: { hex: string; name: string };
   stock: number;
   minStockAlert: number;
+  photoUri?: string;
+  imprint?: string;
+  canSplit?: boolean;
 }
 
 interface Props {
@@ -56,6 +60,9 @@ export const AddMedicineModal: React.FC<Props> = ({
   const [color, setColor] = useState(COLOR_PALETTE[0]);
   const [stock, setStock] = useState('30');
   const [minAlert, setMinAlert] = useState('6');
+  const [photoUri, setPhotoUri] = useState('');
+  const [imprint, setImprint] = useState('');
+  const [canSplit, setCanSplit] = useState(true);
 
   const isEditing = !!initialMedicine;
 
@@ -74,6 +81,9 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(foundColor);
         setStock(String(initialMedicine.stock));
         setMinAlert(String(initialMedicine.minStockAlert));
+        setPhotoUri(initialMedicine.visualPill.photoUri || '');
+        setImprint(initialMedicine.visualPill.imprint || '');
+        setCanSplit(initialMedicine.visualPill.canSplit ?? true);
       } else {
         setName('');
         setDose('');
@@ -83,9 +93,29 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(COLOR_PALETTE[0]);
         setStock('30');
         setMinAlert('6');
+        setPhotoUri('');
+        setImprint('');
+        setCanSplit(true);
       }
     }
   }, [visible, initialMedicine, initialScheduleTime]);
+
+  const applyPreset = (preset: MedicinePreset) => {
+    setName(preset.name);
+    setDose(preset.doseDescription);
+    setInstructions(preset.instructions);
+    setShape(preset.visualPill.shape);
+    const foundColor = COLOR_PALETTE.find((c) => c.hex === preset.visualPill.colorHex) || {
+      hex: preset.visualPill.colorHex,
+      name: preset.visualPill.colorName,
+    };
+    setColor(foundColor);
+    setStock(String(preset.stock));
+    setMinAlert(String(preset.minStockAlert));
+    setPhotoUri(preset.visualPill.photoUri || '');
+    setImprint(preset.visualPill.imprint || '');
+    setCanSplit(preset.visualPill.canSplit ?? true);
+  };
 
   const handleSave = () => {
     if (!name.trim() || !dose.trim()) {
@@ -103,6 +133,9 @@ export const AddMedicineModal: React.FC<Props> = ({
       color,
       stock: parseInt(stock, 10) || 30,
       minStockAlert: parseInt(minAlert, 10) || 6,
+      photoUri: photoUri.trim() || undefined,
+      imprint: imprint.trim() || undefined,
+      canSplit,
     });
 
     onClose();
@@ -139,6 +172,27 @@ export const AddMedicineModal: React.FC<Props> = ({
             contentContainerStyle={styles.modalFormContent}
             showsVerticalScrollIndicator={false}
           >
+            {!isEditing && (
+              <View style={styles.presetsBox}>
+                <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsScroll}>
+                  {CLINICAL_MEDICINE_PRESETS.map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.presetChip}
+                      onPress={() => applyPreset(p)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="pill" size={13} color="#0284C7" />
+                      <Text style={styles.presetChipText}>
+                        {p.name.split(' ')[0]} {p.doseDescription}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             <Text style={styles.formInputLabel}>Principio Activo (Nombre Comercial / Genérico)</Text>
             <TextInput
               style={styles.formTextInput}
@@ -264,6 +318,31 @@ export const AddMedicineModal: React.FC<Props> = ({
                   value={minAlert}
                   onChangeText={setMinAlert}
                   accessibilityLabel="Umbral de alerta de reposición"
+                />
+              </View>
+            </View>
+
+            <View style={styles.twoColumnInputs}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.formInputLabel}>Grabado en Pastilla (Imprint)</Text>
+                <TextInput
+                  style={styles.formTextInput}
+                  placeholder="Ej. 50, 850, OM-20"
+                  placeholderTextColor="#94A3B8"
+                  value={imprint}
+                  onChangeText={setImprint}
+                  accessibilityLabel="Código o grabado en la pastilla"
+                />
+              </View>
+              <View style={{ flex: 1.5 }}>
+                <Text style={styles.formInputLabel}>Foto del Blíster (URL)</Text>
+                <TextInput
+                  style={styles.formTextInput}
+                  placeholder="https://..."
+                  placeholderTextColor="#94A3B8"
+                  value={photoUri}
+                  onChangeText={setPhotoUri}
+                  accessibilityLabel="URL de fotografía del empaque"
                 />
               </View>
             </View>
@@ -396,6 +475,39 @@ const styles = StyleSheet.create({
   colorCircleSwatchActive: {
     borderColor: '#0F172A',
     borderWidth: 3,
+  },
+  presetsBox: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  presetsTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0369A1',
+    marginBottom: 6,
+  },
+  presetsScroll: {
+    flexDirection: 'row',
+  },
+  presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#0284C7',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginRight: 6,
+    gap: 4,
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0369A1',
   },
   modalSubmitButton: {
     flexDirection: 'row',

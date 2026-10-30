@@ -11,6 +11,7 @@ interface Props {
   onRequestDelete: (med: Medicine) => void;
   onEdit: (med: Medicine) => void;
   onOpenAddModal: () => void;
+  onInspect?: (med: Medicine) => void;
 }
 
 export const MedicineInventoryPanel: React.FC<Props> = ({
@@ -20,6 +21,7 @@ export const MedicineInventoryPanel: React.FC<Props> = ({
   onRequestDelete,
   onEdit,
   onOpenAddModal,
+  onInspect,
 }) => {
   return (
     <ScrollView
@@ -142,8 +144,20 @@ export const MedicineInventoryPanel: React.FC<Props> = ({
                     </View>
                   </View>
 
-                  {/* Fila Inferior: Botonera de Gestión Real (Reponer, Editar, Retirar) */}
+                  {/* Fila Inferior: Botonera de Gestión Real (Reponer, Editar, Retirar, Lupa) */}
                   <View style={styles.cardActionsRow}>
+                    {/* Botón Lupa de Inspección y Foto Real */}
+                    <TouchableOpacity
+                      style={styles.actionBtnInspect}
+                      onPress={() => onInspect && onInspect(med)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Inspeccionar pastilla y ver foto de ${med.name}`}
+                    >
+                      <MaterialCommunityIcons name="magnify-scan" size={16} color="#0284C7" />
+                      <Text style={styles.actionBtnInspectText}>Lupa / Foto</Text>
+                    </TouchableOpacity>
+
                     {/* Botón 1: Reponer Existencias (Abre modal de compra/pack) */}
                     <TouchableOpacity
                       style={styles.actionBtnRestock}
@@ -367,6 +381,24 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
+  },
+  actionBtnInspect: {
+    flex: 1.4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4,
+    minHeight: 40,
+  },
+  actionBtnInspectText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0369A1',
   },
   actionBtnRestock: {
     flex: 1.5,

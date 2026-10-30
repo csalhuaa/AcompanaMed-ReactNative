@@ -10,3 +10,4 @@ export * from './modals/ClinicalReportModal';
 export * from './modals/ConfirmDialogModal';
 export * from './modals/RestockModal';
 export * from './modals/FamilyPairingModal';
+export * from './modals/PillInspectionModal';

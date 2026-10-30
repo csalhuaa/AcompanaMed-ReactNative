@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScheduledDoseItem } from '../../domain';
+import { ScheduledDoseItem, Medicine } from '../../domain';
 import { DoseTimelineCard } from './DoseTimelineCard';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onPostponeDose: (id: string) => void;
   adherencePercentage: number;
   onOpenAddMedicine?: () => void;
+  onInspectMedicine?: (medicine: Medicine) => void;
 }
 
 export const TodayTimelineStream: React.FC<Props> = ({
@@ -22,6 +23,7 @@ export const TodayTimelineStream: React.FC<Props> = ({
   onPostponeDose,
   adherencePercentage,
   onOpenAddMedicine,
+  onInspectMedicine,
 }) => {
   const completedCount = dailySchedule.filter((d) => d.isTakenToday).length;
 
@@ -79,6 +81,7 @@ export const TodayTimelineStream: React.FC<Props> = ({
                 onToggleExpand={() => onToggleExpand(item.medicine.id)}
                 onTakeDose={onTakeDose}
                 onPostponeDose={onPostponeDose}
+                onInspectMedicine={onInspectMedicine}
               />
             );
           })}

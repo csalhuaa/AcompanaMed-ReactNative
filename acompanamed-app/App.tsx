@@ -42,10 +42,11 @@ import {
   ConfirmDialogModal,
   RestockModal,
   FamilyPairingModal,
+  PillInspectionModal,
   NewMedicineData,
 } from './src/components';
 
-// Catálogo inicial con polifarmacia geriátrica real
+// Catálogo inicial con polifarmacia geriátrica real y fotos de blísteres
 const INITIAL_MEDICINES: Medicine[] = [
   {
     id: 'med-losartan',
@@ -53,7 +54,17 @@ const INITIAL_MEDICINES: Medicine[] = [
     doseDescription: '50 mg',
     intervalHours: 24,
     instructions: 'Tomar con medio vaso de agua después del desayuno.',
-    visualPill: { shape: 'round', colorHex: '#0284C7', colorName: 'Azul Clínico' },
+    visualPill: {
+      shape: 'scored',
+      colorHex: '#38BDF8',
+      colorName: 'Azul Celeste',
+      imprint: '50',
+      sizeCategory: 'medium',
+      sizeLabel: 'Mediana (~9 mm)',
+      canSplit: true,
+      intakeAdvice: 'Tomar con abundante agua. Se puede partir en dos por la ranura central si el médico lo indicó.',
+      photoUri: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80',
+    },
     stock: 14,
     minStockAlert: 6,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -64,7 +75,17 @@ const INITIAL_MEDICINES: Medicine[] = [
     doseDescription: '850 mg',
     intervalHours: 24,
     instructions: 'Tomar inmediatamente con el almuerzo para proteger la mucosa gástrica.',
-    visualPill: { shape: 'capsule', colorHex: '#E2E8F0', colorName: 'Blanco / Nácar' },
+    visualPill: {
+      shape: 'oval',
+      colorHex: '#F1F5F9',
+      colorName: 'Blanco Tiza',
+      imprint: '850',
+      sizeCategory: 'large',
+      sizeLabel: 'Grande (~19 mm)',
+      canSplit: false,
+      intakeAdvice: 'No masticar ni triturar. Tomar con alimentos para reducir las molestias estomacales.',
+      photoUri: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=600&q=80',
+    },
     stock: 22,
     minStockAlert: 5,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -75,7 +96,17 @@ const INITIAL_MEDICINES: Medicine[] = [
     doseDescription: '20 mg',
     intervalHours: 24,
     instructions: 'Tomar antes de acostarse a dormir.',
-    visualPill: { shape: 'oval', colorHex: '#D97706', colorName: 'Ámbar Cálido' },
+    visualPill: {
+      shape: 'round',
+      colorHex: '#F59E0B',
+      colorName: 'Ámbar Cálido',
+      imprint: '20',
+      sizeCategory: 'medium',
+      sizeLabel: 'Mediana (~10 mm)',
+      canSplit: false,
+      intakeAdvice: 'Tomar por la noche. Ayuda a regular los niveles de colesterol durante el descanso.',
+      photoUri: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=600&q=80',
+    },
     stock: 4,
     minStockAlert: 6,
     createdAt: '2026-10-29T08:00:00.000Z',
@@ -158,6 +189,23 @@ export default function App() {
   const [deletingMedicine, setDeletingMedicine] = useState<Medicine | null>(null);
 
   const [isFamilyPairingModalVisible, setIsFamilyPairingModalVisible] = useState(false);
+  const [inspectingMedicine, setInspectingMedicine] = useState<Medicine | null>(null);
+
+  const handleUpdateMedicinePhoto = (medicineId: string, newPhotoUri: string) => {
+    setMedicines((prev) =>
+      prev.map((m) =>
+        m.id === medicineId
+          ? {
+              ...m,
+              visualPill: {
+                ...m.visualPill,
+                photoUri: newPhotoUri,
+              },
+            }
+          : m
+      )
+    );
+  };
 
   // Carga asíncrona de almacenamiento
   useEffect(() => {
@@ -309,9 +357,13 @@ export default function App() {
                 doseDescription: data.doseDescription,
                 instructions: data.instructions,
                 visualPill: {
+                  ...m.visualPill,
                   shape: data.shape,
                   colorHex: data.color.hex,
                   colorName: data.color.name,
+                  photoUri: data.photoUri || m.visualPill.photoUri,
+                  imprint: data.imprint !== undefined ? data.imprint : m.visualPill.imprint,
+                  canSplit: data.canSplit !== undefined ? data.canSplit : m.visualPill.canSplit,
                 },
                 stock: data.stock,
                 minStockAlert: data.minStockAlert,
@@ -333,6 +385,9 @@ export default function App() {
           shape: data.shape,
           colorHex: data.color.hex,
           colorName: data.color.name,
+          photoUri: data.photoUri,
+          imprint: data.imprint,
+          canSplit: data.canSplit,
         },
         stock: data.stock,
         minStockAlert: data.minStockAlert,
@@ -621,6 +676,7 @@ export default function App() {
                 onPostponeDose={handlePostponeDose}
                 adherencePercentage={adherence.adherencePercentage}
                 onOpenAddMedicine={handleOpenAddModal}
+                onInspectMedicine={(med) => setInspectingMedicine(med)}
               />
             </View>
 
@@ -737,6 +793,7 @@ export default function App() {
                             onRequestDelete={handleRequestDelete}
                             onEdit={handleOpenEditModal}
                             onOpenAddModal={handleOpenAddModal}
+                            onInspect={(med) => setInspectingMedicine(med)}
                           />
                         )
                       )}
@@ -767,6 +824,7 @@ export default function App() {
                 onPostponeDose={handlePostponeDose}
                 adherencePercentage={adherence.adherencePercentage}
                 onOpenAddMedicine={handleOpenAddModal}
+                onInspectMedicine={(med) => setInspectingMedicine(med)}
               />
             )}
 
@@ -806,6 +864,7 @@ export default function App() {
                   onRequestDelete={handleRequestDelete}
                   onEdit={handleOpenEditModal}
                   onOpenAddModal={handleOpenAddModal}
+                  onInspect={(med) => setInspectingMedicine(med)}
                 />
               )
             )}
@@ -878,6 +937,14 @@ export default function App() {
         onRestoreDemoData={handleRestoreDemoData}
         onTestNotification={handleTestNotification}
         activeRole={activeRole}
+      />
+
+      {/* MODAL 6: LUPA DE INSPECCIÓN Y VERIFICACIÓN FOTOGRÁFICA DE BLÍSTER */}
+      <PillInspectionModal
+        visible={!!inspectingMedicine}
+        medicine={inspectingMedicine}
+        onClose={() => setInspectingMedicine(null)}
+        onUpdatePhoto={handleUpdateMedicinePhoto}
       />
     </View>
   );

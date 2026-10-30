@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScheduledDoseItem } from '../../domain';
+import { ScheduledDoseItem, Medicine } from '../../domain';
 import { PillVisualRenderer } from './PillVisualRenderer';
 import { defaultSpeechService, formatSeniorInstructionSpeech } from '../../infrastructure';
 
@@ -12,6 +12,7 @@ interface Props {
   onToggleExpand: () => void;
   onTakeDose: (medId: string) => void;
   onPostponeDose: (medId: string) => void;
+  onInspectMedicine?: (medicine: Medicine) => void;
 }
 
 export const DoseTimelineCard: React.FC<Props> = ({
@@ -21,6 +22,7 @@ export const DoseTimelineCard: React.FC<Props> = ({
   onToggleExpand,
   onTakeDose,
   onPostponeDose,
+  onInspectMedicine,
 }) => {
   const { medicine, scheduledTime, isTakenToday, isPastDue } = item;
 
@@ -123,26 +125,38 @@ export const DoseTimelineCard: React.FC<Props> = ({
             <View style={styles.expandedContent}>
               <View style={styles.divider} />
 
-              {/* Muestra Anatómica Realista */}
-              <View style={styles.pillAnatomyShowcase}>
-                <PillVisualRenderer visualPill={medicine.visualPill} size="large" />
+              {/* Muestra Anatómica Realista Interactiva */}
+              <TouchableOpacity
+                style={styles.pillAnatomyShowcase}
+                onPress={() => onInspectMedicine && onInspectMedicine(medicine)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir lupa de inspección para ${medicine.name}`}
+              >
+                <PillVisualRenderer visualPill={medicine.visualPill} size="large" showSizeBadge />
                 <View style={styles.pillAnatomyMeta}>
-                  <Text style={styles.anatomyTitle}>Identificación Visual</Text>
+                  <Text style={styles.anatomyTitle}>Identificación Farmacéutica</Text>
                   <Text style={styles.anatomyText}>
-                    Forma:{' '}
-                    <Text style={styles.anatomyBold}>
-                      {medicine.visualPill.shape === 'capsule'
-                        ? 'Cápsula biseccionada'
-                        : medicine.visualPill.shape === 'oval'
-                        ? 'Comprimido oval'
-                        : 'Comprimido redondo'}
-                    </Text>
+                    Forma: <Text style={styles.anatomyBold}>{medicine.visualPill.shape.toUpperCase()}</Text> • Color: <Text style={styles.anatomyBold}>{medicine.visualPill.colorName}</Text>
                   </Text>
-                  <Text style={styles.anatomyText}>
-                    Color: <Text style={styles.anatomyBold}>{medicine.visualPill.colorName}</Text>
+                  <Text style={styles.anatomySubtext}>
+                    {medicine.visualPill.sizeLabel || 'Tamaño estándar'} • Toque para ver foto real
                   </Text>
                 </View>
-              </View>
+                <MaterialCommunityIcons name="magnify-plus-outline" size={24} color="#0284C7" />
+              </TouchableOpacity>
+
+              {/* Botón Acceso Rápido a Lupa con Foto Real */}
+              <TouchableOpacity
+                style={styles.inspectButton}
+                onPress={() => onInspectMedicine && onInspectMedicine(medicine)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver foto real del blíster de ${medicine.name}`}
+              >
+                <MaterialCommunityIcons name="image-search-outline" size={20} color="#0284C7" />
+                <Text style={styles.inspectButtonText}>Lupa de Inspección y Foto Real de Blíster</Text>
+              </TouchableOpacity>
 
               {/* Instrucción Médica de Ingestión */}
               <View style={styles.instructionBox}>
@@ -386,6 +400,29 @@ const styles = StyleSheet.create({
   anatomyBold: {
     fontWeight: '700',
     color: '#0F172A',
+  },
+  anatomySubtext: {
+    fontSize: 11,
+    color: '#0284C7',
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  inspectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  inspectButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0369A1',
   },
   instructionBox: {
     flexDirection: 'row',

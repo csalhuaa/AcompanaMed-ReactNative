@@ -3,7 +3,14 @@ export type PillShape = 'round' | 'capsule' | 'oval' | 'scored' | 'diamond' | 'd
 export interface VisualPill {
   shape: PillShape;
   colorHex: string;
+  secondaryColorHex?: string;
   colorName: string;
+  imprint?: string;
+  sizeCategory?: 'tiny' | 'medium' | 'large';
+  sizeLabel?: string;
+  photoUri?: string;
+  canSplit?: boolean;
+  intakeAdvice?: string;
 }
 
 export interface Medicine {
