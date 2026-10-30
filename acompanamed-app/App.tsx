@@ -3,12 +3,8 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   Alert,
-  Modal,
-  TextInput,
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -17,16 +13,12 @@ import {
   Medicine,
   DoseLog,
   ActorRole,
-  PillShape,
   EmergencyProfile,
   canRegisterDose,
   decrementStock,
-  isStockLow,
-  daysRemaining,
   calculateAdherence,
   evaluateEscalation,
   buildDailySchedule,
-  ScheduledDoseItem,
   generateClinicalSummary,
 } from './src/domain';
 import {
@@ -34,9 +26,19 @@ import {
   defaultSpeechService,
   defaultHapticService,
   defaultNotificationService,
-  formatSeniorInstructionSpeech,
   formatConfirmationSpeech,
 } from './src/infrastructure';
+import {
+  AppNavTab,
+  BottomNavBar,
+  TodayTimelineStream,
+  CaregiverDashboard,
+  MedicineInventoryPanel,
+  EmergencyProfileCard,
+  AddMedicineModal,
+  ClinicalReportModal,
+  NewMedicineData,
+} from './src/components';
 
 // Catálogo inicial con polifarmacia geriátrica real
 const INITIAL_MEDICINES: Medicine[] = [
@@ -122,17 +124,6 @@ const DEFAULT_PROFILE: EmergencyProfile = {
   },
 };
 
-const COLOR_PALETTE = [
-  { hex: '#0284C7', name: 'Azul Clínico' },
-  { hex: '#E2E8F0', name: 'Blanco Nácar' },
-  { hex: '#D97706', name: 'Ámbar Cálido' },
-  { hex: '#DC2626', name: 'Rojo Carmesí' },
-  { hex: '#059669', name: 'Verde Médico' },
-  { hex: '#7C3AED', name: 'Violeta Suave' },
-];
-
-type AppNavTab = 'today' | 'caregiver' | 'stock' | 'emergency';
-
 export default function App() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<AppNavTab>('today');
@@ -140,22 +131,11 @@ export default function App() {
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>(INITIAL_SCHEDULE_TIMES);
   const [logs, setLogs] = useState<DoseLog[]>(INITIAL_LOGS);
   const [emergencyProfile, setEmergencyProfile] = useState<EmergencyProfile>(DEFAULT_PROFILE);
-
   const [expandedMedId, setExpandedMedId] = useState<string>('med-losartan');
 
   // Modales
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isReportModalVisible, setIsReportModalVisible] = useState(false);
-
-  // Formulario nuevo medicamento
-  const [newMedName, setNewMedName] = useState('');
-  const [newMedDose, setNewMedDose] = useState('');
-  const [newMedTime, setNewMedTime] = useState('08:00');
-  const [newMedInstructions, setNewMedInstructions] = useState('');
-  const [newMedShape, setNewMedShape] = useState<PillShape>('round');
-  const [newMedColor, setNewMedColor] = useState(COLOR_PALETTE[0]);
-  const [newMedStock, setNewMedStock] = useState('30');
-  const [newMedMinAlert, setNewMedMinAlert] = useState('6');
 
   // Carga asíncrona de almacenamiento
   useEffect(() => {
@@ -199,7 +179,7 @@ export default function App() {
     if (isLoaded) defaultStorageService.saveEmergencyProfile(emergencyProfile);
   }, [emergencyProfile, isLoaded]);
 
-  // Agenda cronológica continua del día
+  // Cálculos de Dominio
   const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, new Date());
   const adherence = calculateAdherence(logs);
   const clinicalReport = generateClinicalSummary(medicines, logs, emergencyProfile);
@@ -261,7 +241,7 @@ export default function App() {
     Alert.alert('Dosis Pospuesta', `Le recordaremos tomar ${med.name} en 15 minutos.`);
   };
 
-  // Acción: Reponer stock
+  // Acción: Reponer stock (+30 unidades)
   const handleRestockMedicine = (medId: string) => {
     setMedicines((prev) =>
       prev.map((m) => (m.id === medId ? { ...m, stock: m.stock + 30 } : m))
@@ -291,40 +271,43 @@ export default function App() {
     );
   };
 
-  // Acción: Guardar nuevo medicamento
-  const handleSaveNewMedicine = () => {
-    if (!newMedName.trim() || !newMedDose.trim()) {
-      Alert.alert('Campos Obligatorios', 'Por favor indique el nombre y la dosis prescrita.');
-      return;
-    }
-
+  // Acción: Guardar nuevo medicamento desde modal
+  const handleSaveNewMedicine = (data: NewMedicineData) => {
     const newId = `med-${Date.now()}`;
     const newMed: Medicine = {
       id: newId,
-      name: newMedName.trim(),
-      doseDescription: newMedDose.trim(),
+      name: data.name,
+      doseDescription: data.doseDescription,
       intervalHours: 24,
-      instructions: newMedInstructions.trim() || 'Tomar según prescripción médica con agua.',
+      instructions: data.instructions,
       visualPill: {
-        shape: newMedShape,
-        colorHex: newMedColor.hex,
-        colorName: newMedColor.name,
+        shape: data.shape,
+        colorHex: data.color.hex,
+        colorName: data.color.name,
       },
-      stock: parseInt(newMedStock, 10) || 30,
-      minStockAlert: parseInt(newMedMinAlert, 10) || 6,
+      stock: data.stock,
+      minStockAlert: data.minStockAlert,
       createdAt: new Date().toISOString(),
     };
 
     setMedicines((prev) => [...prev, newMed]);
-    setScheduleTimes((prev) => ({ ...prev, [newId]: newMedTime }));
+    setScheduleTimes((prev) => ({ ...prev, [newId]: data.scheduleTime }));
 
-    defaultNotificationService.scheduleDoseReminder(newMed, newMedTime);
-
-    setNewMedName('');
-    setNewMedDose('');
-    setNewMedInstructions('');
-    setIsAddModalVisible(false);
+    defaultNotificationService.scheduleDoseReminder(newMed, data.scheduleTime);
     Alert.alert('Medicamento Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
+  };
+
+  // Acción: Llamada de auxilio ICE
+  const handleCallEmergency = (phone: string, contactName: string) => {
+    Alert.alert('Llamada de Emergencia', `Conectando con contacto de auxilio (${contactName}): ${phone}`);
+  };
+
+  // Acción: Exportar reporte clínico
+  const handleExportReport = () => {
+    Alert.alert(
+      'Informe Exportado',
+      'El reporte de adherencia fue copiado al portapapeles y está listo para WhatsApp o impresión médica.'
+    );
   };
 
   if (!isLoaded) {
@@ -352,7 +335,11 @@ export default function App() {
           </Text>
         </View>
 
-        <View style={styles.clockHeaderBadge} accessibilityRole="text" accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}>
+        <View
+          style={styles.clockHeaderBadge}
+          accessibilityRole="text"
+          accessibilityLabel={`Hora actual: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+        >
           <MaterialCommunityIcons name="clock-outline" size={14} color="#0F172A" />
           <Text style={styles.clockHeaderText}>
             {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -360,775 +347,67 @@ export default function App() {
         </View>
       </View>
 
-      {/* CUERPO PRINCIPAL BASADO EN NAVEGACIÓN INFERIOR NATIVA */}
+      {/* CUERPO PRINCIPAL */}
       <View style={styles.mainContainer}>
-        {/* ========================================================= */}
-        {/* PESTAÑA 1: HOY — HILO CRONOLÓGICO CONTINUO DEL DÍA         */}
-        {/* ========================================================= */}
         {activeTab === 'today' && (
-          <ScrollView contentContainerStyle={styles.tabScrollContent} showsVerticalScrollIndicator={false}>
-            {/* Banner de Saludo y Próxima Acción */}
-            <View style={styles.todayHeroBanner}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.todayHeroGreeting}>Plan de Hoy</Text>
-                <Text style={styles.todayHeroSub}>
-                  {dailySchedule.filter((d) => d.isTakenToday).length} de {dailySchedule.length} dosis completadas
-                </Text>
-              </View>
-              <View style={styles.adherenceMiniBadge}>
-                <Text style={styles.adherenceMiniBadgeText}>{adherence.adherencePercentage}%</Text>
-                <Text style={styles.adherenceMiniBadgeLabel}>Adherencia</Text>
-              </View>
-            </View>
-
-            {/* HILO CRONOLÓGICO (TIMELINE STREAM VERTICAL) */}
-            <View style={styles.timelineStream}>
-              {dailySchedule.map((item: ScheduledDoseItem, index: number) => {
-                const isExpanded = item.medicine.id === expandedMedId;
-                const isLast = index === dailySchedule.length - 1;
-
-                return (
-                  <View key={item.medicine.id} style={styles.timelineNodeContainer}>
-                    {/* Columna Izquierda: Hora y Línea de Conexión */}
-                    <View style={styles.timelineGutter}>
-                      <View
-                        style={[
-                          styles.timelineNodeDot,
-                          item.isTakenToday && styles.timelineNodeDotTaken,
-                          item.isPastDue && styles.timelineNodeDotAlert,
-                        ]}
-                      >
-                        {item.isTakenToday ? (
-                          <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                        ) : (
-                          <View style={styles.timelineInnerDot} />
-                        )}
-                      </View>
-                      {!isLast && <View style={styles.timelineConnectorLine} />}
-                    </View>
-
-                    {/* Columna Derecha: Tarjeta de Medicamento en el Hilo */}
-                    <View style={{ flex: 1, paddingBottom: 20 }}>
-                      <TouchableOpacity
-                        style={[
-                          styles.timelineCard,
-                          isExpanded && styles.timelineCardExpanded,
-                          item.isTakenToday && styles.timelineCardTaken,
-                        ]}
-                        onPress={() => setExpandedMedId(item.medicine.id)}
-                        activeOpacity={0.9}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Toma de ${item.scheduledTime}, ${item.medicine.name} ${item.medicine.doseDescription}. ${item.isTakenToday ? 'Dosis completada' : item.isPastDue ? 'Dosis pendiente con retraso' : 'Dosis programada'}`}
-                        accessibilityHint="Toca para expandir los detalles de la pastilla y registrar la toma"
-                      >
-                        {/* Cabecera de la Tarjeta */}
-                        <View style={styles.timelineCardTop}>
-                          <View style={styles.timeTagBadge}>
-                            <MaterialCommunityIcons name="clock-outline" size={12} color="#0284C7" />
-                            <Text style={styles.timeTagBadgeText}>{item.scheduledTime}</Text>
-                          </View>
-
-                          {item.isTakenToday ? (
-                            <View style={styles.statusTakenChip}>
-                              <MaterialCommunityIcons name="check-circle" size={14} color="#059669" />
-                              <Text style={styles.statusTakenChipText}>Tomada</Text>
-                            </View>
-                          ) : item.isPastDue ? (
-                            <View style={styles.statusPastDueChip}>
-                              <MaterialCommunityIcons name="alert-circle" size={14} color="#DC2626" />
-                              <Text style={styles.statusPastDueChipText}>Pendiente</Text>
-                            </View>
-                          ) : (
-                            <View style={styles.statusScheduledChip}>
-                              <Text style={styles.statusScheduledChipText}>Programada</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        {/* Nombre del Fármaco y Miniatura de Pastilla */}
-                        <View style={styles.timelineMedRow}>
-                          <View
-                            style={[
-                              styles.miniPillPreviewBox,
-                              { borderColor: item.medicine.visualPill.colorHex },
-                            ]}
-                          >
-                            <MaterialCommunityIcons
-                              name={
-                                item.medicine.visualPill.shape === 'capsule'
-                                  ? 'pill'
-                                  : item.medicine.visualPill.shape === 'oval'
-                                  ? 'circle-double'
-                                  : 'checkbox-blank-circle'
-                              }
-                              size={22}
-                              color={item.medicine.visualPill.colorHex}
-                            />
-                          </View>
-
-                          <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={styles.timelineMedName}>{item.medicine.name}</Text>
-                            <Text style={styles.timelineMedDose}>
-                              {item.medicine.doseDescription} • {item.medicine.visualPill.colorName}
-                            </Text>
-                          </View>
-
-                          <MaterialCommunityIcons
-                            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                            size={20}
-                            color="#334155"
-                          />
-                        </View>
-
-                        {/* DETALLE EXPANDIDO: MUESTRA VISUAL REALISTA Y BOTONES DE ACCIÓN */}
-                        {isExpanded && (
-                          <View style={styles.expandedDetailBox}>
-                            <View style={styles.hairlineDivider} />
-
-                            {/* Representación Visual Realista del Fármaco */}
-                            <View style={styles.realisticPillShowcase}>
-                              {item.medicine.visualPill.shape === 'capsule' ? (
-                                <View style={styles.renderedCapsule}>
-                                  <View
-                                    style={[
-                                      styles.capsuleLeftHalf,
-                                      { backgroundColor: item.medicine.visualPill.colorHex },
-                                    ]}
-                                  />
-                                  <View style={styles.capsuleRightHalf} />
-                                </View>
-                              ) : item.medicine.visualPill.shape === 'oval' ? (
-                                <View
-                                  style={[
-                                    styles.renderedOval,
-                                    { backgroundColor: item.medicine.visualPill.colorHex },
-                                  ]}
-                                >
-                                  <View style={styles.renderedScoreLine} />
-                                </View>
-                              ) : (
-                                <View
-                                  style={[
-                                    styles.renderedRound,
-                                    { backgroundColor: item.medicine.visualPill.colorHex },
-                                  ]}
-                                >
-                                  <View style={styles.renderedScoreLine} />
-                                </View>
-                              )}
-
-                              <View style={{ flex: 1, marginLeft: 16 }}>
-                                <Text style={styles.pillVisualDescriptionTitle}>Identificación Visual</Text>
-                                <Text style={styles.pillVisualDescriptionText}>
-                                  Forma:{' '}
-                                  <Text style={{ fontWeight: '700', color: '#0F172A' }}>
-                                    {item.medicine.visualPill.shape === 'capsule'
-                                      ? 'Cápsula biseccionada'
-                                      : item.medicine.visualPill.shape === 'oval'
-                                      ? 'Comprimido ovalado'
-                                      : 'Comprimido redondo'}
-                                  </Text>
-                                </Text>
-                                <Text style={styles.pillVisualDescriptionText}>
-                                  Color:{' '}
-                                  <Text style={{ fontWeight: '700', color: '#0F172A' }}>
-                                    {item.medicine.visualPill.colorName}
-                                  </Text>
-                                </Text>
-                              </View>
-                            </View>
-
-                            {/* Instrucciones Médicas Claras */}
-                            <View style={styles.instructionBubble}>
-                              <MaterialCommunityIcons name="information-outline" size={18} color="#0284C7" />
-                              <Text style={styles.instructionBubbleText}>{item.medicine.instructions}</Text>
-                            </View>
-
-                            {/* Botón de Audio TTS */}
-                            <TouchableOpacity
-                              style={styles.listenTTSButton}
-                              onPress={() => {
-                                const speechText = formatSeniorInstructionSpeech(
-                                  'Don Manuel',
-                                  item.medicine.name,
-                                  item.medicine.doseDescription,
-                                  item.medicine.instructions
-                                );
-                                defaultSpeechService.speak(speechText);
-                                Alert.alert('Lectura en Voz Alta', speechText);
-                              }}
-                              activeOpacity={0.8}
-                              accessibilityRole="button"
-                              accessibilityLabel={`Escuchar en voz alta indicación de ${item.medicine.name}`}
-                            >
-                              <MaterialCommunityIcons name="volume-high" size={18} color="#0284C7" />
-                              <Text style={styles.listenTTSButtonText}>Escuchar indicación en voz alta</Text>
-                            </TouchableOpacity>
-
-                            {/* Acciones de Toma / Posponer */}
-                            {item.isTakenToday ? (
-                              <View style={styles.takenNoticeStrip}>
-                                <MaterialCommunityIcons name="shield-check" size={20} color="#059669" />
-                                <Text style={styles.takenNoticeStripText}>
-                                  Dosis confirmada hoy. Próxima toma programada a las {item.scheduledTime}.
-                                </Text>
-                              </View>
-                            ) : (
-                              <View style={styles.actionButtonGroup}>
-                                <TouchableOpacity
-                                  style={styles.confirmActionButton}
-                                  onPress={() => handleTakeDose(item.medicine.id, 'patient')}
-                                  activeOpacity={0.85}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={`Confirmar toma de ${item.medicine.name} ${item.medicine.doseDescription}`}
-                                  accessibilityHint="Registra la dosis en el historial y descuenta del inventario"
-                                >
-                                  <MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />
-                                  <Text style={styles.confirmActionButtonText}>Confirmar toma</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                  style={styles.postponeActionButton}
-                                  onPress={() => handlePostponeDose(item.medicine.id)}
-                                  activeOpacity={0.8}
-                                  accessibilityRole="button"
-                                  accessibilityLabel={`Posponer toma de ${item.medicine.name} por 15 minutos`}
-                                  accessibilityHint="Pospone el recordatorio sin penalizar tu adherencia"
-                                >
-                                  <MaterialCommunityIcons name="clock-fast" size={16} color="#334155" />
-                                  <Text style={styles.postponeActionButtonText}>Posponer 15 min</Text>
-                                </TouchableOpacity>
-                              </View>
-                            )}
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
+          <TodayTimelineStream
+            dailySchedule={dailySchedule}
+            expandedMedId={expandedMedId}
+            onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
+            onTakeDose={(id) => handleTakeDose(id, 'patient')}
+            onPostponeDose={handlePostponeDose}
+            adherencePercentage={adherence.adherencePercentage}
+          />
         )}
 
-        {/* ========================================================= */}
-        {/* PESTAÑA 2: CUIDADOR — TELEMETRÍA, ESCALAMIENTO & REPORTE  */}
-        {/* ========================================================= */}
         {activeTab === 'caregiver' && (
-          <ScrollView contentContainerStyle={styles.tabScrollContent} showsVerticalScrollIndicator={false}>
-            {/* Monitor de Escalamiento / Período de Gracia (30 min) */}
-            <View style={[styles.panelCard, escalation.shouldEscalate && styles.panelCardAlert]}>
-              <View style={styles.panelCardHeader}>
-                <MaterialCommunityIcons
-                  name={escalation.shouldEscalate ? 'alert-circle' : 'shield-check-outline'}
-                  size={24}
-                  color={escalation.shouldEscalate ? '#DC2626' : '#059669'}
-                />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.panelCardTitle}>
-                    {escalation.shouldEscalate ? 'Alerta de Escalamiento Clínico' : 'Supervisión en Tiempo Real'}
-                  </Text>
-                  <Text style={styles.panelCardBody}>{escalation.message}</Text>
-                </View>
-              </View>
-
-              <View style={styles.escalationMetricBar}>
-                <Text style={styles.metricBarText}>Tolerancia máxima de gracia: 30 minutos</Text>
-                <Text style={styles.metricBarText}>Monitoreo continuo activo</Text>
-              </View>
-            </View>
-
-            {/* Dashboard Cuantitativo de Adherencia */}
-            <View style={styles.panelCard}>
-              <Text style={styles.panelCardTitle}>Tasa de Adherencia Terapéutica</Text>
-
-              <View style={styles.adherenceScoreContainer}>
-                <View style={styles.adherenceBigNumberBadge}>
-                  <Text style={styles.adherenceBigNumberText}>{adherence.adherencePercentage}%</Text>
-                  <View style={styles.adherenceRatingChip}>
-                    <Text style={styles.adherenceRatingChipText}>
-                      {adherence.statusRating === 'excellent' ? 'Excelente' : adherence.statusRating === 'good' ? 'Buena' : 'En Riesgo'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.adherenceBreakdownList}>
-                  <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Dosis Totales</Text>
-                    <Text style={styles.breakdownValue}>{adherence.totalScheduled}</Text>
-                  </View>
-                  <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Confirmadas</Text>
-                    <Text style={[styles.breakdownValue, { color: '#059669' }]}>{adherence.totalTaken}</Text>
-                  </View>
-                  <View style={styles.breakdownItem}>
-                    <Text style={styles.breakdownLabel}>Pospuestas</Text>
-                    <Text style={[styles.breakdownValue, { color: '#D97706' }]}>{adherence.totalPostponed}</Text>
-                  </View>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.openReportCTAButton}
-                onPress={() => setIsReportModalVisible(true)}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Generar informe completo de adherencia para la consulta médica"
-                accessibilityHint="Abre la ventana con el informe médico estructurado y opción de exportación"
-              >
-                <MaterialCommunityIcons name="file-document-outline" size={18} color="#0F172A" />
-                <Text style={styles.openReportCTAButtonText}>Generar Informe Completo para la Consulta Médica</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Lista Desglosada por Fármaco */}
-            <View style={styles.panelCard}>
-              <Text style={styles.panelCardTitle}>Desglose Individual por Principio Activo</Text>
-              <View style={styles.medicineBreakdownList}>
-                {clinicalReport.medicationBreakdown.map((item) => (
-                  <View key={item.medicineId} style={styles.medBreakdownRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.medBreakdownName}>{item.medicineName}</Text>
-                      <Text style={styles.medBreakdownDose}>{item.doseDescription}</Text>
-                    </View>
-                    <View style={styles.progressBarWrapper}>
-                      <View style={[styles.progressBarFill, { width: `${item.adherenceRate}%` }]} />
-                    </View>
-                    <Text style={styles.medBreakdownPercent}>{item.adherenceRate}%</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
+          <CaregiverDashboard
+            escalation={escalation}
+            adherence={adherence}
+            clinicalReport={clinicalReport}
+            onOpenReport={() => setIsReportModalVisible(true)}
+          />
         )}
 
-        {/* ========================================================= */}
-        {/* PESTAÑA 3: BOTIQUÍN — INVENTARIO & REPOSICIÓN DE STOCK     */}
-        {/* ========================================================= */}
         {activeTab === 'stock' && (
-          <ScrollView contentContainerStyle={styles.tabScrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.panelCard}>
-              <View style={styles.stockHeaderFlex}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.panelCardTitle}>Botiquín Familiar</Text>
-                  <Text style={styles.panelCardBody}>Control de existencias y días restantes de tratamiento</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.addNewMedActionBtn}
-                  onPress={() => setIsAddModalVisible(true)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Agregar nuevo medicamento al pastillero"
-                  accessibilityHint="Abre el formulario para registrar un nuevo fármaco con su horario y dosis"
-                >
-                  <MaterialCommunityIcons name="plus" size={16} color="#FFFFFF" />
-                  <Text style={styles.addNewMedActionBtnText}>Agregar</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.stockItemsContainer}>
-                {medicines.map((med) => {
-                  const low = isStockLow(med);
-                  const days = daysRemaining(med.stock, 1);
-                  return (
-                    <View key={med.id} style={styles.stockItemRow}>
-                      <View style={[styles.stockShapeDisc, { borderColor: med.visualPill.colorHex }]}>
-                        <MaterialCommunityIcons
-                          name={med.visualPill.shape === 'capsule' ? 'pill' : 'checkbox-blank-circle'}
-                          size={18}
-                          color={med.visualPill.colorHex}
-                        />
-                      </View>
-
-                      <View style={{ flex: 1, marginHorizontal: 12 }}>
-                        <Text style={styles.stockMedName}>{med.name}</Text>
-                        <Text style={styles.stockMedDetail}>
-                          {med.doseDescription} • Diaria a las {scheduleTimes[med.id] || '08:00'}
-                        </Text>
-                        <Text style={[styles.stockAlertBadge, low && styles.stockAlertBadgeLow]}>
-                          {med.stock} unidades ({days} días de medicación continua)
-                        </Text>
-                      </View>
-
-                      <View style={styles.stockItemActionButtons}>
-                        <TouchableOpacity
-                          style={styles.restockPlusBtn}
-                          onPress={() => handleRestockMedicine(med.id)}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Añadir 30 unidades al stock de ${med.name}`}
-                          accessibilityHint="Incrementa el inventario en 30 unidades"
-                        >
-                          <MaterialCommunityIcons name="plus" size={14} color="#059669" />
-                          <Text style={styles.restockPlusBtnText}>+30</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.deleteMedBtn}
-                          onPress={() => handleDeleteMedicine(med.id, med.name)}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Retirar ${med.name} del pastillero familiar`}
-                          accessibilityHint="Abre confirmación para retirar el fármaco del pastillero"
-                        >
-                          <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          </ScrollView>
+          <MedicineInventoryPanel
+            medicines={medicines}
+            scheduleTimes={scheduleTimes}
+            onRestock={handleRestockMedicine}
+            onDelete={handleDeleteMedicine}
+            onOpenAddModal={() => setIsAddModalVisible(true)}
+          />
         )}
 
-        {/* ========================================================= */}
-        {/* PESTAÑA 4: EMERGENCIA — FICHA MÉDICA ICE FORMAL           */}
-        {/* ========================================================= */}
         {activeTab === 'emergency' && (
-          <ScrollView contentContainerStyle={styles.tabScrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.panelCard}>
-              <View style={styles.iceHeaderCardRow}>
-                <View style={styles.bloodTypeCardBadge}>
-                  <Text style={styles.bloodTypeLabelText}>GRUPO</Text>
-                  <Text style={styles.bloodTypeValueText}>{emergencyProfile.bloodType}</Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text style={styles.icePatientNameText}>{emergencyProfile.patientFullName}</Text>
-                  <Text style={styles.icePatientMetaText}>
-                    {emergencyProfile.age} años • {emergencyProfile.healthInsurance}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.allergySevereCard}>
-                <MaterialCommunityIcons name="alert-octagon" size={24} color="#DC2626" />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.allergySevereTitle}>Alergias Severas a Medicamentos:</Text>
-                  <Text style={styles.allergySevereList}>{emergencyProfile.allergies.join(' • ')}</Text>
-                </View>
-              </View>
-
-              <View style={styles.chronicConditionsBox}>
-                <Text style={styles.chronicConditionsBoxTitle}>Condiciones Médicas Crónicas:</Text>
-                {emergencyProfile.chronicConditions.map((cond, idx) => (
-                  <Text key={idx} style={styles.chronicConditionItem}>• {cond}</Text>
-                ))}
-              </View>
-
-              <View style={styles.emergencyContactBox}>
-                <Text style={styles.emergencyContactBoxHeader}>CONTACTO DE AUXILIO INMEDIATO</Text>
-                <Text style={styles.emergencyContactPersonName}>{emergencyProfile.emergencyContact.name}</Text>
-                <Text style={styles.emergencyContactPersonRelation}>{emergencyProfile.emergencyContact.relationship}</Text>
-
-                <TouchableOpacity
-                  style={styles.directCallEmergencyBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      'Llamada de Emergencia',
-                      `Conectando con contacto de auxilio: ${emergencyProfile.emergencyContact.phone}`
-                    )
-                  }
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Llamar de emergencia a ${emergencyProfile.emergencyContact.name} al ${emergencyProfile.emergencyContact.phone}`}
-                  accessibilityHint="Marca el teléfono del contacto de auxilio inmediato"
-                >
-                  <MaterialCommunityIcons name="phone" size={20} color="#FFFFFF" />
-                  <Text style={styles.directCallEmergencyBtnText}>
-                    Llamar a {emergencyProfile.emergencyContact.phone}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
+          <EmergencyProfileCard
+            emergencyProfile={emergencyProfile}
+            onCallEmergency={handleCallEmergency}
+          />
         )}
       </View>
 
-      {/* BARRA DE NAVEGACIÓN INFERIOR NATIVA (4 VISTAS ESTRUCTURADAS) */}
-      <View style={styles.bottomNavigationBar} accessibilityRole="tablist">
-        <TouchableOpacity
-          style={[styles.navBarItem, activeTab === 'today' && styles.navBarItemActive]}
-          onPress={() => setActiveTab('today')}
-          activeOpacity={0.8}
-          accessibilityRole="tab"
-          accessibilityLabel="Pestaña Hoy, plan diario de medicamentos"
-          accessibilityState={{ selected: activeTab === 'today' }}
-        >
-          <MaterialCommunityIcons
-            name="pill"
-            size={22}
-            color={activeTab === 'today' ? '#0F172A' : '#334155'}
-          />
-          <Text style={[styles.navBarLabel, activeTab === 'today' && styles.navBarLabelActive]}>
-            Hoy
-          </Text>
-        </TouchableOpacity>
+      {/* BARRA DE NAVEGACIÓN INFERIOR NATIVA */}
+      <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
 
-        <TouchableOpacity
-          style={[styles.navBarItem, activeTab === 'caregiver' && styles.navBarItemActive]}
-          onPress={() => setActiveTab('caregiver')}
-          activeOpacity={0.8}
-          accessibilityRole="tab"
-          accessibilityLabel="Pestaña Cuidador, panel de supervisión y adherencia"
-          accessibilityState={{ selected: activeTab === 'caregiver' }}
-        >
-          <MaterialCommunityIcons
-            name="chart-timeline-variant"
-            size={22}
-            color={activeTab === 'caregiver' ? '#0F172A' : '#334155'}
-          />
-          <Text style={[styles.navBarLabel, activeTab === 'caregiver' && styles.navBarLabelActive]}>
-            Cuidador
-          </Text>
-        </TouchableOpacity>
+      {/* MODAL: REGISTRAR NUEVO MEDICAMENTO */}
+      <AddMedicineModal
+        visible={isAddModalVisible}
+        onClose={() => setIsAddModalVisible(false)}
+        onSave={handleSaveNewMedicine}
+      />
 
-        <TouchableOpacity
-          style={[styles.navBarItem, activeTab === 'stock' && styles.navBarItemActive]}
-          onPress={() => setActiveTab('stock')}
-          activeOpacity={0.8}
-          accessibilityRole="tab"
-          accessibilityLabel="Pestaña Botiquín, inventario y reposición de dosis"
-          accessibilityState={{ selected: activeTab === 'stock' }}
-        >
-          <MaterialCommunityIcons
-            name="medical-bag"
-            size={22}
-            color={activeTab === 'stock' ? '#0F172A' : '#334155'}
-          />
-          <Text style={[styles.navBarLabel, activeTab === 'stock' && styles.navBarLabelActive]}>
-            Botiquín
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navBarItem, activeTab === 'emergency' && styles.navBarItemActive]}
-          onPress={() => setActiveTab('emergency')}
-          activeOpacity={0.8}
-          accessibilityRole="tab"
-          accessibilityLabel="Pestaña Emergencia, ficha médica hospitalaria ICE"
-          accessibilityState={{ selected: activeTab === 'emergency' }}
-        >
-          <MaterialCommunityIcons
-            name="shield-alert-outline"
-            size={22}
-            color={activeTab === 'emergency' ? '#0F172A' : '#334155'}
-          />
-          <Text style={[styles.navBarLabel, activeTab === 'emergency' && styles.navBarLabelActive]}>
-            Emergencia
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ========================================================= */}
-      {/* MODAL 1: REGISTRO DE NUEVO FÁRMACO                        */}
-      {/* ========================================================= */}
-      <Modal visible={isAddModalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdropScrim}>
-          <View style={styles.modalSheetBox}>
-            <View style={styles.modalSheetTop}>
-              <Text style={styles.modalSheetTitle}>Registrar Nuevo Medicamento</Text>
-              <TouchableOpacity
-                onPress={() => setIsAddModalVisible(false)}
-                style={{ padding: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar ventana de registro de medicamento"
-              >
-                <MaterialCommunityIcons name="close" size={20} color="#334155" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.modalFormContent} showsVerticalScrollIndicator={false}>
-              <Text style={styles.formInputLabel}>Principio Activo</Text>
-              <TextInput
-                style={styles.formTextInput}
-                placeholder="Ej. Enalapril, Glibenclamida"
-                placeholderTextColor="#94A3B8"
-                value={newMedName}
-                onChangeText={setNewMedName}
-                accessibilityLabel="Nombre del principio activo"
-              />
-
-              <View style={styles.twoColumnInputs}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formInputLabel}>Dosis</Text>
-                  <TextInput
-                    style={styles.formTextInput}
-                    placeholder="Ej. 10 mg"
-                    placeholderTextColor="#94A3B8"
-                    value={newMedDose}
-                    onChangeText={setNewMedDose}
-                    accessibilityLabel="Dosis prescrita"
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.formInputLabel}>Horario Diario (HH:MM)</Text>
-                  <TextInput
-                    style={styles.formTextInput}
-                    placeholder="08:00"
-                    placeholderTextColor="#94A3B8"
-                    value={newMedTime}
-                    onChangeText={setNewMedTime}
-                    accessibilityLabel="Horario diario de la toma"
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.formInputLabel}>Instrucciones de Ingestión</Text>
-              <TextInput
-                style={[styles.formTextInput, { minHeight: 60 }]}
-                placeholder="Ej. Tomar después del desayuno con agua."
-                placeholderTextColor="#94A3B8"
-                multiline
-                value={newMedInstructions}
-                onChangeText={setNewMedInstructions}
-                accessibilityLabel="Instrucciones médicas de ingestión"
-              />
-
-              <Text style={styles.formInputLabel}>Forma del Comprimido</Text>
-              <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
-                {(['round', 'capsule', 'oval'] as PillShape[]).map((shape) => (
-                  <TouchableOpacity
-                    key={shape}
-                    style={[
-                      styles.shapeOptionBtn,
-                      newMedShape === shape && styles.shapeOptionBtnActive,
-                    ]}
-                    onPress={() => setNewMedShape(shape)}
-                    activeOpacity={0.8}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: newMedShape === shape }}
-                    accessibilityLabel={`Forma: ${shape === 'round' ? 'Pastilla Redonda' : shape === 'capsule' ? 'Cápsula' : 'Comprimido Oval'}`}
-                  >
-                    <MaterialCommunityIcons
-                      name={
-                        shape === 'capsule'
-                          ? 'pill'
-                          : shape === 'oval'
-                          ? 'circle-double'
-                          : 'checkbox-blank-circle'
-                      }
-                      size={20}
-                      color={newMedShape === shape ? '#0F172A' : '#334155'}
-                    />
-                    <Text
-                      style={[
-                        styles.shapeOptionText,
-                        newMedShape === shape && styles.shapeOptionTextActive,
-                      ]}
-                    >
-                      {shape === 'round' ? 'Redonda' : shape === 'capsule' ? 'Cápsula' : 'Oval'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.formInputLabel}>Color Distintivo</Text>
-              <View style={styles.colorPaletteGrid} accessibilityRole="radiogroup">
-                {COLOR_PALETTE.map((c) => (
-                  <TouchableOpacity
-                    key={c.hex}
-                    style={[
-                      styles.colorCircleSwatch,
-                      { backgroundColor: c.hex },
-                      newMedColor.hex === c.hex && styles.colorCircleSwatchActive,
-                    ]}
-                    onPress={() => setNewMedColor(c)}
-                    activeOpacity={0.8}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: newMedColor.hex === c.hex }}
-                    accessibilityLabel={`Color distintivo: ${c.name}`}
-                  />
-                ))}
-              </View>
-
-              <View style={styles.twoColumnInputs}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.formInputLabel}>Stock Inicial</Text>
-                  <TextInput
-                    style={styles.formTextInput}
-                    keyboardType="numeric"
-                    value={newMedStock}
-                    onChangeText={setNewMedStock}
-                    accessibilityLabel="Cantidad inicial en inventario"
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.formInputLabel}>Alerta de Stock Mínimo</Text>
-                  <TextInput
-                    style={styles.formTextInput}
-                    keyboardType="numeric"
-                    value={newMedMinAlert}
-                    onChangeText={setNewMedMinAlert}
-                    accessibilityLabel="Umbral de alerta de reposición"
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.modalSubmitButton}
-                onPress={handleSaveNewMedicine}
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Guardar medicamento en el pastillero"
-              >
-                <Text style={styles.modalSubmitButtonText}>Guardar en el Pastillero</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ========================================================= */}
-      {/* MODAL 2: INFORME CLÍNICO FORMAL EXPORTABLE                */}
-      {/* ========================================================= */}
-      <Modal visible={isReportModalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackdropScrim}>
-          <View style={styles.modalSheetBox}>
-            <View style={styles.modalSheetTop}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <MaterialCommunityIcons name="file-document-check-outline" size={20} color="#0F172A" />
-                <Text style={styles.modalSheetTitle}>Informe Clínico de Adherencia</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setIsReportModalVisible(false)}
-                style={{ padding: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Cerrar informe clínico"
-              >
-                <MaterialCommunityIcons name="close" size={20} color="#334155" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView contentContainerStyle={styles.modalFormContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.monospaceContainer}>
-                <Text style={styles.monospaceContentText}>{clinicalReport.formattedReportText}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.modalSubmitButton}
-                onPress={() =>
-                  Alert.alert(
-                    'Informe Exportado',
-                    'El reporte de adherencia fue copiado al portapapeles y está listo para WhatsApp o impresión médica.'
-                  )
-                }
-                activeOpacity={0.85}
-                accessibilityRole="button"
-                accessibilityLabel="Compartir informe clínico con el médico geriatra"
-              >
-                <MaterialCommunityIcons name="share-variant-outline" size={18} color="#FFFFFF" />
-                <Text style={styles.modalSubmitButtonText}>Compartir con el Médico Geriatra</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      {/* MODAL: INFORME CLÍNICO FORMAL EXPORTABLE */}
+      <ClinicalReportModal
+        visible={isReportModalVisible}
+        reportText={clinicalReport.formattedReportText}
+        onClose={() => setIsReportModalVisible(false)}
+        onExport={handleExportReport}
+      />
     </SafeAreaView>
   );
 }
 
-// ESTILOS: DISEÑO MÉDICO MINIMALISTA SUIZO (APPLE HEALTH HIG / CONTRASTE WCAG AAA)
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
@@ -1149,8 +428,6 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 4,
   },
-
-  // CABECERA SUPERIOR
   topAppHeader: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -1192,856 +469,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontVariant: ['tabular-nums'],
   },
-
-  // CONTENEDOR PRINCIPAL
   mainContainer: {
     flex: 1,
-  },
-  tabScrollContent: {
-    padding: 16,
-    paddingBottom: 84,
-  },
-
-  // PESTAÑA HOY: HERO BANNER
-  todayHeroBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 20,
-  },
-  todayHeroGreeting: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  todayHeroSub: {
-    fontSize: 13,
-    color: '#334155',
-    marginTop: 2,
-  },
-  adherenceMiniBadge: {
-    backgroundColor: '#ECFDF5',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  adherenceMiniBadgeText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#065F46',
-    fontVariant: ['tabular-nums'],
-  },
-  adherenceMiniBadgeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-
-  // HILO CRONOLÓGICO (TIMELINE STREAM)
-  timelineStream: {
-    gap: 0,
-  },
-  timelineNodeContainer: {
-    flexDirection: 'row',
-  },
-  timelineGutter: {
-    width: 32,
-    alignItems: 'center',
-  },
-  timelineNodeDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#94A3B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  timelineNodeDotTaken: {
-    backgroundColor: '#059669',
-    borderColor: '#059669',
-  },
-  timelineNodeDotAlert: {
-    borderColor: '#DC2626',
-  },
-  timelineInnerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0F172A',
-  },
-  timelineConnectorLine: {
-    flex: 1,
-    width: 2,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 4,
-  },
-
-  // TARJETA DE DOSIS EN EL HILO
-  timelineCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginLeft: 12,
-  },
-  timelineCardExpanded: {
-    borderColor: '#0F172A',
-  },
-  timelineCardTaken: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-  },
-  timelineCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  timeTagBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F9FF',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    gap: 4,
-  },
-  timeTagBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0284C7',
-    fontVariant: ['tabular-nums'],
-  },
-  statusTakenChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusTakenChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  statusPastDueChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusPastDueChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-  statusScheduledChip: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-  },
-  statusScheduledChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-  },
-
-  // Fila del Fármaco en la Tarjeta
-  timelineMedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  miniPillPreviewBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timelineMedName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  timelineMedDose: {
-    fontSize: 13,
-    color: '#334155',
-    marginTop: 2,
-  },
-
-  // DETALLE EXPANDIDO
-  expandedDetailBox: {
-    marginTop: 12,
-    gap: 12,
-  },
-  hairlineDivider: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginBottom: 4,
-  },
-
-  // Escaparate Visual Realista de la Pastilla
-  realisticPillShowcase: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  renderedCapsule: {
-    width: 64,
-    height: 30,
-    borderRadius: 15,
-    flexDirection: 'row',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    overflow: 'hidden',
-  },
-  capsuleLeftHalf: {
-    flex: 1,
-  },
-  capsuleRightHalf: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  renderedRound: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  renderedOval: {
-    width: 60,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  renderedScoreLine: {
-    width: 1.5,
-    height: '70%',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  pillVisualDescriptionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#334155',
-    letterSpacing: 0.3,
-  },
-  pillVisualDescriptionText: {
-    fontSize: 13,
-    color: '#334155',
-    marginTop: 2,
-  },
-
-  // Burbuja de Instrucción
-  instructionBubble: {
-    flexDirection: 'row',
-    backgroundColor: '#F0F9FF',
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  instructionBubbleText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#0369A1',
-    lineHeight: 18,
-  },
-
-  // Botón TTS
-  listenTTSButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    minHeight: 48,
-    borderRadius: 6,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  listenTTSButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0284C7',
-  },
-
-  // Botonera de Acción
-  actionButtonGroup: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  confirmActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0F172A',
-    paddingVertical: 14,
-    minHeight: 52,
-    borderRadius: 6,
-    gap: 6,
-  },
-  confirmActionButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  postponeActionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    minHeight: 52,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    gap: 6,
-  },
-  postponeActionButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  takenNoticeStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    padding: 10,
-    borderRadius: 6,
-    gap: 8,
-  },
-  takenNoticeStripText: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-
-  // PANELES GENERALES (CUIDADOR / STOCK / ICE)
-  panelCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: 14,
-    gap: 12,
-  },
-  panelCardAlert: {
-    borderColor: '#FECACA',
-    backgroundColor: '#FFF8F8',
-  },
-  panelCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  panelCardTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  panelCardBody: {
-    fontSize: 13,
-    color: '#475569',
-    marginTop: 2,
-    lineHeight: 18,
-  },
-  escalationMetricBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    padding: 8,
-    borderRadius: 6,
-  },
-  metricBarText: {
-    fontSize: 11,
-    color: '#475569',
-    fontWeight: '500',
-  },
-
-  // Adherencia Cuidador
-  adherenceScoreContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginVertical: 4,
-  },
-  adherenceBigNumberBadge: {
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  adherenceBigNumberText: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#0F172A',
-    fontVariant: ['tabular-nums'],
-  },
-  adherenceRatingChip: {
-    backgroundColor: '#ECFDF5',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    marginTop: 4,
-  },
-  adherenceRatingChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  adherenceBreakdownList: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  breakdownItem: {
-    alignItems: 'center',
-  },
-  breakdownLabel: {
-    fontSize: 11,
-    color: '#334155',
-  },
-  breakdownValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 2,
-    fontVariant: ['tabular-nums'],
-  },
-  openReportCTAButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 10,
-    borderRadius: 6,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    marginTop: 4,
-  },
-  openReportCTAButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  medicineBreakdownList: {
-    gap: 10,
-  },
-  medBreakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 6,
-  },
-  medBreakdownName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  medBreakdownDose: {
-    fontSize: 11,
-    color: '#334155',
-  },
-  progressBarWrapper: {
-    width: 80,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E2E8F0',
-    marginHorizontal: 10,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#059669',
-  },
-  medBreakdownPercent: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0F172A',
-    width: 34,
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
-  },
-
-  // Stock / Botiquín
-  stockHeaderFlex: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addNewMedActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0F172A',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    gap: 4,
-  },
-  addNewMedActionBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  stockItemsContainer: {
-    gap: 8,
-  },
-  stockItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  stockShapeDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stockMedName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  stockMedDetail: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
-  stockAlertBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-    marginTop: 3,
-  },
-  stockAlertBadgeLow: {
-    color: '#DC2626',
-  },
-  stockItemActionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  restockPlusBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    gap: 2,
-  },
-  restockPlusBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  deleteMedBtn: {
-    padding: 4,
-  },
-
-  // Ficha ICE
-  iceHeaderCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  bloodTypeCardBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 6,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1.5,
-    borderColor: '#991B1B',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bloodTypeLabelText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: '#991B1B',
-  },
-  bloodTypeValueText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#991B1B',
-  },
-  icePatientNameText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  icePatientMetaText: {
-    fontSize: 12,
-    color: '#475569',
-    marginTop: 2,
-  },
-  allergySevereCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  allergySevereTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#991B1B',
-  },
-  allergySevereList: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#7F1D1D',
-    marginTop: 1,
-  },
-  chronicConditionsBox: {
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 8,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chronicConditionsBoxTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  chronicConditionItem: {
-    fontSize: 13,
-    color: '#0F172A',
-  },
-  emergencyContactBox: {
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 4,
-  },
-  emergencyContactBoxHeader: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  emergencyContactPersonName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  emergencyContactPersonRelation: {
-    fontSize: 12,
-    color: '#475569',
-  },
-  directCallEmergencyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 12,
-    borderRadius: 6,
-    gap: 6,
-    marginTop: 6,
-  },
-  directCallEmergencyBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  // BARRA DE NAVEGACIÓN INFERIOR (BOTTOM NAVIGATION)
-  bottomNavigationBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  navBarItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  navBarItemActive: {
-    backgroundColor: '#F1F5F9',
-  },
-  navBarLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#334155',
-    marginTop: 2,
-  },
-  navBarLabelActive: {
-    color: '#0F172A',
-    fontWeight: '700',
-  },
-
-  // MODALES
-  modalBackdropScrim: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalSheetBox: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '90%',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  modalSheetTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  modalSheetTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  modalFormContent: {
-    padding: 20,
-    gap: 12,
-  },
-  formInputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  formTextInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 14,
-    color: '#0F172A',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-  },
-  twoColumnInputs: {
-    flexDirection: 'row',
-  },
-  shapeSelectorRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  shapeOptionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    paddingVertical: 10,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    gap: 6,
-  },
-  shapeOptionBtnActive: {
-    borderColor: '#0F172A',
-    backgroundColor: '#F1F5F9',
-  },
-  shapeOptionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  shapeOptionTextActive: {
-    color: '#0F172A',
-    fontWeight: '700',
-  },
-  colorPaletteGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  colorCircleSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-  },
-  colorCircleSwatchActive: {
-    borderColor: '#0F172A',
-    borderWidth: 3,
-  },
-  modalSubmitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0F172A',
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 6,
-    marginTop: 8,
-  },
-  modalSubmitButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  monospaceContainer: {
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  monospaceContentText: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    color: '#0F172A',
-    lineHeight: 18,
   },
 });
