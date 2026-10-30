@@ -52,6 +52,7 @@ export const STORAGE_KEYS = {
   LOGS: '@acompanamed:logs',
   ROLE: '@acompanamed:active_role',
   PROFILE: '@acompanamed:emergency_profile',
+  ONBOARDING: '@acompanamed:onboarding_completed',
 } as const;
 
 export class StorageService {
@@ -64,9 +65,9 @@ export class StorageService {
   async loadMedicines(defaultMedicines: Medicine[] = []): Promise<Medicine[]> {
     try {
       const raw = await this.adapter.getItem(STORAGE_KEYS.MEDICINES);
-      if (!raw) return defaultMedicines;
+      if (raw === null) return defaultMedicines;
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
       return defaultMedicines;
@@ -158,12 +159,26 @@ export class StorageService {
     }
   }
 
+  async saveOnboardingCompleted(completed: boolean): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.ONBOARDING, completed ? 'true' : 'false');
+  }
+
+  async loadOnboardingCompleted(): Promise<boolean> {
+    try {
+      const val = await this.adapter.getItem(STORAGE_KEYS.ONBOARDING);
+      return val === 'true';
+    } catch {
+      return false;
+    }
+  }
+
   async clearAllData(): Promise<void> {
     await this.adapter.removeItem(STORAGE_KEYS.MEDICINES);
     await this.adapter.removeItem(STORAGE_KEYS.SCHEDULES);
     await this.adapter.removeItem(STORAGE_KEYS.LOGS);
     await this.adapter.removeItem(STORAGE_KEYS.ROLE);
     await this.adapter.removeItem(STORAGE_KEYS.PROFILE);
+    await this.adapter.removeItem(STORAGE_KEYS.ONBOARDING);
   }
 }
 

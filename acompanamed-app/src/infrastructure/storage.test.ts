@@ -72,6 +72,19 @@ describe('AcompañaMed - StorageService (Offline-First Persistence Tests)', () =
     assert.equal(role, 'caregiver');
   });
 
+  it('permite guardar y recuperar un botiquín intencionalmente vacío [] sin forzar los datos por defecto', async () => {
+    // Si el usuario vacía los datos para usar la app real, debe persistir []
+    await service.saveMedicines([]);
+    const loaded = await service.loadMedicines([sampleMedicine]);
+    assert.equal(loaded.length, 0);
+  });
+
+  it('persiste y recupera el estado de onboarding completado', async () => {
+    assert.equal(await service.loadOnboardingCompleted(), false);
+    await service.saveOnboardingCompleted(true);
+    assert.equal(await service.loadOnboardingCompleted(), true);
+  });
+
   it('maneja datos corruptos de forma resiliente retornando el valor por defecto sin fallar', async () => {
     // Simular que el almacenamiento se corrompió con texto no JSON
     await adapter.setItem('@acompanamed:medicines', '{invalid_json');
