@@ -9,9 +9,18 @@ import {
   TextInput,
   Alert,
   Clipboard,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { EmergencyProfile } from '../../domain';
+import {
+  generateQrDataUrl,
+  buildPairingUrl,
+  defaultCloudSyncService,
+  formatDeviceActivityStatus,
+  ConnectedDevice,
+} from '../../infrastructure';
 
 interface Props {
   visible: boolean;
@@ -27,6 +36,8 @@ interface Props {
   onConnectFamilyCode?: (code: string) => Promise<{ success: boolean; message: string }>;
   isSyncing?: boolean;
   lastSyncTime?: string;
+  currentDeviceId?: string;
+  onRevokeDevice?: (deviceId: string) => Promise<boolean>;
 }
 
 export const FamilyPairingModal: React.FC<Props> = ({
@@ -43,6 +54,8 @@ export const FamilyPairingModal: React.FC<Props> = ({
   onConnectFamilyCode,
   isSyncing,
   lastSyncTime,
+  currentDeviceId,
+  onRevokeDevice,
 }) => {
   const [patientName, setPatientName] = useState(emergencyProfile.patientFullName);
   const [age, setAge] = useState(String(emergencyProfile.age));
@@ -54,6 +67,13 @@ export const FamilyPairingModal: React.FC<Props> = ({
   const [enteredPairingCode, setEnteredPairingCode] = useState('');
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Estados de QR y Dispositivos Conectados
+  const [pairingTab, setPairingTab] = useState<'qr' | 'code'>('qr');
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [isLoadingQr, setIsLoadingQr] = useState<boolean>(false);
+  const [connectedDevices, setConnectedDevices] = useState<ConnectedDevice[]>([]);
+  const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -68,6 +88,37 @@ export const FamilyPairingModal: React.FC<Props> = ({
   // Generación de código único de familia basado en las iniciales y edad del paciente
   const generatedCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
   const effectiveFamilyCode = propFamilyCode || generatedCode;
+
+  const loadDevices = async () => {
+    if (!effectiveFamilyCode) return;
+    setIsLoadingDevices(true);
+    try {
+      const list = await defaultCloudSyncService.fetchConnectedDevices(effectiveFamilyCode);
+      setConnectedDevices(list);
+    } catch {
+      // Offline fallback
+    } finally {
+      setIsLoadingDevices(false);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    if (visible && effectiveFamilyCode) {
+      setIsLoadingQr(true);
+      const url = buildPairingUrl(effectiveFamilyCode);
+      generateQrDataUrl(url).then((uri) => {
+        if (isMounted) {
+          setQrDataUrl(uri);
+          setIsLoadingQr(false);
+        }
+      });
+      loadDevices();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, effectiveFamilyCode]);
 
   const handleSaveProfile = () => {
     const updated: EmergencyProfile = {
@@ -99,6 +150,39 @@ export const FamilyPairingModal: React.FC<Props> = ({
     }
   };
 
+  const handleCopyDirectLink = () => {
+    const url = buildPairingUrl(effectiveFamilyCode);
+    try {
+      Clipboard.setString(url);
+      Alert.alert('Enlace Copiado', 'El enlace directo fue copiado. Puede enviarlo por WhatsApp para que su familiar se vincule con un solo toque.');
+    } catch {
+      Alert.alert('Enlace Directo', url);
+    }
+  };
+
+  const handleRevokeDevice = (device: ConnectedDevice) => {
+    Alert.alert(
+      'Desvincular Dispositivo',
+      `¿Desea revocar el acceso a "${device.deviceName}"? Dejará de recibir las tomas de este paciente.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desvincular',
+          style: 'destructive',
+          onPress: async () => {
+            if (onRevokeDevice) {
+              await onRevokeDevice(device.deviceId);
+            } else {
+              await defaultCloudSyncService.revokeDevice(effectiveFamilyCode, device.deviceId);
+            }
+            loadDevices();
+            Alert.alert('Dispositivo Desvinculado', `Se revocó el acceso para ${device.deviceName}.`);
+          },
+        },
+      ]
+    );
+  };
+
   const handleConnectCaregiver = async () => {
     const code = enteredPairingCode.trim().toUpperCase();
     if (!code) {
@@ -113,6 +197,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
       Alert.alert(res.success ? '¡Conexión Exitosa!' : 'Aviso de Conexión', res.message);
       if (res.success) {
         setEnteredPairingCode('');
+        loadDevices();
       }
     } else {
       Alert.alert('Enlace no disponible', 'No se pudo iniciar el enlace en este dispositivo.');
@@ -199,43 +284,178 @@ export const FamilyPairingModal: React.FC<Props> = ({
               </View>
 
               <Text style={styles.sectionDesc}>
-                La app guarda sus datos en este teléfono. Al activar un enlace se comparten medicamentos, historial y ficha médica con el servicio de sincronización y los dispositivos que tengan el código. Compártalo solo con personas de confianza. Vuelva a conectar al abrir la app para reanudar la sincronización.
+                Conecte el teléfono de la cuidadora o hijos al de Don Manuel para recibir confirmaciones de tomas en vivo, supervisar el stock y gestionar el botiquín en tiempo real.
               </Text>
 
-              {/* Tarjeta del Código de Don Manuel */}
-              <View style={styles.pairingCodeCard}>
-                <Text style={styles.pairingCodeLabel}>CÓDIGO ÚNICO DE ESTE PACIENTE:</Text>
-                <Text style={styles.pairingCodeValue}>{effectiveFamilyCode}</Text>
-                {lastSyncTime ? (
-                  <Text style={{ fontSize: 10, color: '#38BDF8', marginTop: 2, marginBottom: 6 }}>
-                    ☁️ Sincronizado en la nube: {lastSyncTime}
-                  </Text>
-                ) : null}
-                <TouchableOpacity style={styles.btnCopyCode} onPress={handleCopyCode} activeOpacity={0.85}>
-                  <MaterialCommunityIcons name="content-copy" size={16} color="#FFFFFF" />
-                  <Text style={styles.btnCopyCodeText}>Copiar código familiar</Text>
-                </TouchableOpacity>
+              {/* Selector de Modo de Vinculación: QR vs Código */}
+              <View style={styles.pairingTabRow}>
                 <TouchableOpacity
-                  style={styles.btnCopyCode}
-                  disabled={isConnecting || isSyncing}
-                  accessibilityRole="button"
-                  onPress={async () => {
-                    if (!onConnectFamilyCode) return;
-                    setIsConnecting(true);
-                    try {
-                      const result = await onConnectFamilyCode(effectiveFamilyCode);
-                      setPairingSuccessMsg(result.message);
-                      Alert.alert(result.success ? 'Enlace activado' : 'No se pudo activar', result.message);
-                    } finally { setIsConnecting(false); }
-                  }}
+                  style={[styles.pairingTabBtn, pairingTab === 'qr' && styles.pairingTabBtnActive]}
+                  onPress={() => setPairingTab('qr')}
+                  activeOpacity={0.85}
                 >
-                  <Text style={styles.btnCopyCodeText}>{isConnecting ? 'Conectando…' : 'Activar enlace de este botiquín'}</Text>
+                  <MaterialCommunityIcons
+                    name="qrcode-scan"
+                    size={16}
+                    color={pairingTab === 'qr' ? '#FFFFFF' : '#475569'}
+                  />
+                  <Text style={[styles.pairingTabBtnText, pairingTab === 'qr' && styles.pairingTabBtnTextActive]}>
+                    Código QR (Cámara)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.pairingTabBtn, pairingTab === 'code' && styles.pairingTabBtnActive]}
+                  onPress={() => setPairingTab('code')}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons
+                    name="form-textbox"
+                    size={16}
+                    color={pairingTab === 'code' ? '#FFFFFF' : '#475569'}
+                  />
+                  <Text style={[styles.pairingTabBtnText, pairingTab === 'code' && styles.pairingTabBtnTextActive]}>
+                    Código de Texto
+                  </Text>
                 </TouchableOpacity>
               </View>
 
+              {pairingTab === 'qr' ? (
+                <View style={styles.qrContainer}>
+                  {isLoadingQr ? (
+                    <ActivityIndicator size="large" color="#0284C7" style={{ marginVertical: 40 }} />
+                  ) : qrDataUrl ? (
+                    <Image source={{ uri: qrDataUrl }} style={styles.qrImage} resizeMode="contain" />
+                  ) : null}
+
+                  <Text style={styles.qrHintText}>
+                    📱 Apunte con la cámara del celular de su familiar hacia este código QR para abrir y conectar AcompañaMed al instante sin tener que escribir nada.
+                  </Text>
+
+                  <TouchableOpacity style={styles.btnCopyLink} onPress={handleCopyDirectLink} activeOpacity={0.85}>
+                    <MaterialCommunityIcons name="link-variant" size={16} color="#0284C7" />
+                    <Text style={styles.btnCopyLinkText}>Copiar Enlace Directo (WhatsApp)</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* Tarjeta del Código de Don Manuel */
+                <View style={styles.pairingCodeCard}>
+                  <Text style={styles.pairingCodeLabel}>CÓDIGO ÚNICO DE ESTE PACIENTE:</Text>
+                  <Text style={styles.pairingCodeValue}>{effectiveFamilyCode}</Text>
+                  {lastSyncTime ? (
+                    <Text style={{ fontSize: 10, color: '#38BDF8', marginTop: 2, marginBottom: 6 }}>
+                      ☁️ Sincronizado en la nube: {lastSyncTime}
+                    </Text>
+                  ) : null}
+                  <TouchableOpacity style={styles.btnCopyCode} onPress={handleCopyCode} activeOpacity={0.85}>
+                    <MaterialCommunityIcons name="content-copy" size={16} color="#FFFFFF" />
+                    <Text style={styles.btnCopyCodeText}>Copiar código familiar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.btnCopyCode}
+                    disabled={isConnecting || isSyncing}
+                    accessibilityRole="button"
+                    onPress={async () => {
+                      if (!onConnectFamilyCode) return;
+                      setIsConnecting(true);
+                      try {
+                        const result = await onConnectFamilyCode(effectiveFamilyCode);
+                        setPairingSuccessMsg(result.message);
+                        Alert.alert(result.success ? 'Enlace activado' : 'No se pudo activar', result.message);
+                        loadDevices();
+                      } finally {
+                        setIsConnecting(false);
+                      }
+                    }}
+                  >
+                    <Text style={styles.btnCopyCodeText}>
+                      {isConnecting ? 'Conectando…' : 'Activar enlace de este botiquín'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* LISTA DE DISPOSITIVOS VINCULADOS A ESTA FAMILIA */}
+              <View style={styles.devicesHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialCommunityIcons name="devices" size={18} color="#0284C7" />
+                  <Text style={styles.devicesTitle}>
+                    Dispositivos Vinculados ({connectedDevices.length})
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={loadDevices}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  activeOpacity={0.7}
+                >
+                  <MaterialCommunityIcons name="refresh" size={16} color="#0284C7" />
+                  <Text style={{ fontSize: 11, color: '#0284C7', fontWeight: '700' }}>Actualizar</Text>
+                </TouchableOpacity>
+              </View>
+
+              {isLoadingDevices ? (
+                <ActivityIndicator size="small" color="#0284C7" style={{ marginVertical: 12 }} />
+              ) : connectedDevices.length === 0 ? (
+                <View style={styles.emptyDevicesCard}>
+                  <MaterialCommunityIcons name="cellphone-information" size={20} color="#94A3B8" />
+                  <Text style={styles.emptyDevicesText}>
+                    Aún no hay otros dispositivos registrados. Escanee el código QR o ingrese el código desde el otro teléfono para vincularlo.
+                  </Text>
+                </View>
+              ) : (
+                connectedDevices.map((dev) => {
+                  const isCurrent = dev.deviceId === currentDeviceId;
+                  const status = formatDeviceActivityStatus(dev.lastSeen);
+                  return (
+                    <View key={dev.deviceId} style={styles.deviceCard}>
+                      <View style={styles.deviceLeftCol}>
+                        <View style={styles.deviceIconCircle}>
+                          <MaterialCommunityIcons
+                            name={dev.role === 'patient' ? 'account-heart' : 'shield-account'}
+                            size={20}
+                            color={dev.role === 'patient' ? '#0284C7' : '#059669'}
+                          />
+                        </View>
+                        <View style={styles.deviceInfoCol}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.deviceNameText}>{dev.deviceName}</Text>
+                            {isCurrent && (
+                              <View style={styles.thisDeviceBadge}>
+                                <Text style={styles.thisDeviceText}>Este celular</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.deviceMetaText}>
+                            {dev.role === 'patient' ? 'Paciente' : 'Cuidador'} · {dev.platform || 'Móvil'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.deviceRightCol}>
+                        <View style={[styles.deviceStatusBadge, { backgroundColor: `${status.badgeColor}15` }]}>
+                          <View style={[styles.statusDot, { backgroundColor: status.badgeColor }]} />
+                          <Text style={[styles.deviceStatusText, { color: status.badgeColor }]}>
+                            {status.statusLabel}
+                          </Text>
+                        </View>
+                        {!isCurrent && (
+                          <TouchableOpacity
+                            style={styles.btnRevokeDevice}
+                            onPress={() => handleRevokeDevice(dev)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.btnRevokeDeviceText}>Desvincular</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+
               {/* Campo para conectar desde el celular del cuidador */}
               <View style={styles.connectCaregiverBox}>
-                <Text style={styles.inputLabel}>¿Este teléfono pertenece a la cuidadora? Conéctese aquí:</Text>
+                <Text style={styles.inputLabel}>¿Desea enlazar este teléfono a otro paciente? Ingrese el código:</Text>
                 <View style={styles.inputWithButtonRow}>
                   <TextInput
                     style={[styles.textInput, { flex: 1, textTransform: 'uppercase' }]}
@@ -652,5 +872,194 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  pairingTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  pairingTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pairingTabBtnActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+  pairingTabBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  pairingTabBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  qrContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  qrImage: {
+    width: 210,
+    height: 210,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  qrHintText: {
+    fontSize: 12,
+    color: '#475569',
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 16,
+    paddingHorizontal: 12,
+  },
+  btnCopyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    marginTop: 10,
+  },
+  btnCopyLinkText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  devicesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 8,
+    paddingHorizontal: 2,
+  },
+  devicesTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  emptyDevicesCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  emptyDevicesText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: '#64748B',
+    lineHeight: 15,
+  },
+  deviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  deviceLeftCol: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  deviceIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  deviceInfoCol: {
+    flex: 1,
+  },
+  deviceNameText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  thisDeviceBadge: {
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  thisDeviceText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  deviceMetaText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  deviceRightCol: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  deviceStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  deviceStatusText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  btnRevokeDevice: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+    marginTop: 2,
+  },
+  btnRevokeDeviceText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#DC2626',
   },
 });

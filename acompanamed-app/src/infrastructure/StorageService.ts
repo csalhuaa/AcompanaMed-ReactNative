@@ -54,6 +54,8 @@ export const STORAGE_KEYS = {
   PROFILE: '@acompanamed:emergency_profile',
   ONBOARDING: '@acompanamed:onboarding_completed',
   FAMILY_CODE: '@acompanamed:family_code',
+  DEVICE_ID: '@acompanamed:device_id',
+  DEVICE_NAME: '@acompanamed:device_name',
 } as const;
 
 export class StorageService {
@@ -184,6 +186,31 @@ export class StorageService {
     } catch {
       return defaultCode;
     }
+  }
+
+  async loadOrCreateDeviceId(): Promise<string> {
+    try {
+      const existing = await this.adapter.getItem(STORAGE_KEYS.DEVICE_ID);
+      if (existing) return existing;
+      const newId = `dev-${Math.random().toString(36).slice(2, 8)}`;
+      await this.adapter.setItem(STORAGE_KEYS.DEVICE_ID, newId);
+      return newId;
+    } catch {
+      return `dev-${Date.now().toString(36)}`;
+    }
+  }
+
+  async loadDeviceName(defaultName = 'Este Dispositivo'): Promise<string> {
+    try {
+      const existing = await this.adapter.getItem(STORAGE_KEYS.DEVICE_NAME);
+      return existing || defaultName;
+    } catch {
+      return defaultName;
+    }
+  }
+
+  async saveDeviceName(name: string): Promise<void> {
+    await this.adapter.setItem(STORAGE_KEYS.DEVICE_NAME, name);
   }
 
   async clearAllData(): Promise<void> {

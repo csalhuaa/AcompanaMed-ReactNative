@@ -2,6 +2,52 @@ import { Medicine, DoseLog, EmergencyProfile } from '../domain/types';
 
 export const FIREBASE_RTDB_URL = 'https://acompanamed-unsa-2026-default-rtdb.firebaseio.com';
 
+export interface ConnectedDevice {
+  deviceId: string;
+  role: 'patient' | 'caregiver';
+  deviceName: string;
+  platform: string;
+  connectedAt: string;
+  lastSeen: string;
+}
+
+export interface DeviceStatusFormat {
+  isOnline: boolean;
+  statusLabel: string;
+  badgeColor: string;
+}
+
+export function formatDeviceActivityStatus(
+  lastSeenIso: string,
+  now: Date = new Date()
+): DeviceStatusFormat {
+  const lastTime = new Date(lastSeenIso).getTime();
+  const diffMs = now.getTime() - lastTime;
+  if (!Number.isFinite(diffMs) || diffMs < 0) {
+    return { isOnline: true, statusLabel: 'En línea ahora', badgeColor: '#059669' };
+  }
+  if (diffMs <= 45_000) {
+    return { isOnline: true, statusLabel: 'En línea ahora', badgeColor: '#059669' };
+  }
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 60) {
+    return {
+      isOnline: false,
+      statusLabel: `Visto hace ${diffMins} min`,
+      badgeColor: '#D97706',
+    };
+  }
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) {
+    return {
+      isOnline: false,
+      statusLabel: `Visto hace ${diffHours} h`,
+      badgeColor: '#64748B',
+    };
+  }
+  return { isOnline: false, statusLabel: 'Desconectado', badgeColor: '#94A3B8' };
+}
+
 export interface FamilySyncPayload {
   familyCode: string;
   updatedAt: string;
@@ -11,6 +57,7 @@ export interface FamilySyncPayload {
   schedules: Record<string, string>;
   logs: DoseLog[];
   emergencyProfile: EmergencyProfile;
+  connectedDevices?: Record<string, ConnectedDevice>;
 }
 
 export function sanitizeFamilyCode(code: string): string {
@@ -93,6 +140,78 @@ export class CloudSyncService {
     } catch (error) {
       console.warn('CloudSyncService fetch error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Registra un dispositivo conectado bajo /families/{code}/connectedDevices/{deviceId}
+   */
+  async registerDevice(familyCode: string, device: ConnectedDevice): Promise<boolean> {
+    try {
+      const cleanCode = sanitizeFamilyCode(familyCode);
+      const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${device.deviceId}.json`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(device),
+      });
+      return res.ok;
+    } catch (error) {
+      console.warn('CloudSyncService registerDevice error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Actualiza el ping/heartbeat de un dispositivo conectado
+   */
+  async updateDeviceHeartbeat(familyCode: string, deviceId: string): Promise<boolean> {
+    try {
+      const cleanCode = sanitizeFamilyCode(familyCode);
+      const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${deviceId}/lastSeen.json`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(new Date().toISOString()),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Obtiene la lista de todos los dispositivos conectados a la familia
+   */
+  async fetchConnectedDevices(familyCode: string): Promise<ConnectedDevice[]> {
+    try {
+      const cleanCode = sanitizeFamilyCode(familyCode);
+      const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices.json`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!data || typeof data !== 'object') return [];
+      const list = Object.values(data) as ConnectedDevice[];
+      return list.sort((a, b) => new Date(b.lastSeen || 0).getTime() - new Date(a.lastSeen || 0).getTime());
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Desvincula / Revoca un dispositivo de la familia
+   */
+  async revokeDevice(familyCode: string, deviceId: string): Promise<boolean> {
+    try {
+      const cleanCode = sanitizeFamilyCode(familyCode);
+      const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${deviceId}.json`;
+      const res = await fetch(url, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
     }
   }
 

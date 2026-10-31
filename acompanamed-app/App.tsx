@@ -222,6 +222,7 @@ function MainApp() {
   const [isFamilyConnected, setIsFamilyConnected] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('');
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [deviceId, setDeviceId] = useState<string>('');
 
   // Referencia mutable para sincronización atómica sin stale closures
   const localStateRef = useRef({
@@ -268,6 +269,8 @@ function MainApp() {
         const storedProfile = await defaultStorageService.loadEmergencyProfile(createEmptyProfile());
         const storedRole = await defaultStorageService.loadActiveRole('caregiver');
         const storedCode = await defaultStorageService.loadFamilyCode();
+        const devId = await defaultStorageService.loadOrCreateDeviceId();
+        setDeviceId(devId);
 
         const defaultCode = `MED-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
         const activeCode = storedCode || defaultCode;
@@ -279,6 +282,21 @@ function MainApp() {
         setLogs(storedLogs);
         setEmergencyProfile(storedProfile);
         setActiveRole(storedRole);
+
+        if (storedCode) {
+          setIsFamilyConnected(true);
+          const devName = storedRole === 'patient'
+            ? `Teléfono de ${storedProfile.patientFullName || 'Don Manuel'} (Paciente)`
+            : `Celular de ${storedProfile.emergencyContact?.name || 'Cuidadora'} (Cuidador)`;
+          defaultCloudSyncService.registerDevice(activeCode, {
+            deviceId: devId,
+            role: storedRole,
+            deviceName: devName,
+            platform: Platform.OS === 'web' ? 'Navegador Web' : Platform.OS === 'android' ? 'Android' : 'iOS',
+            connectedAt: new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+          });
+        }
 
         const hasCompleted = await defaultStorageService.loadOnboardingCompleted();
         if (!hasCompleted) {
@@ -408,12 +426,41 @@ function MainApp() {
           }
           setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }
+
+        // Heartbeat para registrar este dispositivo como activo en vivo
+        if (deviceId) {
+          defaultCloudSyncService.updateDeviceHeartbeat(familyCode, deviceId);
+        }
       },
       3500
     );
 
     return () => stopPolling();
-  }, [isLoaded, familyCode, isFamilyConnected, isOnboardingVisible]);
+  }, [isLoaded, familyCode, isFamilyConnected, isOnboardingVisible, deviceId]);
+
+  const handleRevokeDevice = async (targetDeviceId: string): Promise<boolean> => {
+    if (!familyCode) return false;
+    return await defaultCloudSyncService.revokeDevice(familyCode, targetDeviceId);
+  };
+
+  // Detección automática de emparejamiento por Código QR (?pair=CODIGO)
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && isLoaded) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pairParam = params.get('pair');
+        if (pairParam) {
+          const clean = sanitizeFamilyCode(pairParam);
+          if (clean) {
+            handleConnectFamilyCode(clean, 'caregiver');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }
+      } catch (err) {
+        console.warn('URL pair param error:', err);
+      }
+    }
+  }, [isLoaded]);
 
   const handleConnectFamilyCode = async (
     targetCode: string,
@@ -452,6 +499,21 @@ function MainApp() {
         await defaultStorageService.saveFamilyCode(clean);
         setIsFamilyConnected(true);
         localStateRef.current.lastUpdateIso = nowIso;
+
+        if (deviceId) {
+          const devName = connectingRole === 'patient'
+            ? `Teléfono de ${emergencyProfile.patientFullName || 'Don Manuel'} (Paciente)`
+            : `Celular de ${emergencyProfile.emergencyContact?.name || 'Cuidadora'} (Cuidador)`;
+          defaultCloudSyncService.registerDevice(clean, {
+            deviceId,
+            role: connectingRole,
+            deviceName: devName,
+            platform: Platform.OS === 'web' ? 'Navegador Web' : Platform.OS === 'android' ? 'Android' : 'iOS',
+            connectedAt: nowIso,
+            lastSeen: nowIso,
+          });
+        }
+
         setIsCloudSyncing(false);
         setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         return {
@@ -490,6 +552,20 @@ function MainApp() {
         emergencyProfile: downloadedProfile,
         lastUpdateIso: cloudData.updatedAt || new Date().toISOString(),
       };
+
+      if (deviceId) {
+        const devName = connectingRole === 'patient'
+          ? `Teléfono de ${downloadedProfile.patientFullName || 'Don Manuel'} (Paciente)`
+          : `Celular de ${downloadedProfile.emergencyContact?.name || 'Cuidadora'} (Cuidador)`;
+        defaultCloudSyncService.registerDevice(clean, {
+          deviceId,
+          role: connectingRole,
+          deviceName: devName,
+          platform: Platform.OS === 'web' ? 'Navegador Web' : Platform.OS === 'android' ? 'Android' : 'iOS',
+          connectedAt: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+        });
+      }
 
       setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setIsCloudSyncing(false);
@@ -1288,6 +1364,8 @@ function MainApp() {
         onConnectFamilyCode={handleConnectFamilyCode}
         isSyncing={isCloudSyncing}
         lastSyncTime={lastCloudSyncTime}
+        currentDeviceId={deviceId}
+        onRevokeDevice={handleRevokeDevice}
       />
 
       {/* MODAL 6: LUPA DE INSPECCIÓN Y VERIFICACIÓN FOTOGRÁFICA DE BLÍSTER */}

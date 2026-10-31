@@ -5,3 +5,4 @@ export * from './HapticService';
 export * from './NotificationService';
 export * from './CommunicationService';
 export * from './CloudSyncService';
+export * from './QrCodeService';
