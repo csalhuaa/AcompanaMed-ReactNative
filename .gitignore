@@ -32,6 +32,7 @@ pnpm-debug.log*
 figures/
 
 # AI Tools, Skills & Internal Metadata
+.atl/
 .impeccable/
 odd/
 **/.agents/
