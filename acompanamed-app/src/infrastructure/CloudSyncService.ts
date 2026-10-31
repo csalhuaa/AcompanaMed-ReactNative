@@ -70,6 +70,27 @@ export function sanitizeFamilyCode(code: string): string {
     .replace(/^-|-$/g, '');
 }
 
+export function buildMemorableFamilyCode(
+  patientName = '',
+  age?: number | string
+): string {
+  const cleanName = patientName
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z]/g, '')
+    .toUpperCase();
+
+  const namePart = cleanName.length >= 3 ? cleanName.slice(0, 4) : 'MANU';
+
+  const numericAge = typeof age === 'number' ? age : parseInt(String(age || ''), 10);
+  const agePart =
+    !isNaN(numericAge) && numericAge > 0 && numericAge < 130
+      ? String(numericAge)
+      : '74';
+
+  return `MED-${namePart}-${agePart}`;
+}
+
 export function buildFamilyUrl(code: string): string {
   const cleanCode = sanitizeFamilyCode(code);
   return `${FIREBASE_RTDB_URL}/families/${cleanCode}.json`;

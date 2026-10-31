@@ -190,11 +190,11 @@ export const OnboardingModal: React.FC<Props> = ({
                           startMode === 'pair' && styles.modeCardTitleActive,
                         ]}
                       >
-                        Vincularme al Teléfono del Paciente (Recomendado)
+                        Vincularme al Teléfono del Paciente o Restaurar (Recomendado)
                       </Text>
                     </View>
                     <Text style={styles.modeCardDesc}>
-                      Conéctese en tiempo real mediante código o escaneando el QR del paciente para monitorear tomas en la nube.
+                      Conéctese mediante código o escaneando el QR para supervisar o recuperar los datos existentes en la nube.
                     </Text>
                   </TouchableOpacity>
 
@@ -307,11 +307,11 @@ export const OnboardingModal: React.FC<Props> = ({
                           startMode === 'pair' && styles.modeCardTitleActive,
                         ]}
                       >
-                        Vincularme a un Código Familiar o QR Existente
+                        Vincularme a un Código Familiar o Restaurar Botiquín
                       </Text>
                     </View>
                     <Text style={styles.modeCardDesc}>
-                      Si su cuidador ya configuró el botiquín, conéctese escaneando su QR o ingresando el código.
+                      Conéctese con el teléfono de su familia o restaure su botiquín si cambió de celular o limpió la aplicación.
                     </Text>
                   </TouchableOpacity>
 

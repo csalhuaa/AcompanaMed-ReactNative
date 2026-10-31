@@ -13,6 +13,7 @@ import { EmergencyProfile } from '../../domain';
 import {
   generateQrDataUrl,
   buildPairingUrl,
+  buildMemorableFamilyCode,
   defaultCloudSyncService,
   ConnectedDevice,
 } from '../../infrastructure';
@@ -38,6 +39,7 @@ interface Props {
   lastSyncTime?: string;
   currentDeviceId?: string;
   onRevokeDevice?: (deviceId: string) => Promise<boolean>;
+  onResetDevice?: () => Promise<void> | void;
 }
 
 export const FamilyPairingModal: React.FC<Props> = ({
@@ -56,6 +58,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   lastSyncTime,
   currentDeviceId,
   onRevokeDevice,
+  onResetDevice,
 }) => {
   const [patientName, setPatientName] = useState(emergencyProfile?.patientFullName || '');
   const [age, setAge] = useState(String(emergencyProfile?.age || ''));
@@ -86,7 +89,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
     setCaregiverPhone(emergencyProfile?.emergencyContact?.phone || '');
   }, [visible, emergencyProfile]);
 
-  const generatedCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
+  const generatedCode = buildMemorableFamilyCode(patientName, age);
   const effectiveFamilyCode = propFamilyCode || generatedCode;
 
   const loadDevices = async () => {
@@ -229,6 +232,25 @@ export const FamilyPairingModal: React.FC<Props> = ({
     }
   };
 
+  const handleConfirmUnlinkDevice = () => {
+    Alert.alert(
+      '¿Desvincular este dispositivo?',
+      `Este teléfono se desvinculará de la familia y volverá a la pantalla inicial de bienvenida.\n\nSus datos médicos permanecen respaldados en la nube bajo el código [${effectiveFamilyCode}]. Podrá volver a conectarse o cambiar de rol en cualquier momento.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, desvincular',
+          style: 'destructive',
+          onPress: async () => {
+            if (onResetDevice) {
+              await onResetDevice();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -300,6 +322,27 @@ export const FamilyPairingModal: React.FC<Props> = ({
               setCaregiverPhone={setCaregiverPhone}
               onSaveProfile={handleSaveProfile}
             />
+
+            {/* SECCIÓN 3: ZONA ADMINISTRATIVA DEL DISPOSITIVO */}
+            <View style={styles.adminSectionCard}>
+              <View style={styles.adminSectionHeader}>
+                <MaterialCommunityIcons name="cellphone-cog" size={18} color="#991B1B" />
+                <Text style={styles.adminSectionTitle}>Zona Administrativa del Dispositivo</Text>
+              </View>
+              <Text style={styles.adminSectionDesc}>
+                Si este teléfono cambiará de dueño o pasa de cuidador a paciente, puede desvincularlo. Los datos de la medicación seguirán seguros en la nube con su código familiar ({effectiveFamilyCode}).
+              </Text>
+              <TouchableOpacity
+                style={styles.btnResetDevice}
+                onPress={handleConfirmUnlinkDevice}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Desvincular este teléfono y volver al inicio"
+              >
+                <MaterialCommunityIcons name="logout-variant" size={16} color="#DC2626" />
+                <Text style={styles.btnResetDeviceText}>Desvincular y cambiar de usuario / rol</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </View>

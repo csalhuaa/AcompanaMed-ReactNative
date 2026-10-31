@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildFamilyUrl,
   sanitizeFamilyCode,
+  buildMemorableFamilyCode,
   isStateNewer,
   CloudSyncService,
 } from './CloudSyncService';
@@ -24,6 +25,14 @@ describe('AcompañaMed - CloudSyncService (Inter-Device Cloud Sync)', () => {
   it('limpia y normaliza el código de familia a mayúsculas sin caracteres inválidos', () => {
     assert.equal(sanitizeFamilyCode('  med-manu-74  '), 'MED-MANU-74');
     assert.equal(sanitizeFamilyCode('med_manu/74!'), 'MED-MANU-74');
+  });
+
+  it('genera códigos de familia memorables basados en el paciente para facilitar la recuperación tras borrar la app', () => {
+    assert.equal(buildMemorableFamilyCode('Manuel Jesús Alhua', 74), 'MED-MANU-74');
+    assert.equal(buildMemorableFamilyCode('Rosa María', 82), 'MED-ROSA-82');
+    assert.equal(buildMemorableFamilyCode('Don Carlos', '68'), 'MED-DONC-68');
+    assert.equal(buildMemorableFamilyCode('Ana', 0), 'MED-ANA-74');
+    assert.equal(buildMemorableFamilyCode('', undefined), 'MED-MANU-74');
   });
 
   it('construye la URL REST canónica de Firebase Realtime Database para el código de familia', () => {

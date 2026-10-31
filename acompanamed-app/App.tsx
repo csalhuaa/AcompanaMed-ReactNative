@@ -31,6 +31,7 @@ import {
   defaultCloudSyncService,
   FamilySyncPayload,
   CommunicationService,
+  buildMemorableFamilyCode,
 } from './src/infrastructure';
 import {
   AppNavTab,
@@ -272,6 +273,34 @@ function MainApp() {
     syncToCloud(undefined, undefined, undefined, updated);
   };
 
+  const handleResetDevice = async () => {
+    try {
+      if (familyCode && deviceId) {
+        await defaultCloudSyncService.revokeDevice(familyCode, deviceId);
+      }
+      await defaultStorageService.clearAllData();
+
+      setMedicines([]);
+      setScheduleTimes({});
+      setLogs([]);
+      setExpandedMedId('');
+      setEmergencyProfile(createEmptyProfile());
+      setFamilyCode('');
+      setIsFamilyConnected(false);
+      setActiveRole('patient');
+      setActiveTab('today');
+      setIsFamilyPairingModalVisible(false);
+      setIsOnboardingVisible(true);
+      showNotice(
+        'Dispositivo desvinculado',
+        'Este teléfono volvió a la pantalla inicial. Sus datos permanecen respaldados en la nube.'
+      );
+    } catch (error) {
+      console.warn('Error resetting device:', error);
+      setIsOnboardingVisible(true);
+    }
+  };
+
   const handleClearDemoData = () => {
     setMedicines([]);
     setScheduleTimes({});
@@ -322,7 +351,7 @@ function MainApp() {
         const nextMeds = demo ? INITIAL_MEDICINES : [];
         const nextTimes = demo ? INITIAL_SCHEDULE_TIMES : {};
         const nextLogs = demo ? INITIAL_LOGS : [];
-        const newCode = `MED-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+        const newCode = buildMemorableFamilyCode(profile.patientFullName, profile.age);
 
         await Promise.all([
           defaultStorageService.saveEmergencyProfile(profile),
@@ -577,6 +606,7 @@ function MainApp() {
                       {effectiveRightTab === 'emergency' && (
                         <EmergencyProfileCard
                           emergencyProfile={emergencyProfile}
+                          familyCode={familyCode}
                           onCallEmergency={handleCallEmergency}
                           onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
                         />
@@ -649,6 +679,7 @@ function MainApp() {
             {activeTab === 'emergency' && (
               <EmergencyProfileCard
                 emergencyProfile={emergencyProfile}
+                familyCode={familyCode}
                 onCallEmergency={handleCallEmergency}
                 onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
               />
@@ -719,6 +750,7 @@ function MainApp() {
         lastSyncTime={lastCloudSyncTime}
         currentDeviceId={deviceId}
         onRevokeDevice={handleRevokeDevice}
+        onResetDevice={handleResetDevice}
       />
 
       <PillInspectionModal

@@ -5,12 +5,14 @@ import { EmergencyProfile } from '../../domain';
 
 interface Props {
   emergencyProfile: EmergencyProfile;
+  familyCode?: string;
   onCallEmergency: (phone: string, name: string) => void;
   onOpenFamilyPairing?: () => void;
 }
 
 export const EmergencyProfileCard: React.FC<Props> = ({
   emergencyProfile,
+  familyCode,
   onCallEmergency,
   onOpenFamilyPairing,
 }) => {
@@ -100,6 +102,33 @@ export const EmergencyProfileCard: React.FC<Props> = ({
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Carnet de Respaldo y Recuperación Familiar */}
+        {familyCode ? (
+          <View style={styles.backupCardBox}>
+            <View style={styles.backupHeaderRow}>
+              <MaterialCommunityIcons name="shield-key-outline" size={18} color="#0284C7" />
+              <Text style={styles.backupTitle}>CARNET DE RESPALDO Y RECUPERACIÓN</Text>
+            </View>
+            <Text style={styles.backupDesc}>
+              Si cambia de teléfono, formatea el equipo o borra la aplicación, ingrese este código en la pantalla inicial para restaurar todo su botiquín al instante:
+            </Text>
+            <View style={styles.codePillRow}>
+              <Text style={styles.codePillText}>{familyCode}</Text>
+              {onOpenFamilyPairing && (
+                <TouchableOpacity
+                  style={styles.btnShowPairingQr}
+                  onPress={onOpenFamilyPairing}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Ver código QR de vinculación familiar"
+                >
+                  <MaterialCommunityIcons name="qrcode" size={16} color="#0284C7" />
+                  <Text style={styles.btnShowPairingQrText}>Ver QR</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -244,5 +273,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  backupCardBox: {
+    backgroundColor: '#F0F9FF',
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    gap: 6,
+    marginTop: 4,
+  },
+  backupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backupTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0369A1',
+    letterSpacing: 0.5,
+  },
+  backupDesc: {
+    fontSize: 12,
+    color: '#0C4A6E',
+    lineHeight: 16,
+  },
+  codePillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#7DD3FC',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 6,
+  },
+  codePillText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: 1,
+  },
+  btnShowPairingQr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E0F2FE',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 4,
+  },
+  btnShowPairingQrText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
   },
 });
