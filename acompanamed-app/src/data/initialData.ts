@@ -121,3 +121,30 @@ export function showNotice(title: string, message?: string) {
     Alert.alert(title, message);
   }
 }
+
+export function askConfirmation(
+  title: string,
+  message: string,
+  onConfirm: () => void | Promise<void>,
+  confirmText = 'Continuar',
+  cancelText = 'Cancelar'
+) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    const ok = window.confirm([title, message].filter(Boolean).join('\n\n'));
+    if (ok) {
+      void onConfirm();
+    }
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: cancelText, style: 'cancel' },
+    {
+      text: confirmText,
+      style: 'destructive',
+      onPress: () => {
+        void onConfirm();
+      },
+    },
+  ]);
+}

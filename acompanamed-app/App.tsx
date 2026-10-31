@@ -280,6 +280,30 @@ function MainApp() {
     syncToCloud(undefined, undefined, undefined, updated);
   };
 
+  const handleSwitchActiveRole = async (newRole: ActorRole) => {
+    setActiveRole(newRole);
+    await defaultStorageService.saveActiveRole(newRole);
+    if (familyCode && deviceId) {
+      const devName =
+        newRole === 'patient'
+          ? `Teléfono de ${emergencyProfile?.patientFullName || 'Paciente'} (Paciente)`
+          : `Celular de Cuidador`;
+      await defaultCloudSyncService.registerDevice(familyCode, {
+        deviceId,
+        role: newRole,
+        deviceName: devName,
+        platform:
+          Platform.OS === 'web'
+            ? 'Navegador Web'
+            : Platform.OS === 'android'
+            ? 'Android'
+            : 'iOS',
+        connectedAt: new Date().toISOString(),
+        lastSeen: new Date().toISOString(),
+      });
+    }
+  };
+
   const handleResetDevice = async () => {
     try {
       if (familyCode && deviceId) {
@@ -597,17 +621,10 @@ function MainApp() {
                         (activeRole === 'patient' ? (
                           <View style={styles.protectedRoleContainer}>
                             <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
-                            <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
+                            <Text style={styles.protectedRoleTitle}>Área Protegida del Botiquín</Text>
                             <Text style={styles.protectedRoleSubtitle}>
-                              Cambie al modo Cuidador para gestionar el botiquín y evitar cambios accidentales en la receta.
+                              La gestión de recetas, inventario y reposición está reservada para el cuidador para proteger la seguridad del paciente.
                             </Text>
-                            <TouchableOpacity
-                              style={styles.btnUnlockRole}
-                              onPress={() => setActiveRole('caregiver')}
-                            >
-                              <MaterialCommunityIcons name="shield-check" size={16} color="#FFFFFF" />
-                              <Text style={styles.btnUnlockRoleText}>Desbloquear como Cuidadora</Text>
-                            </TouchableOpacity>
                           </View>
                         ) : (
                           <MedicineInventoryPanel
@@ -667,17 +684,10 @@ function MainApp() {
               (activeRole === 'patient' ? (
                 <View style={styles.protectedRoleContainer}>
                   <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
-                  <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
+                  <Text style={styles.protectedRoleTitle}>Área Protegida del Botiquín</Text>
                   <Text style={styles.protectedRoleSubtitle}>
-                    Cambie al modo Cuidador para gestionar el botiquín y evitar cambios accidentales en la receta.
+                    La gestión de recetas, inventario y reposición está reservada para el cuidador para proteger la seguridad del paciente.
                   </Text>
-                  <TouchableOpacity
-                    style={styles.btnUnlockRole}
-                    onPress={() => setActiveRole('caregiver')}
-                  >
-                    <MaterialCommunityIcons name="shield-check" size={16} color="#FFFFFF" />
-                    <Text style={styles.btnUnlockRoleText}>Desbloquear como Cuidadora</Text>
-                  </TouchableOpacity>
                 </View>
               ) : (
                 <MedicineInventoryPanel
@@ -762,7 +772,7 @@ function MainApp() {
         onRestoreDemoData={handleRestoreDemoData}
         onTestNotification={handleTestNotification}
         activeRole={activeRole}
-        onSelectRole={setActiveRole}
+        onSelectRole={handleSwitchActiveRole}
         familyCode={familyCode}
         onConnectFamilyCode={handleConnectFamilyCode}
         isSyncing={isCloudSyncing}

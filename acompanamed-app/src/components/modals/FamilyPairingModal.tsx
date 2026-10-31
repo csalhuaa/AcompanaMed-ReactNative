@@ -21,6 +21,7 @@ import { CameraQrScannerModal } from './CameraQrScannerModal';
 import { FamilySyncSection } from './pairing/FamilySyncSection';
 import { PatientProfileSection } from './pairing/PatientProfileSection';
 import { pairingStyles as styles } from './pairing/pairingStyles';
+import { showNotice, askConfirmation } from '../../data/initialData';
 
 interface Props {
   visible: boolean;
@@ -149,15 +150,15 @@ export const FamilyPairingModal: React.FC<Props> = ({
     };
 
     onUpdateProfile(updated);
-    Alert.alert('Perfil Guardado', 'Los datos del paciente y cuidador fueron actualizados en la base de datos local.');
+    showNotice('Perfil Guardado', 'Los datos del paciente y cuidador fueron actualizados en la base de datos local.');
   };
 
   const handleCopyCode = () => {
     try {
       Clipboard.setString(effectiveFamilyCode);
-      Alert.alert('Código Copiado', `El código de enlace familiar "${effectiveFamilyCode}" fue copiado al portapapeles.`);
+      showNotice('Código Copiado', `El código de enlace familiar "${effectiveFamilyCode}" fue copiado al portapapeles.`);
     } catch {
-      Alert.alert('Código Familiar', `Su código es: ${effectiveFamilyCode}`);
+      showNotice('Código Familiar', `Su código es: ${effectiveFamilyCode}`);
     }
   };
 
@@ -165,39 +166,34 @@ export const FamilyPairingModal: React.FC<Props> = ({
     const url = buildPairingUrl(effectiveFamilyCode);
     try {
       Clipboard.setString(url);
-      Alert.alert('Enlace Copiado', 'El enlace directo fue copiado. Puede enviarlo por WhatsApp para que su familiar se vincule con un solo toque.');
+      showNotice('Enlace Copiado', 'El enlace directo fue copiado. Puede enviarlo por WhatsApp para que su familiar se vincule con un solo toque.');
     } catch {
-      Alert.alert('Enlace Directo', url);
+      showNotice('Enlace Directo', url);
     }
   };
 
   const handleRevokeDevice = (device: ConnectedDevice) => {
-    Alert.alert(
+    askConfirmation(
       'Desvincular Dispositivo',
       `¿Desea revocar el acceso a "${device.deviceName}"? Dejará de recibir las tomas de este paciente.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Desvincular',
-          style: 'destructive',
-          onPress: async () => {
-            if (onRevokeDevice) {
-              await onRevokeDevice(device.deviceId);
-            } else {
-              await defaultCloudSyncService.revokeDevice(effectiveFamilyCode, device.deviceId);
-            }
-            loadDevices();
-            Alert.alert('Dispositivo Desvinculado', `Se revocó el acceso para ${device.deviceName}.`);
-          },
-        },
-      ]
+      async () => {
+        if (onRevokeDevice) {
+          await onRevokeDevice(device.deviceId);
+        } else {
+          await defaultCloudSyncService.revokeDevice(effectiveFamilyCode, device.deviceId);
+        }
+        loadDevices();
+        showNotice('Dispositivo Desvinculado', `Se revocó el acceso para ${device.deviceName}.`);
+      },
+      'Desvincular',
+      'Cancelar'
     );
   };
 
   const handleConnectCaregiver = async () => {
     const code = enteredPairingCode.trim().toUpperCase();
     if (!code) {
-      Alert.alert('Código Requerido', 'Por favor ingrese el código de enlace del paciente.');
+      showNotice('Código Requerido', 'Por favor ingrese el código de enlace del paciente.');
       return;
     }
     if (onConnectFamilyCode) {
@@ -205,13 +201,13 @@ export const FamilyPairingModal: React.FC<Props> = ({
       const res = await onConnectFamilyCode(code);
       setIsConnecting(false);
       setPairingSuccessMsg(res.message);
-      Alert.alert(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
+      showNotice(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
       if (res.success) {
         setEnteredPairingCode('');
         loadDevices();
       }
     } else {
-      Alert.alert('Enlace no disponible', 'No se pudo iniciar el enlace en este dispositivo.');
+      showNotice('Enlace no disponible', 'No se pudo iniciar el enlace en este dispositivo.');
     }
   };
 
@@ -223,7 +219,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
       const res = await onConnectFamilyCode(scannedCode);
       setIsConnecting(false);
       setPairingSuccessMsg(res.message);
-      Alert.alert(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
+      showNotice(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
       if (res.success) {
         setEnteredPairingCode('');
         loadDevices();
@@ -232,21 +228,33 @@ export const FamilyPairingModal: React.FC<Props> = ({
   };
 
   const handleConfirmUnlinkDevice = () => {
-    Alert.alert(
+    askConfirmation(
       '¿Desvincular este dispositivo?',
       `Este teléfono se desvinculará de la familia y volverá a la pantalla inicial de bienvenida.\n\nSus datos médicos permanecen respaldados en la nube bajo el código [${effectiveFamilyCode}]. Podrá volver a conectarse o cambiar de rol en cualquier momento.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Sí, desvincular',
-          style: 'destructive',
-          onPress: async () => {
-            if (onResetDevice) {
-              await onResetDevice();
-            }
-          },
-        },
-      ]
+      async () => {
+        if (onResetDevice) {
+          await onResetDevice();
+        }
+      },
+      'Sí, desvincular',
+      'Cancelar'
+    );
+  };
+
+  const handleToggleRole = () => {
+    const nextRole = activeRole === 'patient' ? 'caregiver' : 'patient';
+    const roleLabel = nextRole === 'patient' ? 'Paciente (Don Manuel)' : 'Cuidador / Familiar';
+    askConfirmation(
+      '¿Cambiar el rol de este dispositivo?',
+      `Este teléfono pasará al modo ${roleLabel}.\n\nSe conservarán todos los datos del paciente y el código de enlace familiar [${effectiveFamilyCode}].`,
+      () => {
+        if (onSelectRole) {
+          onSelectRole(nextRole);
+          showNotice('Rol Actualizado', `Este teléfono ahora opera en modo ${roleLabel}.`);
+        }
+      },
+      'Sí, cambiar rol',
+      'Cancelar'
     );
   };
 
@@ -285,6 +293,21 @@ export const FamilyPairingModal: React.FC<Props> = ({
                   ? 'Configurado con interfaz adaptada para el paciente (botones grandes, lectura de voz y pastillero protegido).'
                   : 'Configurado para supervisión remota, gestión de recetas médicas, control de stock y reportes.'}
               </Text>
+
+              <TouchableOpacity
+                style={styles.btnSwitchDeviceRole}
+                onPress={handleToggleRole}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Cambiar el rol de este teléfono"
+              >
+                <MaterialCommunityIcons name="swap-horizontal-bold" size={16} color="#0F172A" />
+                <Text style={styles.btnSwitchDeviceRoleText}>
+                  {activeRole === 'patient'
+                    ? 'Cambiar este teléfono a Modo Cuidador'
+                    : 'Cambiar este teléfono a Modo Paciente'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* SECCIÓN 1: VINCULACIÓN FAMILIAR MULTI-DISPOSITIVO */}
@@ -303,7 +326,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
                 try {
                   const result = await onConnectFamilyCode(effectiveFamilyCode);
                   setPairingSuccessMsg(result.message);
-                  Alert.alert(result.success ? 'Enlace activado' : 'No se pudo activar', result.message);
+                  showNotice(result.success ? 'Enlace activado' : 'No se pudo activar', result.message);
                   loadDevices();
                 } finally {
                   setIsConnecting(false);
