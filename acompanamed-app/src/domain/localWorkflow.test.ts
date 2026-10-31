@@ -103,6 +103,9 @@ describe('Everyday local workflows', () => {
 
   it('filters navigation tabs by role: patient only gets today and emergency, caregiver gets all tabs', () => {
     assert.deepEqual(getVisibleTabsForRole('patient'), ['today', 'emergency']);
+    assert.deepEqual(getVisibleTabsForRole('patient', true), ['today', 'emergency']);
+    assert.deepEqual(getVisibleTabsForRole('patient', false), ['today', 'stock', 'emergency']);
     assert.deepEqual(getVisibleTabsForRole('caregiver'), ['today', 'caregiver', 'stock', 'emergency']);
+    assert.deepEqual(getVisibleTabsForRole('caregiver', false), ['today', 'caregiver', 'stock', 'emergency']);
   });
 });

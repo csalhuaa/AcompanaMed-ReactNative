@@ -4,9 +4,9 @@ import { evaluateEscalation } from './EscalationEngine';
 
 export type AppNavTab = 'today' | 'caregiver' | 'stock' | 'emergency';
 
-export function getVisibleTabsForRole(role: ActorRole): AppNavTab[] {
+export function getVisibleTabsForRole(role: ActorRole, hasCaregiver = true): AppNavTab[] {
   if (role === 'patient') {
-    return ['today', 'emergency'];
+    return hasCaregiver ? ['today', 'emergency'] : ['today', 'stock', 'emergency'];
   }
   return ['today', 'caregiver', 'stock', 'emergency'];
 }

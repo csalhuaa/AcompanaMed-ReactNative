@@ -342,6 +342,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
               onConnectCaregiver={handleConnectCaregiver}
               onOpenScanner={() => setIsScannerVisible(true)}
               pairingSuccessMsg={pairingSuccessMsg}
+              activeRole={activeRole}
             />
 
             {/* SECCIÓN 2: PERSONALIZAR DATOS REALES */}

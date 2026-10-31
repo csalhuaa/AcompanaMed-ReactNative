@@ -10,6 +10,7 @@ interface Props {
   activeTab: AppNavTab;
   onSelectTab: (tab: AppNavTab) => void;
   activeRole?: ActorRole;
+  hasCaregiverConnected?: boolean;
 }
 
 interface TabConfig {
@@ -46,11 +47,16 @@ const TABS: TabConfig[] = [
   },
 ];
 
-export const BottomNavBar: React.FC<Props> = ({ activeTab, onSelectTab, activeRole = 'caregiver' }) => {
+export const BottomNavBar: React.FC<Props> = ({
+  activeTab,
+  onSelectTab,
+  activeRole = 'caregiver',
+  hasCaregiverConnected = true,
+}) => {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
-  const allowedTabs = new Set(getVisibleTabsForRole(activeRole));
+  const allowedTabs = new Set(getVisibleTabsForRole(activeRole, hasCaregiverConnected));
   const visibleTabs = TABS.filter((tab) => allowedTabs.has(tab.key));
   const isPatient = activeRole === 'patient';
 

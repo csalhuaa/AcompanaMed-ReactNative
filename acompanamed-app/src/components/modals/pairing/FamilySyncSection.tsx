@@ -33,6 +33,7 @@ interface Props {
   onConnectCaregiver: () => void;
   onOpenScanner: () => void;
   pairingSuccessMsg: string;
+  activeRole?: 'patient' | 'caregiver';
 }
 
 export const FamilySyncSection: React.FC<Props> = ({
@@ -57,6 +58,7 @@ export const FamilySyncSection: React.FC<Props> = ({
   onConnectCaregiver,
   onOpenScanner,
   pairingSuccessMsg,
+  activeRole,
 }) => {
   return (
     <View style={styles.sectionBox}>
@@ -233,42 +235,44 @@ export const FamilySyncSection: React.FC<Props> = ({
       )}
 
       {/* Input para conectar desde el celular del cuidador */}
-      <View style={styles.connectCaregiverBox}>
-        <Text style={styles.inputLabel}>Enlazar este teléfono al paciente:</Text>
-        <TextInput
-          style={styles.textInputFull}
-          placeholder="Ej. MED-MANU-74"
-          placeholderTextColor="#94A3B8"
-          value={enteredPairingCode}
-          onChangeText={setEnteredPairingCode}
-          autoCapitalize="characters"
-        />
-        <View style={styles.connectActionRow}>
-          <TouchableOpacity
-            style={styles.btnScanCamera}
-            onPress={onOpenScanner}
-            activeOpacity={0.85}
-            accessibilityLabel="Escanear código QR con la cámara"
-          >
-            <MaterialCommunityIcons name="camera-outline" size={16} color="#0284C7" />
-            <Text style={styles.btnScanCameraText}>Escanear QR</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.btnConnect, isConnecting && { opacity: 0.6 }]}
-            onPress={onConnectCaregiver}
-            disabled={isConnecting || !enteredPairingCode.trim()}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="link-variant" size={16} color="#FFFFFF" />
-            <Text style={styles.btnConnectText}>
-              {isConnecting ? 'Conectando…' : 'Conectar'}
-            </Text>
-          </TouchableOpacity>
+      {activeRole !== 'patient' && (
+        <View style={styles.connectCaregiverBox}>
+          <Text style={styles.inputLabel}>Enlazar este teléfono al paciente:</Text>
+          <TextInput
+            style={styles.textInputFull}
+            placeholder="Ej. MED-MANU-74"
+            placeholderTextColor="#94A3B8"
+            value={enteredPairingCode}
+            onChangeText={setEnteredPairingCode}
+            autoCapitalize="characters"
+          />
+          <View style={styles.connectActionRow}>
+            <TouchableOpacity
+              style={styles.btnScanCamera}
+              onPress={onOpenScanner}
+              activeOpacity={0.85}
+              accessibilityLabel="Escanear código QR con la cámara"
+            >
+              <MaterialCommunityIcons name="camera-outline" size={16} color="#0284C7" />
+              <Text style={styles.btnScanCameraText}>Escanear QR</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnConnect, isConnecting && { opacity: 0.6 }]}
+              onPress={onConnectCaregiver}
+              disabled={isConnecting || !enteredPairingCode.trim()}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="link-variant" size={16} color="#FFFFFF" />
+              <Text style={styles.btnConnectText}>
+                {isConnecting ? 'Conectando…' : 'Conectar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {pairingSuccessMsg ? (
+            <Text style={styles.pairingSuccessText}>{pairingSuccessMsg}</Text>
+          ) : null}
         </View>
-        {pairingSuccessMsg ? (
-          <Text style={styles.pairingSuccessText}>{pairingSuccessMsg}</Text>
-        ) : null}
-      </View>
+      )}
     </View>
   );
 };

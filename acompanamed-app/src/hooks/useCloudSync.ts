@@ -48,6 +48,7 @@ export function useCloudSync({
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('');
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
   const [deviceId, setDeviceId] = useState<string>('');
+  const [hasCaregiverConnected, setHasCaregiverConnected] = useState<boolean>(false);
 
   const localStateRef = useRef({
     medicines,
@@ -170,6 +171,12 @@ export function useCloudSync({
           setLastCloudSyncTime(
             new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           );
+          if (cloudData.connectedDevices) {
+            const hasCaregiver = Object.values(cloudData.connectedDevices).some(
+              (d) => d && d.role === 'caregiver' && !d.isRevoked
+            );
+            setHasCaregiverConnected(hasCaregiver);
+          }
         }
       } catch (e) {
         console.warn('ensureCloudActive error:', e);
@@ -198,6 +205,7 @@ export function useCloudSync({
           console.warn(`[useCloudSync] Dispositivo ${deviceId} revocado remotamente de la familia ${familyCode}`);
           setIsFamilyConnected(false);
           setFamilyCode('');
+          setHasCaregiverConnected(false);
           defaultStorageService.saveFamilyCode('');
           if (onDeviceRevokedRemotely) {
             onDeviceRevokedRemotely();
@@ -208,6 +216,16 @@ export function useCloudSync({
             );
           }
           return;
+        }
+
+        // Detección de cuidador vinculado
+        if (cloudData.connectedDevices) {
+          const hasCaregiver = Object.values(cloudData.connectedDevices).some(
+            (d) => d && d.role === 'caregiver' && !d.isRevoked
+          );
+          setHasCaregiverConnected(hasCaregiver);
+        } else {
+          setHasCaregiverConnected(false);
         }
 
         const currentLocal = localStateRef.current;
@@ -392,6 +410,15 @@ export function useCloudSync({
         });
       }
 
+      if (cloudData.connectedDevices) {
+        const hasCaregiver = Object.values(cloudData.connectedDevices).some(
+          (d) => d && d.role === 'caregiver' && !d.isRevoked
+        );
+        setHasCaregiverConnected(hasCaregiver);
+      } else {
+        setHasCaregiverConnected(false);
+      }
+
       setIsCloudSyncing(false);
       setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       return {
@@ -434,6 +461,7 @@ export function useCloudSync({
     lastCloudSyncTime,
     isCloudSyncing,
     deviceId,
+    hasCaregiverConnected,
     syncToCloud,
     handleConnectFamilyCode,
     handleRevokeDevice,

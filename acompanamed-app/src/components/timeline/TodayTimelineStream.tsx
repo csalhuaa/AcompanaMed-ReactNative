@@ -15,6 +15,7 @@ interface Props {
   onInspectMedicine?: (medicine: Medicine) => void;
   activeRole?: 'patient' | 'caregiver';
   onSwitchRole?: () => void;
+  hasCaregiverConnected?: boolean;
 }
 
 export const TodayTimelineStream: React.FC<Props> = ({
@@ -28,8 +29,10 @@ export const TodayTimelineStream: React.FC<Props> = ({
   onInspectMedicine,
   activeRole,
   onSwitchRole,
+  hasCaregiverConnected = false,
 }) => {
   const completedCount = dailySchedule.filter((d) => d.isTakenToday).length;
+  const canAddMedicine = activeRole === 'caregiver' || !hasCaregiverConnected;
 
   return (
     <ScrollView
@@ -56,9 +59,11 @@ export const TodayTimelineStream: React.FC<Props> = ({
           <MaterialCommunityIcons name="pill-off" size={48} color="#94A3B8" />
           <Text style={styles.emptyTitle}>Sin Medicamentos Registrados</Text>
           <Text style={styles.emptyText}>
-            El botiquín está vacío. Agregue el primer medicamento recetado por el médico tratante.
+            {canAddMedicine
+              ? 'El botiquín está vacío. Agregue el primer medicamento recetado por el médico tratante.'
+              : 'El botiquín está vacío. Su cuidador registrará los medicamentos recetados por el médico tratante.'}
           </Text>
-          {onOpenAddMedicine && (
+          {onOpenAddMedicine && canAddMedicine && (
             <TouchableOpacity
               style={styles.btnAddFirstMed}
               onPress={onOpenAddMedicine}
@@ -90,7 +95,7 @@ export const TodayTimelineStream: React.FC<Props> = ({
             );
           })}
 
-          {onOpenAddMedicine && (
+          {onOpenAddMedicine && canAddMedicine && (
             <TouchableOpacity
               style={styles.btnAddMoreMed}
               onPress={onOpenAddMedicine}

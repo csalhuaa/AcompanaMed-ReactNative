@@ -142,6 +142,7 @@ function MainApp() {
     lastCloudSyncTime,
     isCloudSyncing,
     deviceId,
+    hasCaregiverConnected,
     syncToCloud,
     handleConnectFamilyCode,
     handleRevokeDevice,
@@ -162,6 +163,13 @@ function MainApp() {
     },
     onDeviceRevokedRemotely: handleRemoteRevocation,
   });
+
+  // Si el paciente tiene un cuidador vinculado, las pestañas de supervisión/botiquín quedan restringidas
+  useEffect(() => {
+    if (activeRole === 'patient' && hasCaregiverConnected && (activeTab === 'stock' || activeTab === 'caregiver')) {
+      setActiveTab('today');
+    }
+  }, [activeRole, hasCaregiverConnected, activeTab]);
 
   // Cálculos de Dominio
   const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, now);
@@ -595,6 +603,7 @@ function MainApp() {
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
                 activeRole={activeRole}
                 onSwitchRole={() => setActiveRole(activeRole === 'patient' ? 'caregiver' : 'patient')}
+                hasCaregiverConnected={hasCaregiverConnected}
               />
             </View>
 
@@ -607,58 +616,60 @@ function MainApp() {
                     ? activeRole === 'patient'
                       ? 'emergency'
                       : 'caregiver'
-                    : activeRole === 'patient'
+                    : activeRole === 'patient' && hasCaregiverConnected && activeTab === 'stock'
+                    ? 'emergency'
+                    : activeRole === 'patient' && activeTab === 'caregiver'
                     ? 'emergency'
                     : activeTab;
                 return (
                   <>
                     <View style={styles.splitSubTabsHeader}>
                       {activeRole === 'caregiver' && (
-                        <>
-                          <TouchableOpacity
+                        <TouchableOpacity
+                          style={[
+                            styles.splitSubTabItem,
+                            effectiveRightTab === 'caregiver' && styles.splitSubTabItemActive,
+                          ]}
+                          onPress={() => setActiveTab('caregiver')}
+                        >
+                          <MaterialCommunityIcons
+                            name="chart-timeline-variant"
+                            size={16}
+                            color={effectiveRightTab === 'caregiver' ? '#0F172A' : '#64748B'}
+                          />
+                          <Text
                             style={[
-                              styles.splitSubTabItem,
-                              effectiveRightTab === 'caregiver' && styles.splitSubTabItemActive,
+                              styles.splitSubTabLabel,
+                              effectiveRightTab === 'caregiver' && styles.splitSubTabLabelActive,
                             ]}
-                            onPress={() => setActiveTab('caregiver')}
                           >
-                            <MaterialCommunityIcons
-                              name="chart-timeline-variant"
-                              size={16}
-                              color={effectiveRightTab === 'caregiver' ? '#0F172A' : '#64748B'}
-                            />
-                            <Text
-                              style={[
-                                styles.splitSubTabLabel,
-                                effectiveRightTab === 'caregiver' && styles.splitSubTabLabelActive,
-                              ]}
-                            >
-                              Cuidador
-                            </Text>
-                          </TouchableOpacity>
+                            Cuidador
+                          </Text>
+                        </TouchableOpacity>
+                      )}
 
-                          <TouchableOpacity
+                      {(activeRole === 'caregiver' || !hasCaregiverConnected) && (
+                        <TouchableOpacity
+                          style={[
+                            styles.splitSubTabItem,
+                            effectiveRightTab === 'stock' && styles.splitSubTabItemActive,
+                          ]}
+                          onPress={() => setActiveTab('stock')}
+                        >
+                          <MaterialCommunityIcons
+                            name="medical-bag"
+                            size={16}
+                            color={effectiveRightTab === 'stock' ? '#0F172A' : '#64748B'}
+                          />
+                          <Text
                             style={[
-                              styles.splitSubTabItem,
-                              effectiveRightTab === 'stock' && styles.splitSubTabItemActive,
+                              styles.splitSubTabLabel,
+                              effectiveRightTab === 'stock' && styles.splitSubTabLabelActive,
                             ]}
-                            onPress={() => setActiveTab('stock')}
                           >
-                            <MaterialCommunityIcons
-                              name="medical-bag"
-                              size={16}
-                              color={effectiveRightTab === 'stock' ? '#0F172A' : '#64748B'}
-                            />
-                            <Text
-                              style={[
-                                styles.splitSubTabLabel,
-                                effectiveRightTab === 'stock' && styles.splitSubTabLabelActive,
-                              ]}
-                            >
-                              Botiquín
-                            </Text>
-                          </TouchableOpacity>
-                        </>
+                            Botiquín
+                          </Text>
+                        </TouchableOpacity>
                       )}
 
                       <TouchableOpacity
@@ -701,12 +712,12 @@ function MainApp() {
                         />
                       )}
                       {effectiveRightTab === 'stock' &&
-                        (activeRole === 'patient' ? (
+                        (activeRole === 'patient' && hasCaregiverConnected ? (
                           <View style={styles.protectedRoleContainer}>
                             <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
                             <Text style={styles.protectedRoleTitle}>Área Protegida del Botiquín</Text>
                             <Text style={styles.protectedRoleSubtitle}>
-                              La gestión de recetas, inventario y reposición está reservada para el cuidador para proteger la seguridad del paciente.
+                              La gestión de recetas, inventario y reposición está supervisada por su cuidador para proteger su seguridad.
                             </Text>
                           </View>
                         ) : (
@@ -748,6 +759,7 @@ function MainApp() {
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
                 activeRole={activeRole}
+                hasCaregiverConnected={hasCaregiverConnected}
               />
             )}
 
@@ -768,12 +780,12 @@ function MainApp() {
             )}
 
             {activeTab === 'stock' &&
-              (activeRole === 'patient' ? (
+              (activeRole === 'patient' && hasCaregiverConnected ? (
                 <View style={styles.protectedRoleContainer}>
                   <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
                   <Text style={styles.protectedRoleTitle}>Área Protegida del Botiquín</Text>
                   <Text style={styles.protectedRoleSubtitle}>
-                    La gestión de recetas, inventario y reposición está reservada para el cuidador para proteger la seguridad del paciente.
+                    La gestión de recetas, inventario y reposición está supervisada por su cuidador para proteger su seguridad.
                   </Text>
                 </View>
               ) : (
@@ -802,6 +814,7 @@ function MainApp() {
               activeTab={activeTab}
               onSelectTab={setActiveTab}
               activeRole={activeRole}
+              hasCaregiverConnected={hasCaregiverConnected}
             />
           </View>
         )}
