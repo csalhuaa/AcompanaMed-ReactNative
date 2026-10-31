@@ -18,7 +18,6 @@ import {
   ConnectedDevice,
 } from '../../infrastructure';
 import { CameraQrScannerModal } from './CameraQrScannerModal';
-import { RoleSelectorSection } from './pairing/RoleSelectorSection';
 import { FamilySyncSection } from './pairing/FamilySyncSection';
 import { PatientProfileSection } from './pairing/PatientProfileSection';
 import { pairingStyles as styles } from './pairing/pairingStyles';
@@ -267,8 +266,26 @@ export const FamilyPairingModal: React.FC<Props> = ({
           </View>
 
           <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
-            {/* SECCIÓN 0: ROL ACTIVO EN ESTE DISPOSITIVO */}
-            <RoleSelectorSection activeRole={activeRole} onSelectRole={onSelectRole} />
+            {/* IDENTIDAD DEL DISPOSITIVO */}
+            <View style={styles.deviceIdentityCard}>
+              <View style={styles.deviceIdentityHeader}>
+                <MaterialCommunityIcons
+                  name={activeRole === 'patient' ? 'account-heart' : 'shield-account'}
+                  size={20}
+                  color={activeRole === 'patient' ? '#0284C7' : '#059669'}
+                />
+                <Text style={styles.deviceIdentityTitle}>
+                  {activeRole === 'patient'
+                    ? 'Este teléfono opera en Modo Paciente'
+                    : 'Este teléfono opera en Modo Cuidador'}
+                </Text>
+              </View>
+              <Text style={styles.deviceIdentityDesc}>
+                {activeRole === 'patient'
+                  ? 'Configurado con interfaz adaptada para el paciente (botones grandes, lectura de voz y pastillero protegido).'
+                  : 'Configurado para supervisión remota, gestión de recetas médicas, control de stock y reportes.'}
+              </Text>
+            </View>
 
             {/* SECCIÓN 1: VINCULACIÓN FAMILIAR MULTI-DISPOSITIVO */}
             <FamilySyncSection

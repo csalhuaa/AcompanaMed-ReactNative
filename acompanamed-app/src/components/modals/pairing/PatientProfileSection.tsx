@@ -45,31 +45,31 @@ export const PatientProfileSection: React.FC<Props> = ({
         Configure los nombres y números reales para que la aplicación deje de ser una demo genérica y se adapte a su familiar.
       </Text>
 
+      {/* 1. Nombre del Paciente */}
+      <View style={{ marginBottom: 10 }}>
+        <Text style={styles.inputLabel}>Nombre del Paciente:</Text>
+        <TextInput
+          style={styles.textInput}
+          value={patientName}
+          onChangeText={setPatientName}
+          placeholder="Ej. Don Manuel Jesús Alhua"
+          placeholderTextColor="#94A3B8"
+        />
+      </View>
+
+      {/* 2. Edad y Grupo Sanguíneo en dos columnas 50% / 50% */}
       <View style={styles.formRow}>
-        <View style={{ flex: 2 }}>
-          <Text style={styles.inputLabel}>Nombre del Paciente:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={patientName}
-            onChangeText={setPatientName}
-            placeholder="Ej. Don Manuel / Carlos Salhua"
-            placeholderTextColor="#94A3B8"
-          />
-        </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.inputLabel}>Edad:</Text>
+          <Text style={styles.inputLabel}>Edad (años):</Text>
           <TextInput
             style={styles.textInput}
             value={age}
             onChangeText={setAge}
             keyboardType="number-pad"
-            placeholder="82"
+            placeholder="74"
             placeholderTextColor="#94A3B8"
           />
         </View>
-      </View>
-
-      <View style={styles.formRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.inputLabel}>Grupo Sanguíneo:</Text>
           <TextInput
@@ -80,45 +80,47 @@ export const PatientProfileSection: React.FC<Props> = ({
             placeholderTextColor="#94A3B8"
           />
         </View>
-        <View style={{ flex: 2 }}>
-          <Text style={styles.inputLabel}>Alergias Severas (separadas por coma):</Text>
-          <TextInput
-            style={styles.textInput}
-            value={allergiesText}
-            onChangeText={setAllergiesText}
-            placeholder="Penicilina, Sulfas"
-            placeholderTextColor="#94A3B8"
-          />
-        </View>
       </View>
 
-      <View style={styles.formRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.inputLabel}>Nombre del Cuidador:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={caregiverName}
-            onChangeText={setCaregiverName}
-            placeholder="Ej. María Alhua"
-            placeholderTextColor="#94A3B8"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.inputLabel}>Teléfono WhatsApp:</Text>
-          <TextInput
-            style={styles.textInput}
-            value={caregiverPhone}
-            onChangeText={setCaregiverPhone}
-            keyboardType="phone-pad"
-            placeholder="+51 954 123 456"
-            placeholderTextColor="#94A3B8"
-          />
-        </View>
+      {/* 3. Alergias Severas (ancho completo) */}
+      <View style={{ marginBottom: 10 }}>
+        <Text style={styles.inputLabel}>Alergias Severas (separadas por coma):</Text>
+        <TextInput
+          style={styles.textInput}
+          value={allergiesText}
+          onChangeText={setAllergiesText}
+          placeholder="Ej. Penicilina, AINEs"
+          placeholderTextColor="#94A3B8"
+        />
+      </View>
+
+      {/* 4. Nombre y Teléfono del Cuidador */}
+      <View style={{ marginBottom: 10 }}>
+        <Text style={styles.inputLabel}>Nombre del Cuidador / Contacto:</Text>
+        <TextInput
+          style={styles.textInput}
+          value={caregiverName}
+          onChangeText={setCaregiverName}
+          placeholder="Ej. María Alhua (Hija)"
+          placeholderTextColor="#94A3B8"
+        />
+      </View>
+
+      <View style={{ marginBottom: 14 }}>
+        <Text style={styles.inputLabel}>Teléfono de Auxilio (WhatsApp y llamada):</Text>
+        <TextInput
+          style={styles.textInput}
+          value={caregiverPhone}
+          onChangeText={setCaregiverPhone}
+          keyboardType="phone-pad"
+          placeholder="+51 954 123 456"
+          placeholderTextColor="#94A3B8"
+        />
       </View>
 
       <TouchableOpacity style={styles.btnSaveProfile} onPress={onSaveProfile} activeOpacity={0.85}>
         <MaterialCommunityIcons name="content-save" size={18} color="#FFFFFF" />
-        <Text style={styles.btnSaveProfileText}>Guardar Datos en Base de Datos Local</Text>
+        <Text style={styles.btnSaveProfileText}>Guardar Ficha Médica</Text>
       </TouchableOpacity>
     </View>
   );

@@ -196,8 +196,8 @@ export const FamilySyncSection: React.FC<Props> = ({
                   />
                 </View>
                 <View style={styles.deviceInfoCol}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.deviceNameText}>{dev.deviceName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <Text style={[styles.deviceNameText, { flexShrink: 1 }]}>{dev.deviceName}</Text>
                     {isCurrent && (
                       <View style={styles.thisDeviceBadge}>
                         <Text style={styles.thisDeviceText}>Este celular</Text>
@@ -235,15 +235,15 @@ export const FamilySyncSection: React.FC<Props> = ({
       {/* Input para conectar desde el celular del cuidador */}
       <View style={styles.connectCaregiverBox}>
         <Text style={styles.inputLabel}>Enlazar este teléfono al paciente:</Text>
-        <View style={styles.inputWithButtonRow}>
-          <TextInput
-            style={[styles.textInput, { flex: 1, textTransform: 'uppercase' }]}
-            placeholder="Ej. MED-MANU-82"
-            placeholderTextColor="#94A3B8"
-            value={enteredPairingCode}
-            onChangeText={setEnteredPairingCode}
-            autoCapitalize="characters"
-          />
+        <TextInput
+          style={styles.textInputFull}
+          placeholder="Ej. MED-MANU-74"
+          placeholderTextColor="#94A3B8"
+          value={enteredPairingCode}
+          onChangeText={setEnteredPairingCode}
+          autoCapitalize="characters"
+        />
+        <View style={styles.connectActionRow}>
           <TouchableOpacity
             style={styles.btnScanCamera}
             onPress={onOpenScanner}
@@ -251,16 +251,17 @@ export const FamilySyncSection: React.FC<Props> = ({
             accessibilityLabel="Escanear código QR con la cámara"
           >
             <MaterialCommunityIcons name="camera-outline" size={16} color="#0284C7" />
-            <Text style={styles.btnScanCameraText}>Escanear</Text>
+            <Text style={styles.btnScanCameraText}>Escanear QR</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.btnConnect, isConnecting && { opacity: 0.6 }]}
             onPress={onConnectCaregiver}
-            disabled={isConnecting}
+            disabled={isConnecting || !enteredPairingCode.trim()}
             activeOpacity={0.85}
           >
+            <MaterialCommunityIcons name="link-variant" size={16} color="#FFFFFF" />
             <Text style={styles.btnConnectText}>
-              {isConnecting ? 'Conectando...' : 'Conectar'}
+              {isConnecting ? 'Conectando…' : 'Conectar'}
             </Text>
           </TouchableOpacity>
         </View>
