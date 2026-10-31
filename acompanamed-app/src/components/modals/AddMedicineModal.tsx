@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillShape, Medicine } from '../../domain';
@@ -62,8 +63,10 @@ export const AddMedicineModal: React.FC<Props> = ({
   const [color, setColor] = useState(COLOR_PALETTE[0]);
   const [stock, setStock] = useState('30');
   const [minAlert, setMinAlert] = useState('6');
+  const [photoUri, setPhotoUri] = useState('');
   const [errors, setErrors] = useState<MedicineFormErrors>({});
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isEditing = !!initialMedicine;
 
   useEffect(() => {
@@ -82,6 +85,7 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(foundColor);
         setStock(String(initialMedicine.stock));
         setMinAlert(String(initialMedicine.minStockAlert));
+        setPhotoUri(initialMedicine.visualPill.photoUri || '');
       } else {
         setName('');
         setDose('');
@@ -91,6 +95,7 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(COLOR_PALETTE[0]);
         setStock('30');
         setMinAlert('6');
+        setPhotoUri('');
       }
     }
   }, [visible, initialMedicine, initialScheduleTime]);
@@ -108,6 +113,68 @@ export const AddMedicineModal: React.FC<Props> = ({
     setColor(foundColor);
     setStock(String(preset.stock));
     setMinAlert(String(preset.minStockAlert));
+    if (preset.visualPill.photoUri) {
+      setPhotoUri(preset.visualPill.photoUri);
+    }
+  };
+
+  const triggerPhotoPick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      if (typeof window !== 'undefined' && 'Image' in window) {
+        const img = new (window as any).Image();
+        img.onload = () => {
+          try {
+            const maxDim = 600;
+            let targetWidth = img.width;
+            let targetHeight = img.height;
+            if (targetWidth > maxDim || targetHeight > maxDim) {
+              if (targetWidth > targetHeight) {
+                targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+                targetWidth = maxDim;
+              } else {
+                targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+                targetHeight = maxDim;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+              setPhotoUri(compressedDataUrl);
+            } else {
+              setPhotoUri(dataUrl);
+            }
+          } catch {
+            setPhotoUri(dataUrl);
+          }
+        };
+        img.onerror = () => {
+          setPhotoUri(dataUrl);
+        };
+        img.src = dataUrl;
+      } else {
+        setPhotoUri(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Desglose de hora y minutos
@@ -149,7 +216,7 @@ export const AddMedicineModal: React.FC<Props> = ({
       instructions: instructions.trim() || 'Tomar según prescripción médica con agua.',
       shape,
       color,
-      photoUri: initialMedicine?.visualPill.photoUri,
+      photoUri: photoUri.trim() || undefined,
       imprint: initialMedicine?.visualPill.imprint,
       canSplit: initialMedicine?.visualPill.canSplit ?? true,
     });
@@ -481,7 +548,103 @@ export const AddMedicineModal: React.FC<Props> = ({
               </View>
             </View>
 
-            {/* SECCIÓN 3: CONTROL DE BOTIQUÍN E INVENTARIO */}
+            {/* SECCIÓN 3: FOTOGRAFÍA DEL BLÍSTER / EMPAQUE */}
+            <View style={styles.sectionDivider}>
+              <MaterialCommunityIcons name="camera-outline" size={16} color="#0F172A" />
+              <Text style={styles.sectionDividerTitle}>Foto del Blíster o Empaque</Text>
+            </View>
+
+            <Text style={styles.photoHelperText}>
+              Una foto real ayuda al paciente a verificar con la Lupa de Inspección y no confundirse de medicamento.
+            </Text>
+
+            {Platform.OS === 'web' &&
+              React.createElement('input', {
+                ref: fileInputRef,
+                type: 'file',
+                accept: 'image/*',
+                style: { display: 'none' },
+                onChange: handleFileChange,
+              })}
+
+            {photoUri ? (
+              <View style={styles.photoPreviewCard}>
+                <Image source={{ uri: photoUri }} style={styles.photoThumbnail} resizeMode="cover" />
+                <View style={styles.photoInfoCol}>
+                  <View style={styles.photoBadgeRow}>
+                    <MaterialCommunityIcons name="check-decagram" size={15} color="#0284C7" />
+                    <Text style={styles.photoBadgeText}>Foto adjunta activa</Text>
+                  </View>
+                  <Text style={styles.photoSubtext}>Visible en la lupa de inspección.</Text>
+                  <View style={styles.photoActionsRow}>
+                    <TouchableOpacity
+                      style={styles.photoActionBtnSecondary}
+                      onPress={triggerPhotoPick}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cambiar foto con cámara o archivo"
+                    >
+                      <MaterialCommunityIcons name="camera-retake-outline" size={14} color="#0284C7" />
+                      <Text style={styles.photoActionBtnSecondaryText}>Cambiar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.photoActionBtnDestructive}
+                      onPress={() => setPhotoUri('')}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Quitar foto actual"
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={14} color="#DC2626" />
+                      <Text style={styles.photoActionBtnDestructiveText}>Quitar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.noPhotoBox}>
+                <TouchableOpacity
+                  style={styles.uploadPhotoBtn}
+                  onPress={triggerPhotoPick}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tomar foto con la cámara o subir imagen"
+                >
+                  <View style={styles.uploadPhotoIconCircle}>
+                    <MaterialCommunityIcons name="camera-plus" size={20} color="#0284C7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.uploadPhotoTitle}>Tomar Foto o Subir Imagen</Text>
+                    <Text style={styles.uploadPhotoSubtitle}>Usa la cámara del teléfono o sube una imagen</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.samplePhotosBox}>
+                  <Text style={styles.samplePhotosTitle}>O elige una foto de muestra (1 toque):</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.samplePhotosScroll}>
+                    {CLINICAL_MEDICINE_PRESETS.filter((p) => !!p.visualPill.photoUri).map((p) => (
+                      <TouchableOpacity
+                        key={`sample-${p.id}`}
+                        style={styles.samplePhotoThumbBtn}
+                        onPress={() => p.visualPill.photoUri && setPhotoUri(p.visualPill.photoUri)}
+                        activeOpacity={0.8}
+                        accessibilityLabel={`Elegir foto de ${p.name}`}
+                      >
+                        <Image
+                          source={{ uri: p.visualPill.photoUri }}
+                          style={styles.samplePhotoThumbImg}
+                          resizeMode="cover"
+                        />
+                        <Text style={styles.samplePhotoThumbText} numberOfLines={1}>
+                          {p.name.split(' ')[0]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
+
+            {/* SECCIÓN 4: CONTROL DE BOTIQUÍN E INVENTARIO */}
             <View style={styles.sectionDivider}>
               <MaterialCommunityIcons name="medical-bag" size={16} color="#0F172A" />
               <Text style={styles.sectionDividerTitle}>Control de Botiquín y Existencias</Text>
@@ -825,6 +988,152 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#0369A1',
+  },
+  /* FOTOGRAFÍA DEL BLÍSTER */
+  photoHelperText: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+  },
+  photoPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#0284C7',
+    padding: 10,
+    gap: 12,
+  },
+  photoThumbnail: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  photoInfoCol: {
+    flex: 1,
+    gap: 4,
+  },
+  photoBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  photoBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0284C7',
+  },
+  photoSubtext: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  photoActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  photoActionBtnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E0F2FE',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  photoActionBtnSecondaryText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  photoActionBtnDestructive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  photoActionBtnDestructiveText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+  noPhotoBox: {
+    gap: 10,
+  },
+  uploadPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#0284C7',
+    borderRadius: 8,
+    padding: 12,
+    gap: 10,
+  },
+  uploadPhotoIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadPhotoTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  uploadPhotoSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  samplePhotosBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 8,
+    gap: 6,
+  },
+  samplePhotosTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  samplePhotosScroll: {
+    flexDirection: 'row',
+  },
+  samplePhotoThumbBtn: {
+    alignItems: 'center',
+    marginRight: 8,
+    width: 60,
+  },
+  samplePhotoThumbImg: {
+    width: 54,
+    height: 54,
+    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  samplePhotoThumbText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 2,
+    textAlign: 'center',
   },
   /* BOTÓN GUARDAR */
   modalSubmitButton: {

@@ -786,6 +786,30 @@ function MainApp() {
         visible={!!inspectingMedicine}
         medicine={inspectingMedicine}
         onClose={() => setInspectingMedicine(null)}
+        onUpdatePhoto={(medId, newPhoto) => {
+          const updatedMeds = medicines.map((m) =>
+            m.id === medId
+              ? {
+                  ...m,
+                  visualPill: {
+                    ...m.visualPill,
+                    photoUri: newPhoto,
+                  },
+                }
+              : m
+          );
+          setMedicines(updatedMeds);
+          syncToCloud(updatedMeds);
+          if (inspectingMedicine && inspectingMedicine.id === medId) {
+            setInspectingMedicine({
+              ...inspectingMedicine,
+              visualPill: {
+                ...inspectingMedicine.visualPill,
+                photoUri: newPhoto,
+              },
+            });
+          }
+        }}
       />
 
       <OnboardingModal

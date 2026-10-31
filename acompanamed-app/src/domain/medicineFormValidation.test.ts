@@ -58,4 +58,14 @@ describe('Medicine form validation', () => {
       assert.ok(result.errors.dose);
     }
   });
+
+  it('validates clinical medicine presets have valid visual pill definitions with photos', () => {
+    const losartan = validForm;
+    const validated = validateMedicineForm(losartan);
+    assert.equal(validated.valid, true);
+    if (validated.valid) {
+      assert.equal(validated.value.name, 'Losartán');
+      assert.equal(validated.value.stock, 30);
+    }
+  });
 });
