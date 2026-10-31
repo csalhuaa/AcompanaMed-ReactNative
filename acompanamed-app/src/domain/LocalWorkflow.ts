@@ -13,8 +13,13 @@ export function getVisibleTabsForRole(role: ActorRole): AppNavTab[] {
 
 export function createEmptyProfile(patientName = ''): EmergencyProfile {
   return {
-    patientFullName: patientName.trim(), age: 0, bloodType: '', allergies: [],
-    chronicConditions: [], healthInsurance: '',
+    patientFullName: patientName.trim(),
+    patientPhone: '',
+    age: 0,
+    bloodType: '',
+    allergies: [],
+    chronicConditions: [],
+    healthInsurance: '',
     emergencyContact: { name: '', relationship: '', phone: '' },
   };
 }
@@ -56,6 +61,11 @@ export function sanitizeEmergencyProfile(
   const chronicConditions = parseStringArray(raw.chronicConditions);
   const healthInsurance = typeof raw.healthInsurance === 'string' ? raw.healthInsurance : '';
 
+  const patientPhone =
+    typeof raw.patientPhone === 'string' && raw.patientPhone.trim()
+      ? raw.patientPhone.trim()
+      : '';
+
   const rawContact =
     raw.emergencyContact && typeof raw.emergencyContact === 'object'
       ? raw.emergencyContact
@@ -69,6 +79,7 @@ export function sanitizeEmergencyProfile(
 
   return {
     patientFullName,
+    patientPhone,
     age,
     bloodType,
     allergies,

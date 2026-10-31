@@ -67,6 +67,7 @@ export interface EmergencyContact {
 
 export interface EmergencyProfile {
   patientFullName: string;
+  patientPhone?: string;
   age: number;
   bloodType: string;
   allergies: string[];

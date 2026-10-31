@@ -61,6 +61,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   onResetDevice,
 }) => {
   const [patientName, setPatientName] = useState(emergencyProfile?.patientFullName || '');
+  const [patientPhone, setPatientPhone] = useState(emergencyProfile?.patientPhone || '');
   const [age, setAge] = useState(String(emergencyProfile?.age || ''));
   const [bloodType, setBloodType] = useState(emergencyProfile?.bloodType || '');
   const [allergiesText, setAllergiesText] = useState((emergencyProfile?.allergies || []).join(', '));
@@ -82,6 +83,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   useEffect(() => {
     if (!visible) return;
     setPatientName(emergencyProfile?.patientFullName || '');
+    setPatientPhone(emergencyProfile?.patientPhone || '');
     setAge(emergencyProfile?.age ? String(emergencyProfile.age) : '');
     setBloodType(emergencyProfile?.bloodType || '');
     setAllergiesText((emergencyProfile?.allergies || []).join(', '));
@@ -133,6 +135,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   const handleSaveProfile = () => {
     const updated: EmergencyProfile = {
       patientFullName: patientName.trim() || 'Paciente',
+      patientPhone: patientPhone.trim(),
       age: /^\d+$/.test(age.trim()) ? Number(age) : 0,
       bloodType: bloodType.trim(),
       allergies: allergiesText
@@ -350,6 +353,8 @@ export const FamilyPairingModal: React.FC<Props> = ({
             <PatientProfileSection
               patientName={patientName}
               setPatientName={setPatientName}
+              patientPhone={patientPhone}
+              setPatientPhone={setPatientPhone}
               age={age}
               setAge={setAge}
               bloodType={bloodType}

@@ -6,6 +6,8 @@ import { pairingStyles as styles } from './pairingStyles';
 interface Props {
   patientName: string;
   setPatientName: (name: string) => void;
+  patientPhone: string;
+  setPatientPhone: (phone: string) => void;
   age: string;
   setAge: (age: string) => void;
   bloodType: string;
@@ -22,6 +24,8 @@ interface Props {
 export const PatientProfileSection: React.FC<Props> = ({
   patientName,
   setPatientName,
+  patientPhone,
+  setPatientPhone,
   age,
   setAge,
   bloodType,
@@ -45,7 +49,7 @@ export const PatientProfileSection: React.FC<Props> = ({
         Configure los nombres y números reales para que la aplicación deje de ser una demo genérica y se adapte a su familiar.
       </Text>
 
-      {/* 1. Nombre del Paciente */}
+      {/* 1. Nombre y Teléfono del Paciente */}
       <View style={{ marginBottom: 10 }}>
         <Text style={styles.inputLabel}>Nombre del Paciente:</Text>
         <TextInput
@@ -53,6 +57,18 @@ export const PatientProfileSection: React.FC<Props> = ({
           value={patientName}
           onChangeText={setPatientName}
           placeholder="Ej. Don Manuel Jesús Alhua"
+          placeholderTextColor="#94A3B8"
+        />
+      </View>
+
+      <View style={{ marginBottom: 10 }}>
+        <Text style={styles.inputLabel}>Teléfono del Paciente (Celular o Fijo de Casa):</Text>
+        <TextInput
+          style={styles.textInput}
+          value={patientPhone}
+          onChangeText={setPatientPhone}
+          keyboardType="phone-pad"
+          placeholder="+51 987 654 321"
           placeholderTextColor="#94A3B8"
         />
       </View>

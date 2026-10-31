@@ -43,6 +43,7 @@ import {
   AddMedicineModal,
   ClinicalReportModal,
   ConfirmDialogModal,
+  InAppDialogModal,
   RestockModal,
   FamilyPairingModal,
   PillInspectionModal,
@@ -55,6 +56,9 @@ import {
   INITIAL_LOGS,
   DEFAULT_PROFILE,
   showNotice,
+  registerDialogListener,
+  InAppNoticeData,
+  InAppConfirmData,
 } from './src/data/initialData';
 import { AppHeader } from './src/components/navigation/AppHeader';
 import { useCloudSync } from './src/hooks/useCloudSync';
@@ -87,6 +91,18 @@ function MainApp() {
   const [isFamilyPairingModalVisible, setIsFamilyPairingModalVisible] = useState(false);
   const [inspectingMedicine, setInspectingMedicine] = useState<Medicine | null>(null);
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
+  const [activeNotice, setActiveNotice] = useState<InAppNoticeData | null>(null);
+  const [activeConfirm, setActiveConfirm] = useState<InAppConfirmData | null>(null);
+
+  useEffect(() => {
+    registerDialogListener({
+      onNotice: (notice) => setActiveNotice(notice),
+      onConfirm: (confirm) => setActiveConfirm(confirm),
+    });
+    return () => {
+      registerDialogListener(null);
+    };
+  }, []);
 
   // Salvaguarda: En modo paciente solo se permite navegar entre Hoy y Emergencia
   useEffect(() => {
@@ -249,9 +265,16 @@ function MainApp() {
   };
 
   const handleExportReport = () => {
-    const contactPhone = emergencyProfile?.emergencyContact?.phone;
+    const contactPhone =
+      activeRole === 'caregiver'
+        ? emergencyProfile?.emergencyContact?.phone || emergencyProfile?.patientPhone
+        : emergencyProfile?.emergencyContact?.phone;
+
     if (!contactPhone) {
-      showNotice('Falta el contacto', 'Agregue un teléfono en Ajustes para compartir el informe.');
+      showNotice(
+        'Falta el contacto',
+        'Por favor registre un número de teléfono en Ajustes para enviar el informe médico por WhatsApp.'
+      );
       return;
     }
     const summary = generateClinicalSummary(medicines, logs, emergencyProfile);
@@ -259,19 +282,53 @@ function MainApp() {
   };
 
   const handleSimulateEscalationAlert = () => {
-    if (!escalation.shouldEscalate) {
-      showNotice('Sin tomas atrasadas', 'No hay una dosis pendiente que haya superado los 30 minutos de espera.');
+    const isCaregiver = activeRole === 'caregiver';
+    const targetPhone = isCaregiver
+      ? emergencyProfile?.patientPhone || emergencyProfile?.emergencyContact?.phone
+      : emergencyProfile?.emergencyContact?.phone;
+
+    if (!targetPhone) {
+      showNotice(
+        'Falta el número de contacto',
+        isCaregiver
+          ? 'Por favor registre el teléfono del paciente en Ajustes para enviarle recordatorios por WhatsApp.'
+          : 'Por favor registre el teléfono de su cuidador en Ajustes para comunicarse por WhatsApp.'
+      );
       return;
     }
-    const contactPhone = emergencyProfile?.emergencyContact?.phone || '';
-    const message = `AcompañaMed — ${emergencyProfile?.patientFullName || 'Paciente'}\n${escalation.message}\nPor favor, revise el plan de hoy.`;
-    CommunicationService.openWhatsApp(contactPhone, message);
+
+    const patientName = emergencyProfile?.patientFullName || 'Don Manuel';
+    let message = '';
+    if (isCaregiver) {
+      if (escalation.shouldEscalate) {
+        message = `AcompañaMed — Recordatorio para ${patientName}:\n${escalation.message}\nPor favor confirme su toma en la aplicación.`;
+      } else {
+        message = `Hola ${patientName}, te saluda tu cuidador desde AcompañaMed. ¿Cómo te encuentras hoy? Recuerda seguir tu horario de tomas.`;
+      }
+    } else {
+      const caregiverName = emergencyProfile?.emergencyContact?.name || 'mi Cuidador';
+      message = `Hola ${caregiverName}, te escribo desde mi aplicación AcompañaMed. Necesito consultarte sobre mis pastillas de hoy.`;
+    }
+
+    CommunicationService.openWhatsApp(targetPhone, message);
   };
 
   const handleCallCaregiver = () => {
-    const contactPhone = emergencyProfile?.emergencyContact?.phone;
-    if (!contactPhone) return;
-    CommunicationService.makePhoneCall(contactPhone);
+    const isCaregiver = activeRole === 'caregiver';
+    const targetPhone = isCaregiver
+      ? emergencyProfile?.patientPhone || emergencyProfile?.emergencyContact?.phone
+      : emergencyProfile?.emergencyContact?.phone;
+
+    if (!targetPhone) {
+      showNotice(
+        'Falta el número de contacto',
+        isCaregiver
+          ? 'Por favor registre el teléfono del paciente en Ajustes para llamarlo.'
+          : 'Por favor registre el teléfono de su cuidador en Ajustes para llamarlo.'
+      );
+      return;
+    }
+    CommunicationService.makePhoneCall(targetPhone);
   };
 
   const handleUpdateProfile = (updated: EmergencyProfile) => {
@@ -608,6 +665,9 @@ function MainApp() {
                       {effectiveRightTab === 'caregiver' && (
                         <CaregiverDashboard
                           contact={emergencyProfile.emergencyContact}
+                          patientName={emergencyProfile.patientFullName}
+                          patientPhone={emergencyProfile.patientPhone}
+                          activeRole={activeRole}
                           escalation={escalation}
                           adherence={adherence}
                           clinicalReport={clinicalReport}
@@ -670,6 +730,9 @@ function MainApp() {
             {activeTab === 'caregiver' && (
               <CaregiverDashboard
                 contact={emergencyProfile.emergencyContact}
+                patientName={emergencyProfile.patientFullName}
+                patientPhone={emergencyProfile.patientPhone}
+                activeRole={activeRole}
                 escalation={escalation}
                 adherence={adherence}
                 clinicalReport={clinicalReport}
@@ -734,6 +797,8 @@ function MainApp() {
       <ClinicalReportModal
         visible={isReportModalVisible}
         reportText={clinicalReport.formattedReportText}
+        clinicalReport={clinicalReport}
+        emergencyProfile={emergencyProfile}
         onClose={() => setIsReportModalVisible(false)}
         onExport={handleExportReport}
       />
@@ -817,6 +882,13 @@ function MainApp() {
         busy={isOnboardingBusy}
         error={onboardingError}
         onFinishOnboarding={handleFinishOnboarding}
+      />
+
+      <InAppDialogModal
+        notice={activeNotice}
+        confirm={activeConfirm}
+        onCloseNotice={() => setActiveNotice(null)}
+        onCloseConfirm={() => setActiveConfirm(null)}
       />
     </View>
   );

@@ -102,6 +102,7 @@ export const INITIAL_LOGS: DoseLog[] = [
 
 export const DEFAULT_PROFILE: EmergencyProfile = {
   patientFullName: 'Manuel Jesús Alhua',
+  patientPhone: '+51 987 654 321',
   age: 74,
   bloodType: 'O+',
   allergies: ['Penicilina', 'Ibuprofeno (AINEs)'],
@@ -114,9 +115,55 @@ export const DEFAULT_PROFILE: EmergencyProfile = {
   },
 };
 
-export function showNotice(title: string, message?: string) {
+export type NoticeType = 'info' | 'success' | 'warning' | 'error';
+
+export interface InAppNoticeData {
+  title: string;
+  message?: string;
+  type?: NoticeType;
+  buttonText?: string;
+  onClose?: () => void;
+}
+
+export interface InAppConfirmData {
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDestructive?: boolean;
+  iconName?: string;
+  onConfirm: () => void | Promise<void>;
+  onCancel?: () => void;
+}
+
+type DialogListener = {
+  onNotice: (notice: InAppNoticeData | null) => void;
+  onConfirm: (confirm: InAppConfirmData | null) => void;
+};
+
+let activeDialogListener: DialogListener | null = null;
+
+export function registerDialogListener(listener: DialogListener | null) {
+  activeDialogListener = listener;
+}
+
+export function showNotice(
+  title: string,
+  message?: string,
+  type: NoticeType = 'info'
+) {
+  if (activeDialogListener) {
+    activeDialogListener.onNotice({
+      title,
+      message,
+      type,
+    });
+    return;
+  }
+
+  // Fallback para entornos sin listener activo o pruebas
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.alert([title, message].filter(Boolean).join('\n\n'));
+    console.log(`[AcompañaMed Aviso] ${title}: ${message || ''}`);
   } else {
     Alert.alert(title, message);
   }
@@ -127,24 +174,28 @@ export function askConfirmation(
   message: string,
   onConfirm: () => void | Promise<void>,
   confirmText = 'Continuar',
-  cancelText = 'Cancelar'
+  cancelText = 'Cancelar',
+  options?: { isDestructive?: boolean; iconName?: string }
 ) {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    const ok = window.confirm([title, message].filter(Boolean).join('\n\n'));
-    if (ok) {
-      void onConfirm();
-    }
+  if (activeDialogListener) {
+    const isDestructive =
+      options?.isDestructive ??
+      (confirmText.toLowerCase().includes('retirar') ||
+        confirmText.toLowerCase().includes('desvincular') ||
+        confirmText.toLowerCase().includes('eliminar'));
+
+    activeDialogListener.onConfirm({
+      title,
+      message,
+      confirmText,
+      cancelText,
+      isDestructive,
+      iconName: options?.iconName,
+      onConfirm,
+    });
     return;
   }
 
-  Alert.alert(title, message, [
-    { text: cancelText, style: 'cancel' },
-    {
-      text: confirmText,
-      style: 'destructive',
-      onPress: () => {
-        void onConfirm();
-      },
-    },
-  ]);
+  // Fallback para pruebas automatizadas
+  void onConfirm();
 }

@@ -1,7 +1,13 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { EscalationResult, AdherenceSummary, ClinicalSummaryReport, EmergencyContact } from '../../domain';
+import {
+  ActorRole,
+  EscalationResult,
+  AdherenceSummary,
+  ClinicalSummaryReport,
+  EmergencyContact,
+} from '../../domain';
 
 interface Props {
   escalation: EscalationResult;
@@ -14,6 +20,9 @@ interface Props {
   onOpenFamilyPairing?: () => void;
   onTestNotification?: () => void;
   contact?: EmergencyContact;
+  patientName?: string;
+  patientPhone?: string;
+  activeRole?: ActorRole;
 }
 
 export const CaregiverDashboard: React.FC<Props> = ({
@@ -26,8 +35,38 @@ export const CaregiverDashboard: React.FC<Props> = ({
   onCallCaregiver,
   onOpenFamilyPairing,
   contact,
+  patientName,
+  patientPhone,
+  activeRole = 'caregiver',
 }) => {
   const onSendAlert = onSendEscalationAlert || onSimulateEscalationAlert;
+  const isCaregiver = activeRole === 'caregiver';
+
+  const targetName = isCaregiver
+    ? patientName || 'Don Manuel Jesús Alhua'
+    : contact?.name || 'Contacto de apoyo no configurado';
+
+  const targetPhone = isCaregiver
+    ? patientPhone || contact?.phone || ''
+    : contact?.phone || '';
+
+  const targetLabel = isCaregiver
+    ? targetPhone
+      ? `Teléfono de contacto: ${targetPhone}`
+      : 'Teléfono del paciente no registrado en Ajustes'
+    : `${contact?.relationship || 'Contacto de apoyo'} · ${contact?.phone || 'Sin teléfono'}`;
+
+  const hasPhone = Boolean(targetPhone && targetPhone.trim().length > 3);
+
+  const whatsAppButtonLabel = isCaregiver
+    ? escalation.shouldEscalate
+      ? 'Avisar Dosis Atrasada'
+      : 'WhatsApp al Paciente'
+    : 'WhatsApp a mi Cuidadora';
+
+  const callButtonLabel = isCaregiver
+    ? 'Llamar al Paciente'
+    : 'Llamar a mi Cuidadora';
 
   return (
     <ScrollView
@@ -51,9 +90,17 @@ export const CaregiverDashboard: React.FC<Props> = ({
             <Text style={styles.panelCardTitle}>
               {escalation.shouldEscalate
                 ? 'Alerta de Dosis Atrasada (> 30 min)'
-                : 'Supervisión en Tiempo Real'}
+                : isCaregiver
+                ? 'Supervisión Familiar en Tiempo Real'
+                : 'Mi Red de Apoyo Familiar'}
             </Text>
-            <Text style={styles.panelCardBody}>{escalation.message}</Text>
+            <Text style={styles.panelCardBody}>
+              {escalation.shouldEscalate
+                ? escalation.message
+                : isCaregiver
+                ? `El plan farmacológico de ${targetName} se encuentra bajo control y al día.`
+                : 'Si necesitas ayuda o tienes alguna duda con tus pastillas, comunícate con tu cuidadora.'}
+            </Text>
           </View>
         </View>
 
@@ -61,22 +108,22 @@ export const CaregiverDashboard: React.FC<Props> = ({
         <View style={styles.escalationMetricBar}>
           <MaterialCommunityIcons name="clock-outline" size={15} color="#475569" />
           <Text style={styles.metricBarText}>
-            Margen de tolerancia: 30 minutos de gracia antes de activar alerta de escalamiento.
+            Margen de tolerancia: 30 minutos de espera antes de activar alerta de escalamiento.
           </Text>
         </View>
 
-        {/* Ficha del contacto de apoyo */}
+        {/* Ficha del contacto / supervisado */}
         <View style={styles.caregiverContactCard}>
           <View style={styles.caregiverAvatar}>
-            <MaterialCommunityIcons name="account-heart" size={24} color="#0284C7" />
+            <MaterialCommunityIcons
+              name={isCaregiver ? 'account-box-outline' : 'account-heart'}
+              size={24}
+              color="#0284C7"
+            />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.caregiverNameText}>
-              {contact?.name || 'Contacto de apoyo no configurado'}
-            </Text>
-            <Text style={styles.caregiverPhoneText}>
-              {contact?.phone || 'Agregue un teléfono en Ajustes y Perfil'}
-            </Text>
+            <Text style={styles.caregiverNameText}>{targetName}</Text>
+            <Text style={styles.caregiverPhoneText}>{targetLabel}</Text>
           </View>
         </View>
 
@@ -86,18 +133,18 @@ export const CaregiverDashboard: React.FC<Props> = ({
             <TouchableOpacity
               style={[
                 styles.btnAlertWhatsApp,
-                (!contact?.phone || !escalation.shouldEscalate) && styles.btnDisabled,
+                !hasPhone && styles.btnDisabled,
               ]}
               onPress={onSendAlert}
-              disabled={!contact?.phone || !escalation.shouldEscalate}
-              accessibilityState={{ disabled: !contact?.phone || !escalation.shouldEscalate }}
+              disabled={!hasPhone}
+              accessibilityState={{ disabled: !hasPhone }}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Enviar aviso por WhatsApp sobre la dosis pendiente"
+              accessibilityLabel={whatsAppButtonLabel}
             >
               <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
               <Text style={styles.btnAlertWhatsAppText}>
-                {escalation.shouldEscalate ? 'Avisar por WhatsApp' : 'WhatsApp al Paciente'}
+                {whatsAppButtonLabel}
               </Text>
             </TouchableOpacity>
           )}
@@ -106,17 +153,17 @@ export const CaregiverDashboard: React.FC<Props> = ({
             <TouchableOpacity
               style={[
                 styles.btnCallCaregiver,
-                !contact?.phone && styles.btnDisabled,
+                !hasPhone && styles.btnDisabled,
               ]}
               onPress={onCallCaregiver}
-              disabled={!contact?.phone}
-              accessibilityState={{ disabled: !contact?.phone }}
+              disabled={!hasPhone}
+              accessibilityState={{ disabled: !hasPhone }}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Llamar al teléfono de contacto"
+              accessibilityLabel={callButtonLabel}
             >
               <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
-              <Text style={styles.btnCallCaregiverText}>Llamar</Text>
+              <Text style={styles.btnCallCaregiverText}>{callButtonLabel}</Text>
             </TouchableOpacity>
           )}
         </View>
