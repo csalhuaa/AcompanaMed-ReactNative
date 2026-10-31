@@ -5,6 +5,8 @@ import { sanitizeEmergencyProfile } from '../domain/LocalWorkflow';
 import {
   defaultCloudSyncService,
   defaultStorageService,
+  defaultNotificationService,
+  defaultHapticService,
   FamilySyncPayload,
   sanitizeFamilyCode,
 } from '../infrastructure';
@@ -52,6 +54,7 @@ export function useCloudSync({
     emergencyProfile,
     lastUpdateIso: new Date().toISOString(),
   });
+  const initialPollingSyncDoneRef = useRef(false);
 
   useEffect(() => {
     localStateRef.current = {
@@ -204,6 +207,37 @@ export function useCloudSync({
         const currentLocal = localStateRef.current;
         const cloudTime = new Date(cloudData.updatedAt).getTime();
         const localTime = new Date(currentLocal.lastUpdateIso).getTime();
+
+        // Notificación de Tranquilidad para el Cuidador:
+        // Si el usuario activo es el Cuidador y el paciente acaba de registrar una toma en vivo:
+        if (activeRole === 'caregiver' && initialPollingSyncDoneRef.current) {
+          const knownLogIds = new Set(currentLocal.logs.map((l) => l.id));
+          const newPatientTakes = (cloudData.logs || []).filter(
+            (log) =>
+              log.status === 'taken' &&
+              log.registeredBy === 'patient' &&
+              !knownLogIds.has(log.id)
+          );
+
+          if (newPatientTakes.length > 0) {
+            const latestTake = newPatientTakes[0];
+            const takenMed = (cloudData.medicines || []).find((m) => m.id === latestTake.medicineId);
+            const medName = takenMed ? `${takenMed.name} (${takenMed.doseDescription})` : 'su medicamento';
+            const patientName = cloudData.patientName || 'El paciente';
+            const takeTime = latestTake.takenTime
+              ? new Date(latestTake.takenTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'hace un momento';
+
+            const noticeTitle = `🟢 Dosis Confirmada — ${patientName}`;
+            const noticeMsg = `${patientName} acaba de confirmar la toma de ${medName} a las ${takeTime}.`;
+
+            showNotice(noticeTitle, noticeMsg, 'success');
+            defaultNotificationService.triggerImmediateTestNotification(noticeTitle, noticeMsg).catch(() => {});
+            defaultHapticService.vibrateSuccess();
+          }
+        }
+
+        initialPollingSyncDoneRef.current = true;
 
         const localMedsStr = JSON.stringify(currentLocal.medicines);
         const cloudMedsStr = JSON.stringify(cloudData.medicines || []);
