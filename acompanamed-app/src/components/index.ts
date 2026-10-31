@@ -12,4 +12,5 @@ export * from './modals/InAppDialogModal';
 export * from './modals/RestockModal';
 export * from './modals/FamilyPairingModal';
 export * from './modals/PillInspectionModal';
+export * from './modals/AppModalsContainer';
 export * from './onboarding/OnboardingModal';

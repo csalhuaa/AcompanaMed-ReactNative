@@ -40,14 +40,7 @@ import {
   CaregiverDashboard,
   MedicineInventoryPanel,
   EmergencyProfileCard,
-  AddMedicineModal,
-  ClinicalReportModal,
-  ConfirmDialogModal,
-  InAppDialogModal,
-  RestockModal,
-  FamilyPairingModal,
-  PillInspectionModal,
-  OnboardingModal,
+  AppModalsContainer,
 } from './src/components';
 import { createEmptyProfile, getScheduleEscalation } from './src/domain/LocalWorkflow';
 import {
@@ -818,56 +811,37 @@ function MainApp() {
         )}
       </View>
 
-      {/* MODALES */}
-      <AddMedicineModal
-        visible={isAddModalVisible}
-        initialMedicine={editingMedicine}
-        initialScheduleTime={editingMedicine ? scheduleTimes[editingMedicine.id] : '08:00'}
-        onClose={() => {
+      {/* MODALES ORQUESTADOS EN CONTENEDOR LIMPIO */}
+      <AppModalsContainer
+        isAddModalVisible={isAddModalVisible}
+        editingMedicine={editingMedicine}
+        scheduleTimes={scheduleTimes}
+        onCloseAddModal={() => {
           setIsAddModalVisible(false);
           setEditingMedicine(null);
         }}
-        onSave={handleSaveMedicine}
-      />
-
-      <ClinicalReportModal
-        visible={isReportModalVisible}
-        reportText={clinicalReport.formattedReportText}
+        onSaveMedicine={handleSaveMedicine}
+        isReportModalVisible={isReportModalVisible}
         clinicalReport={clinicalReport}
         emergencyProfile={emergencyProfile}
-        onClose={() => setIsReportModalVisible(false)}
-        onExport={handleExportReport}
-      />
-
-      <RestockModal
-        visible={isRestockModalVisible}
-        medicine={restockingMedicine}
-        onClose={() => {
+        onCloseReportModal={() => setIsReportModalVisible(false)}
+        onExportReport={handleExportReport}
+        isRestockModalVisible={isRestockModalVisible}
+        restockingMedicine={restockingMedicine}
+        onCloseRestockModal={() => {
           setIsRestockModalVisible(false);
           setRestockingMedicine(null);
         }}
         onConfirmRestock={handleConfirmRestock}
-      />
-
-      <ConfirmDialogModal
-        visible={isDeleteConfirmVisible}
-        title="Retirar del Pastillero Familiar"
-        message={`¿Desea desvincular ${deletingMedicine?.name || 'este medicamento'} (${deletingMedicine?.doseDescription || ''})? Se conservará su historial médico de tomas anteriores.`}
-        confirmText="Sí, retirar"
-        cancelText="Cancelar"
-        isDestructive={true}
-        iconName="trash-can-outline"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
+        isDeleteConfirmVisible={isDeleteConfirmVisible}
+        deletingMedicine={deletingMedicine}
+        onCloseDeleteConfirm={() => {
           setIsDeleteConfirmVisible(false);
           setDeletingMedicine(null);
         }}
-      />
-
-      <FamilyPairingModal
-        visible={isFamilyPairingModalVisible}
-        onClose={() => setIsFamilyPairingModalVisible(false)}
-        emergencyProfile={emergencyProfile}
+        onConfirmDelete={handleConfirmDelete}
+        isFamilyPairingModalVisible={isFamilyPairingModalVisible}
+        onCloseFamilyPairingModal={() => setIsFamilyPairingModalVisible(false)}
         onUpdateProfile={handleUpdateProfile}
         onClearDemoData={handleClearDemoData}
         onRestoreDemoData={handleRestoreDemoData}
@@ -878,15 +852,11 @@ function MainApp() {
         onConnectFamilyCode={handleConnectFamilyCode}
         isSyncing={isCloudSyncing}
         lastSyncTime={lastCloudSyncTime}
-        currentDeviceId={deviceId}
+        deviceId={deviceId}
         onRevokeDevice={handleRevokeDevice}
         onResetDevice={handleResetDevice}
-      />
-
-      <PillInspectionModal
-        visible={!!inspectingMedicine}
-        medicine={inspectingMedicine}
-        onClose={() => setInspectingMedicine(null)}
+        inspectingMedicine={inspectingMedicine}
+        onCloseInspection={() => setInspectingMedicine(null)}
         onUpdatePhoto={(medId, newPhoto) => {
           const updatedMeds = medicines.map((m) =>
             m.id === medId
@@ -911,18 +881,12 @@ function MainApp() {
             });
           }
         }}
-      />
-
-      <OnboardingModal
-        visible={isOnboardingVisible}
-        busy={isOnboardingBusy}
-        error={onboardingError}
+        isOnboardingVisible={isOnboardingVisible}
+        isOnboardingBusy={isOnboardingBusy}
+        onboardingError={onboardingError}
         onFinishOnboarding={handleFinishOnboarding}
-      />
-
-      <InAppDialogModal
-        notice={activeNotice}
-        confirm={activeConfirm}
+        activeNotice={activeNotice}
+        activeConfirm={activeConfirm}
         onCloseNotice={() => setActiveNotice(null)}
         onCloseConfirm={() => setActiveConfirm(null)}
       />

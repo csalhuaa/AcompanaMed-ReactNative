@@ -15,7 +15,7 @@ interface Props {
   onInspectMedicine?: (medicine: Medicine) => void;
 }
 
-export const DoseTimelineCard: React.FC<Props> = ({
+const DoseTimelineCardComponent: React.FC<Props> = ({
   item,
   isExpanded,
   isLast,
@@ -207,6 +207,8 @@ export const DoseTimelineCard: React.FC<Props> = ({
     </View>
   );
 };
+
+export const DoseTimelineCard = React.memo(DoseTimelineCardComponent);
 
 const styles = StyleSheet.create({
   nodeContainer: {

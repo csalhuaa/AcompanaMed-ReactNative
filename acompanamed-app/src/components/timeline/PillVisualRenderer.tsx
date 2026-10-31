@@ -9,7 +9,7 @@ interface Props {
   showSizeBadge?: boolean;
 }
 
-export const PillVisualRenderer: React.FC<Props> = ({
+const PillVisualRendererComponent: React.FC<Props> = ({
   visualPill,
   size = 'large',
   showSizeBadge = false,
@@ -246,6 +246,8 @@ export const PillVisualRenderer: React.FC<Props> = ({
     </View>
   );
 };
+
+export const PillVisualRenderer = React.memo(PillVisualRendererComponent);
 
 const styles = StyleSheet.create({
   outerContainer: {
