@@ -25,6 +25,7 @@ interface UseCloudSyncProps {
   emergencyProfile: EmergencyProfile;
   setEmergencyProfile: React.Dispatch<React.SetStateAction<EmergencyProfile>>;
   onAfterSyncMedicines?: (firstMedId?: string) => void;
+  onDeviceRevokedRemotely?: () => void;
 }
 
 export function useCloudSync({
@@ -40,6 +41,7 @@ export function useCloudSync({
   emergencyProfile,
   setEmergencyProfile,
   onAfterSyncMedicines,
+  onDeviceRevokedRemotely,
 }: UseCloudSyncProps) {
   const [familyCode, setFamilyCode] = useState<string>('');
   const [isFamilyConnected, setIsFamilyConnected] = useState(false);
@@ -197,10 +199,14 @@ export function useCloudSync({
           setIsFamilyConnected(false);
           setFamilyCode('');
           defaultStorageService.saveFamilyCode('');
-          showNotice(
-            'Dispositivo Desvinculado',
-            'Este teléfono ha sido desvinculado del botiquín familiar por el administrador. Ha pasado al modo local independiente.'
-          );
+          if (onDeviceRevokedRemotely) {
+            onDeviceRevokedRemotely();
+          } else {
+            showNotice(
+              'Dispositivo Desvinculado',
+              'Este teléfono ha sido desvinculado del botiquín familiar por el administrador. Ha vuelto a la pantalla inicial de bienvenida.'
+            );
+          }
           return;
         }
 

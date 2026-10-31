@@ -255,17 +255,28 @@ export class CloudSyncService {
   async revokeDevice(familyCode: string, deviceId: string): Promise<boolean> {
     try {
       const cleanCode = sanitizeFamilyCode(familyCode);
+      const nowIso = new Date().toISOString();
+
       // 1. Registrar en lista de dispositivos revocados para handshake en tiempo real
       const revokeUrl = `${FIREBASE_RTDB_URL}/families/${cleanCode}/revokedDevices/${deviceId}.json`;
       await fetch(revokeUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, revokedAt: new Date().toISOString() }),
+        body: JSON.stringify({ deviceId, revokedAt: nowIso }),
       });
 
       // 2. Eliminar de connectedDevices
       const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${deviceId}.json`;
       const res = await fetch(url, { method: 'DELETE' });
+
+      // 3. Actualizar timestamp de la familia para sincronización inmediata
+      const updateUrl = `${FIREBASE_RTDB_URL}/families/${cleanCode}/updatedAt.json`;
+      await fetch(updateUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nowIso),
+      });
+
       return res.ok;
     } catch {
       return false;

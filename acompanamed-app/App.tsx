@@ -111,6 +111,28 @@ function MainApp() {
     }
   }, [activeRole, activeTab]);
 
+  const handleRemoteRevocation = async () => {
+    try {
+      await defaultStorageService.clearAllData();
+      setMedicines([]);
+      setScheduleTimes({});
+      setLogs([]);
+      setExpandedMedId('');
+      setEmergencyProfile(createEmptyProfile());
+      setActiveRole('patient');
+      setActiveTab('today');
+      setIsFamilyPairingModalVisible(false);
+      setIsOnboardingVisible(true);
+      showNotice(
+        'Dispositivo Desvinculado',
+        'Este teléfono ha sido desvinculado del botiquín familiar por el administrador. Ha vuelto a la pantalla inicial de bienvenida.'
+      );
+    } catch (error) {
+      console.warn('Error handling remote revocation:', error);
+      setIsOnboardingVisible(true);
+    }
+  };
+
   // Hook de Sincronización en la Nube y Dispositivos
   const {
     familyCode,
@@ -138,6 +160,7 @@ function MainApp() {
     onAfterSyncMedicines: (firstId) => {
       if (firstId) setExpandedMedId(firstId);
     },
+    onDeviceRevokedRemotely: handleRemoteRevocation,
   });
 
   // Cálculos de Dominio
