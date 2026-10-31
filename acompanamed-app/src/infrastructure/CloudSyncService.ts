@@ -10,6 +10,8 @@ export interface ConnectedDevice {
   platform: string;
   connectedAt: string;
   lastSeen: string;
+  isRevoked?: boolean;
+  revokedAt?: string;
 }
 
 export interface DeviceStatusFormat {
@@ -59,6 +61,7 @@ export interface FamilySyncPayload {
   logs: DoseLog[];
   emergencyProfile?: EmergencyProfile;
   connectedDevices?: Record<string, ConnectedDevice>;
+  revokedDevices?: Record<string, { deviceId: string; revokedAt: string }>;
 }
 
 export function sanitizeFamilyCode(code: string): string {
@@ -154,6 +157,16 @@ export class CloudSyncService {
         ? sanitizeEmergencyProfile(rawProfile, data.patientName || 'Paciente')
         : undefined;
 
+      const connectedDevices =
+        data.connectedDevices && typeof data.connectedDevices === 'object'
+          ? (data.connectedDevices as Record<string, ConnectedDevice>)
+          : undefined;
+
+      const revokedDevices =
+        data.revokedDevices && typeof data.revokedDevices === 'object'
+          ? (data.revokedDevices as Record<string, { deviceId: string; revokedAt: string }>)
+          : undefined;
+
       return {
         familyCode: data.familyCode || familyCode,
         updatedAt: data.updatedAt || new Date().toISOString(),
@@ -163,6 +176,8 @@ export class CloudSyncService {
         schedules,
         logs,
         emergencyProfile,
+        connectedDevices,
+        revokedDevices,
       };
     } catch (error) {
       console.warn('CloudSyncService fetch error:', error);
@@ -176,6 +191,10 @@ export class CloudSyncService {
   async registerDevice(familyCode: string, device: ConnectedDevice): Promise<boolean> {
     try {
       const cleanCode = sanitizeFamilyCode(familyCode);
+      // Si el dispositivo fue previamente revocado, limpiar su revocación para permitir reconexión
+      const revokeUrl = `${FIREBASE_RTDB_URL}/families/${cleanCode}/revokedDevices/${device.deviceId}.json`;
+      await fetch(revokeUrl, { method: 'DELETE' });
+
       const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${device.deviceId}.json`;
       const res = await fetch(url, {
         method: 'PUT',
@@ -222,7 +241,9 @@ export class CloudSyncService {
       const data = await res.json();
       if (!data || typeof data !== 'object') return [];
       const list = Object.values(data) as ConnectedDevice[];
-      return list.sort((a, b) => new Date(b.lastSeen || 0).getTime() - new Date(a.lastSeen || 0).getTime());
+      return list
+        .filter((d) => d && d.deviceId && !d.isRevoked)
+        .sort((a, b) => new Date(b.lastSeen || 0).getTime() - new Date(a.lastSeen || 0).getTime());
     } catch {
       return [];
     }
@@ -234,6 +255,15 @@ export class CloudSyncService {
   async revokeDevice(familyCode: string, deviceId: string): Promise<boolean> {
     try {
       const cleanCode = sanitizeFamilyCode(familyCode);
+      // 1. Registrar en lista de dispositivos revocados para handshake en tiempo real
+      const revokeUrl = `${FIREBASE_RTDB_URL}/families/${cleanCode}/revokedDevices/${deviceId}.json`;
+      await fetch(revokeUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, revokedAt: new Date().toISOString() }),
+      });
+
+      // 2. Eliminar de connectedDevices
       const url = `${FIREBASE_RTDB_URL}/families/${cleanCode}/connectedDevices/${deviceId}.json`;
       const res = await fetch(url, { method: 'DELETE' });
       return res.ok;

@@ -180,12 +180,14 @@ export const FamilyPairingModal: React.FC<Props> = ({
       'Desvincular Dispositivo',
       `¿Desea revocar el acceso a "${device.deviceName}"? Dejará de recibir las tomas de este paciente.`,
       async () => {
+        // Actualización optimista inmediata en la UI
+        setConnectedDevices((prev) => prev.filter((d) => d.deviceId !== device.deviceId));
         if (onRevokeDevice) {
           await onRevokeDevice(device.deviceId);
         } else {
           await defaultCloudSyncService.revokeDevice(effectiveFamilyCode, device.deviceId);
         }
-        loadDevices();
+        await loadDevices();
         showNotice('Dispositivo Desvinculado', `Se revocó el acceso para ${device.deviceName}.`);
       },
       'Desvincular',

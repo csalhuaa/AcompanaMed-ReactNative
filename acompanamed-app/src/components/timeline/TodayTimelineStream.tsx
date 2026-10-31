@@ -89,6 +89,20 @@ export const TodayTimelineStream: React.FC<Props> = ({
               />
             );
           })}
+
+          {onOpenAddMedicine && (
+            <TouchableOpacity
+              style={styles.btnAddMoreMed}
+              onPress={onOpenAddMedicine}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Agregar otro medicamento al pastillero"
+              accessibilityHint="Abre el formulario para registrar un nuevo fármaco con horario y dosis"
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#0284C7" />
+              <Text style={styles.btnAddMoreMedText}>Agregar otro medicamento</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -216,5 +230,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  btnAddMoreMed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    minHeight: 48,
+  },
+  btnAddMoreMedText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0284C7',
   },
 });

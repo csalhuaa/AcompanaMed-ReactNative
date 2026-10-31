@@ -135,6 +135,9 @@ describe('AcompañaMed - CloudSyncService (Inter-Device Cloud Sync)', () => {
 
       const revoked = await service.revokeDevice('MED-MANU-74', 'dev-1');
       assert.equal(revoked, true);
+
+      const afterRevokeDevices = await service.fetchConnectedDevices('MED-MANU-74');
+      assert.equal(afterRevokeDevices.length, 0);
     } finally {
       globalThis.fetch = originalFetch;
     }

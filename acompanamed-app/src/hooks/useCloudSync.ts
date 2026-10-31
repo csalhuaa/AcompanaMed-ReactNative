@@ -8,6 +8,7 @@ import {
   FamilySyncPayload,
   sanitizeFamilyCode,
 } from '../infrastructure';
+import { showNotice } from '../data/initialData';
 
 interface UseCloudSyncProps {
   isLoaded: boolean;
@@ -185,6 +186,20 @@ export function useCloudSync({
       familyCode,
       (cloudData) => {
         if (!cloudData || !cloudData.updatedAt) return;
+
+        // Comprobación de revocación remota en tiempo real:
+        // Si otro dispositivo administrador desvinculó a este teléfono de la familia:
+        if (deviceId && cloudData.revokedDevices && cloudData.revokedDevices[deviceId]) {
+          console.warn(`[useCloudSync] Dispositivo ${deviceId} revocado remotamente de la familia ${familyCode}`);
+          setIsFamilyConnected(false);
+          setFamilyCode('');
+          defaultStorageService.saveFamilyCode('');
+          showNotice(
+            'Dispositivo Desvinculado',
+            'Este teléfono ha sido desvinculado del botiquín familiar por el administrador. Ha pasado al modo local independiente.'
+          );
+          return;
+        }
 
         const currentLocal = localStateRef.current;
         const cloudTime = new Date(cloudData.updatedAt).getTime();
