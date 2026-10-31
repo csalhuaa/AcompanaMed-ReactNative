@@ -4,10 +4,23 @@ import {
   buildFamilyUrl,
   sanitizeFamilyCode,
   isStateNewer,
+  CloudSyncService,
 } from './CloudSyncService';
 import type { FamilySyncPayload } from './CloudSyncService';
 
 describe('AcompañaMed - CloudSyncService (Inter-Device Cloud Sync)', () => {
+  it('distinguishes a missing family from a failed download before any upload', async () => {
+    const originalFetch = globalThis.fetch;
+    const service = new CloudSyncService();
+    try {
+      globalThis.fetch = async () => new Response('null', { status: 200 });
+      assert.equal(await service.fetchFamilyState('TEST-LOCAL'), null);
+      globalThis.fetch = async () => new Response('unavailable', { status: 503 });
+      await assert.rejects(() => service.fetchFamilyState('TEST-LOCAL'));
+      globalThis.fetch = async () => { throw new Error('offline'); };
+      await assert.rejects(() => service.fetchFamilyState('TEST-LOCAL'));
+    } finally { globalThis.fetch = originalFetch; }
+  });
   it('limpia y normaliza el código de familia a mayúsculas sin caracteres inválidos', () => {
     assert.equal(sanitizeFamilyCode('  med-manu-74  '), 'MED-MANU-74');
     assert.equal(sanitizeFamilyCode('med_manu/74!'), 'MED-MANU-74');

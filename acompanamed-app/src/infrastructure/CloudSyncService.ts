@@ -64,7 +64,7 @@ export class CloudSyncService {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
       });
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error(`Family download failed: ${res.status}`);
       const data = await res.json();
       if (!data || typeof data !== 'object') return null;
 
@@ -92,7 +92,7 @@ export class CloudSyncService {
       };
     } catch (error) {
       console.warn('CloudSyncService fetch error:', error);
-      return null;
+      throw error;
     }
   }
 
@@ -108,9 +108,11 @@ export class CloudSyncService {
 
     const poll = async () => {
       if (isCancelled) return;
-      const data = await this.fetchFamilyState(familyCode);
-      if (data && !isCancelled) {
-        onUpdate(data);
+      try {
+        const data = await this.fetchFamilyState(familyCode);
+        if (data && !isCancelled) onUpdate(data);
+      } catch {
+        // Keep local records and retry on the next interval.
       }
     };
 

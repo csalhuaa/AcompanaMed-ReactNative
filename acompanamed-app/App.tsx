@@ -5,6 +5,7 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  AppState,
   useWindowDimensions,
   TouchableOpacity,
   Platform,
@@ -53,6 +54,7 @@ import {
   OnboardingModal,
   NewMedicineData,
 } from './src/components';
+import { createEmptyProfile, getScheduleEscalation, getScheduledDate } from './src/domain/LocalWorkflow';
 
 // Catálogo inicial con polifarmacia geriátrica real y fotos de blísteres
 const INITIAL_MEDICINES: Medicine[] = [
@@ -168,6 +170,14 @@ const DEFAULT_PROFILE: EmergencyProfile = {
   },
 };
 
+function showNotice(title: string, message?: string) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert([title, message].filter(Boolean).join('\n\n'));
+  } else {
+    Alert.alert(title, message);
+  }
+}
+
 function MainApp() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -181,11 +191,15 @@ function MainApp() {
   const [activeRole, setActiveRole] = useState<ActorRole>('caregiver');
   const [desktopLayoutMode, setDesktopLayoutMode] = useState<'mobile_shell' | 'desktop_split'>('mobile_shell');
 
-  const [medicines, setMedicines] = useState<Medicine[]>(INITIAL_MEDICINES);
-  const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>(INITIAL_SCHEDULE_TIMES);
-  const [logs, setLogs] = useState<DoseLog[]>(INITIAL_LOGS);
-  const [emergencyProfile, setEmergencyProfile] = useState<EmergencyProfile>(DEFAULT_PROFILE);
-  const [expandedMedId, setExpandedMedId] = useState<string>('med-losartan');
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
+  const [logs, setLogs] = useState<DoseLog[]>([]);
+  const [emergencyProfile, setEmergencyProfile] = useState<EmergencyProfile>(createEmptyProfile());
+  const [expandedMedId, setExpandedMedId] = useState<string>('');
+  const [now, setNow] = useState(() => new Date());
+  const [isOnboardingBusy, setIsOnboardingBusy] = useState(false);
+  const [onboardingError, setOnboardingError] = useState('');
+  const doseActionBusy = useRef(false);
 
   // Estados de Modales y Acciones
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -204,7 +218,8 @@ function MainApp() {
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
 
   // Estados de Sincronización en la Nube (Multi-Dispositivo)
-  const [familyCode, setFamilyCode] = useState<string>('MED-MANU-74');
+  const [familyCode, setFamilyCode] = useState<string>('');
+  const [isFamilyConnected, setIsFamilyConnected] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('');
   const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
@@ -247,14 +262,14 @@ function MainApp() {
   useEffect(() => {
     async function loadStoredData() {
       try {
-        const storedMeds = await defaultStorageService.loadMedicines(INITIAL_MEDICINES);
-        const storedTimes = await defaultStorageService.loadSchedules(INITIAL_SCHEDULE_TIMES);
-        const storedLogs = await defaultStorageService.loadLogs(INITIAL_LOGS);
-        const storedProfile = await defaultStorageService.loadEmergencyProfile(DEFAULT_PROFILE);
+        const storedMeds = await defaultStorageService.loadMedicines([]);
+        const storedTimes = await defaultStorageService.loadSchedules({});
+        const storedLogs = await defaultStorageService.loadLogs([]);
+        const storedProfile = await defaultStorageService.loadEmergencyProfile(createEmptyProfile());
         const storedRole = await defaultStorageService.loadActiveRole('caregiver');
         const storedCode = await defaultStorageService.loadFamilyCode();
 
-        const defaultCode = `MED-${storedProfile.patientFullName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${storedProfile.age || '82'}`;
+        const defaultCode = `MED-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
         const activeCode = storedCode || defaultCode;
         setFamilyCode(activeCode);
 
@@ -268,23 +283,6 @@ function MainApp() {
         const hasCompleted = await defaultStorageService.loadOnboardingCompleted();
         if (!hasCompleted) {
           setIsOnboardingVisible(true);
-        } else {
-          // Solo si ya completó onboarding hacemos sync caliente con Firebase en el arranque
-          try {
-            const cloudData = await defaultCloudSyncService.fetchFamilyState(activeCode);
-            if (cloudData && cloudData.medicines && cloudData.medicines.length > 0) {
-              setMedicines(cloudData.medicines);
-              setScheduleTimes(cloudData.schedules || {});
-              setLogs(cloudData.logs || []);
-              if (cloudData.emergencyProfile) {
-                setEmergencyProfile(cloudData.emergencyProfile);
-              }
-              localStateRef.current.lastUpdateIso = cloudData.updatedAt || new Date().toISOString();
-              setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-            }
-          } catch {
-            // Si no hay red, opera offline de forma transparente
-          }
         }
 
         if (storedMeds.length > 0) {
@@ -297,6 +295,15 @@ function MainApp() {
       }
     }
     loadStoredData();
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const timer = setInterval(refresh, 30000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refresh();
+    });
+    return () => { clearInterval(timer); subscription.remove(); };
   }, []);
 
   // Persistencia automática
@@ -321,9 +328,20 @@ function MainApp() {
   }, [activeRole, isLoaded]);
 
   // Cálculos de Dominio
-  const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, new Date());
+  const dailySchedule = buildDailySchedule(medicines, scheduleTimes, logs, now);
   const adherence = calculateAdherence(logs);
+  const dailyProgress = dailySchedule.length
+    ? Math.round(dailySchedule.filter(item => item.isTakenToday).length / dailySchedule.length * 100)
+    : 0;
   const clinicalReport = generateClinicalSummary(medicines, logs, emergencyProfile);
+
+  useEffect(() => {
+    if (isLoaded && !isOnboardingVisible) {
+      defaultNotificationService.syncDoseReminders(medicines, scheduleTimes).catch(() => {
+        console.warn('Reminder synchronization unavailable');
+      });
+    }
+  }, [isLoaded, isOnboardingVisible, medicines, scheduleTimes]);
 
   // Sincronización transparente con Firebase Realtime Database
   const syncToCloud = async (
@@ -332,7 +350,7 @@ function MainApp() {
     overrideTimes?: Record<string, string>,
     overrideProfile?: EmergencyProfile
   ) => {
-    if (!familyCode) return;
+    if (!familyCode || !isFamilyConnected) return;
     const nowIso = new Date().toISOString();
     localStateRef.current.lastUpdateIso = nowIso;
     try {
@@ -346,7 +364,8 @@ function MainApp() {
         logs: overrideLogs || logs,
         emergencyProfile: overrideProfile || emergencyProfile,
       };
-      await defaultCloudSyncService.pushFamilyState(payload);
+      const success = await defaultCloudSyncService.pushFamilyState(payload);
+      if (!success) { setLastCloudSyncTime(''); return; }
       setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.warn('Sync to cloud error:', e);
@@ -355,7 +374,7 @@ function MainApp() {
 
   // Sondeo en tiempo real cada 3.5 segundos entre dispositivos
   useEffect(() => {
-    if (!isLoaded || !familyCode) return;
+    if (!isLoaded || !familyCode || !isFamilyConnected || isOnboardingVisible) return;
 
     const stopPolling = defaultCloudSyncService.startSyncPolling(
       familyCode,
@@ -376,7 +395,8 @@ function MainApp() {
         const hasDifference =
           localMedsStr !== cloudMedsStr ||
           localLogsStr !== cloudLogsStr ||
-          localTimesStr !== cloudTimesStr;
+          localTimesStr !== cloudTimesStr ||
+          JSON.stringify(currentLocal.emergencyProfile) !== JSON.stringify(cloudData.emergencyProfile);
 
         if (hasDifference && cloudTime >= localTime) {
           localStateRef.current.lastUpdateIso = cloudData.updatedAt;
@@ -393,10 +413,11 @@ function MainApp() {
     );
 
     return () => stopPolling();
-  }, [isLoaded, familyCode]);
+  }, [isLoaded, familyCode, isFamilyConnected, isOnboardingVisible]);
 
   const handleConnectFamilyCode = async (
-    targetCode: string
+    targetCode: string,
+    connectingRole: ActorRole = activeRole
   ): Promise<{ success: boolean; message: string }> => {
     const clean = sanitizeFamilyCode(targetCode);
     if (!clean) return { success: false, message: 'Por favor ingrese un código válido.' };
@@ -405,7 +426,7 @@ function MainApp() {
     try {
       const cloudData = await defaultCloudSyncService.fetchFamilyState(clean);
       if (!cloudData) {
-        if (activeRole === 'caregiver') {
+        if (connectingRole === 'caregiver' && clean !== familyCode) {
           setIsCloudSyncing(false);
           return {
             success: false,
@@ -418,16 +439,18 @@ function MainApp() {
         const payload: FamilySyncPayload = {
           familyCode: clean,
           updatedAt: nowIso,
-          updatedBy: activeRole,
+          updatedBy: connectingRole,
           patientName: emergencyProfile.patientFullName,
           medicines,
           schedules: scheduleTimes,
           logs,
           emergencyProfile,
         };
-        await defaultCloudSyncService.pushFamilyState(payload);
+        const saved = await defaultCloudSyncService.pushFamilyState(payload);
+        if (!saved) return { success: false, message: 'No se pudo activar el enlace. Sus datos siguen guardados en este teléfono.' };
         setFamilyCode(clean);
         await defaultStorageService.saveFamilyCode(clean);
+        setIsFamilyConnected(true);
         localStateRef.current.lastUpdateIso = nowIso;
         setIsCloudSyncing(false);
         setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -452,6 +475,7 @@ function MainApp() {
       }
       setFamilyCode(clean);
       await defaultStorageService.saveFamilyCode(clean);
+      setIsFamilyConnected(true);
       await defaultStorageService.saveMedicines(downloadedMeds);
       await defaultStorageService.saveSchedules(downloadedSchedules);
       await defaultStorageService.saveLogs(downloadedLogs);
@@ -479,32 +503,41 @@ function MainApp() {
         success: false,
         message: 'No se pudo conectar al servidor de Firebase. Verifique su conexión a internet.',
       };
+    } finally {
+      setIsCloudSyncing(false);
     }
   };
 
-  // Escalamiento simulado (40 min desde las 08:00)
-  const simulatedScheduledTime = new Date('2026-10-29T08:00:00.000Z');
-  const simulatedNowTime = new Date('2026-10-29T08:40:00.000Z');
-  const escalation = evaluateEscalation(simulatedScheduledTime, simulatedNowTime, 30);
+  const escalation = getScheduleEscalation(dailySchedule, now);
 
   // Acción: Confirmar toma de pastilla
   const handleTakeDose = (medId: string, actor: ActorRole = activeRole) => {
+    if (doseActionBusy.current) return;
     const med = medicines.find((m) => m.id === medId);
     if (!med) return;
-
-    const check = canRegisterDose(medId, logs, new Date());
-    if (!check.allowed) {
-      Alert.alert('Protección de Seguridad Médica', check.reason);
+    if (dailySchedule.find(item => item.medicine.id === medId)?.isTakenToday) {
+      showNotice('Toma ya registrada', 'Esta dosis diaria ya fue confirmada hoy.');
+      return;
+    }
+    if (med.stock <= 0) {
+      showNotice('Sin existencias', 'Reponga este medicamento antes de registrar la toma.');
       return;
     }
 
+    const check = canRegisterDose(medId, logs, new Date());
+    if (!check.allowed) {
+      showNotice('Protección de Seguridad Médica', check.reason);
+      return;
+    }
+
+    doseActionBusy.current = true;
     const updated = decrementStock(med, 1);
     const newMeds = medicines.map((m) => (m.id === updated.id ? updated : m));
 
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
       medicineId: medId,
-      scheduledTime: new Date().toISOString(),
+      scheduledTime: getScheduledDate(scheduleTimes[medId] || '08:00', new Date()).toISOString(),
       takenTime: new Date().toISOString(),
       status: 'taken',
       registeredBy: actor,
@@ -513,6 +546,10 @@ function MainApp() {
 
     setMedicines(newMeds);
     setLogs(newLogs);
+    setTimeout(() => { doseActionBusy.current = false; }, 500);
+    defaultNotificationService.cancelSnoozeReminder(medId).catch(() => {
+      showNotice('Aviso pendiente', 'La toma se guardó, pero no se pudo cancelar el aviso pospuesto.');
+    });
     syncToCloud(newMeds, newLogs);
 
     if (actor === 'patient') {
@@ -520,18 +557,34 @@ function MainApp() {
       defaultSpeechService.speak(formatConfirmationSpeech(emergencyProfile.patientFullName, med.name, updated.stock));
     }
 
-    Alert.alert('Dosis Confirmada', `Toma de ${med.name} registrada. Quedan ${updated.stock} comprimidos.`);
+    showNotice('Dosis Confirmada', `Toma de ${med.name} registrada. Quedan ${updated.stock} comprimidos.`);
   };
 
   // Acción: Posponer toma (Snooze sin castigo)
-  const handlePostponeDose = (medId: string) => {
+  const handlePostponeDose = async (medId: string) => {
+    if (doseActionBusy.current) return;
     const med = medicines.find((m) => m.id === medId);
-    if (!med) return;
+    if (!med || dailySchedule.find(item => item.medicine.id === medId)?.isTakenToday) return;
+    doseActionBusy.current = true;
+    let reminder: string | null = null;
+    try {
+      reminder = await defaultNotificationService.scheduleSnoozeReminder(med, 15);
+    } catch {
+      // Keep the dose pending if scheduling fails.
+    } finally {
+      doseActionBusy.current = false;
+    }
+    if (!reminder) {
+      showNotice('Recordatorio no programado', Platform.OS === 'web'
+        ? 'Los avisos programados requieren la app de Android. La dosis sigue pendiente; configure una alarma en su teléfono.'
+        : 'Habilite las notificaciones e intente nuevamente. La dosis sigue pendiente.');
+      return;
+    }
 
     const newLog: DoseLog = {
       id: `log-${Date.now()}`,
       medicineId: medId,
-      scheduledTime: new Date().toISOString(),
+      scheduledTime: getScheduledDate(scheduleTimes[medId] || '08:00', new Date()).toISOString(),
       status: 'postponed',
       registeredBy: activeRole,
       notes: 'Pospuesto 15 minutos por el paciente',
@@ -542,7 +595,7 @@ function MainApp() {
 
     defaultHapticService.vibrateWarning();
     defaultSpeechService.speak(`Toma de ${med.name} pospuesta 15 minutos.`);
-    Alert.alert('Dosis Pospuesta', `Le recordaremos tomar ${med.name} en 15 minutos.`);
+    showNotice('Dosis Pospuesta', `Le recordaremos tomar ${med.name} en 15 minutos.`);
   };
 
   // ==========================================
@@ -555,12 +608,13 @@ function MainApp() {
   };
 
   const handleConfirmRestock = (medId: string, amount: number) => {
+    if (!Number.isSafeInteger(amount) || amount <= 0) return;
     const newMeds = medicines.map((m) => (m.id === medId ? { ...m, stock: m.stock + amount } : m));
     setMedicines(newMeds);
     syncToCloud(newMeds);
     const target = medicines.find((m) => m.id === medId);
     const name = target ? target.name : 'medicamento';
-    Alert.alert('Inventario Actualizado', `Se añadieron ${amount} unidades al stock de ${name}.`);
+    showNotice('Inventario Actualizado', `Se añadieron ${amount} unidades al stock de ${name}.`);
   };
 
   const handleOpenAddModal = () => {
@@ -573,7 +627,8 @@ function MainApp() {
     setIsAddModalVisible(true);
   };
 
-  const handleSaveMedicine = (data: NewMedicineData) => {
+  const handleSaveMedicine = async (data: NewMedicineData) => {
+    let savedMedicine: Medicine | undefined;
     if (data.id) {
       const newMeds = medicines.map((m) =>
         m.id === data.id
@@ -600,7 +655,7 @@ function MainApp() {
       setMedicines(newMeds);
       setScheduleTimes(newTimes);
       syncToCloud(newMeds, undefined, newTimes);
-      Alert.alert('Prescripción Actualizada', `Los cambios para ${data.name} fueron guardados.`);
+      savedMedicine = newMeds.find(m => m.id === data.id);
     } else {
       const newId = `med-${Date.now()}`;
       const newMed: Medicine = {
@@ -626,12 +681,19 @@ function MainApp() {
       setMedicines(newMeds);
       setScheduleTimes(newTimes);
       syncToCloud(newMeds, undefined, newTimes);
-      defaultNotificationService.scheduleDoseReminder(newMed, data.scheduleTime);
-      Alert.alert('Medicamento Guardado', `${newMed.name} ha sido incorporado al pastillero.`);
+      savedMedicine = newMed;
+      setExpandedMedId(newId);
     }
 
     setIsAddModalVisible(false);
     setEditingMedicine(null);
+    if (savedMedicine) {
+      let reminder: string | null = null;
+      try { reminder = await defaultNotificationService.scheduleDoseReminder(savedMedicine, data.scheduleTime); } catch { /* Data is already saved locally. */ }
+      showNotice('Medicamento guardado', reminder
+        ? `${data.name}: aviso diario a las ${data.scheduleTime}.`
+        : `${data.name} se guardó. ${Platform.OS === 'web' ? 'Los avisos programados requieren Android.' : 'Habilite las notificaciones para recibir avisos.'}`);
+    }
   };
 
   // ==========================================
@@ -643,10 +705,16 @@ function MainApp() {
     setIsDeleteConfirmVisible(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingMedicine) return;
     const id = deletingMedicine.id;
     const name = deletingMedicine.name;
+    try {
+      await defaultNotificationService.cancelMedicineReminders(id);
+    } catch {
+      showNotice('No se pudo retirar', 'No se pudieron cancelar sus avisos. Intente nuevamente.');
+      return;
+    }
 
     const newMeds = medicines.filter((m) => m.id !== id);
     const newTimes = { ...scheduleTimes };
@@ -662,7 +730,7 @@ function MainApp() {
 
     setIsDeleteConfirmVisible(false);
     setDeletingMedicine(null);
-    Alert.alert('Medicamento Retirado', `${name} fue retirado del pastillero familiar.`);
+    showNotice('Medicamento Retirado', `${name} fue retirado del pastillero familiar.`);
   };
 
   const handleCancelDelete = () => {
@@ -677,6 +745,10 @@ function MainApp() {
 
   // Acción: Exportar reporte clínico hacia WhatsApp
   const handleExportReport = () => {
+    if (!emergencyProfile.emergencyContact.phone) {
+      showNotice('Falta el contacto', 'Agregue un teléfono en Ajustes para compartir el informe.');
+      return;
+    }
     const summary = generateClinicalSummary(
       medicines,
       logs,
@@ -690,7 +762,11 @@ function MainApp() {
 
   // Acción: Alerta Real WhatsApp a Cuidador
   const handleSimulateEscalationAlert = () => {
-    const message = `⚠️ ALERTA MÉDICA ACOMPAÑAMED:\n${emergencyProfile.patientFullName} (${emergencyProfile.age} años) no ha confirmado su toma tras 30 minutos de gracia.\n\nPor favor comuníquese de inmediato.`;
+    if (!escalation.shouldEscalate) {
+      showNotice('Sin tomas atrasadas', 'No hay una dosis pendiente que haya superado los 30 minutos de espera.');
+      return;
+    }
+    const message = `AcompañaMed — ${emergencyProfile.patientFullName}\n${escalation.message}\nPor favor, revise el plan de hoy.`;
     CommunicationService.openWhatsApp(
       emergencyProfile.emergencyContact.phone,
       message
@@ -699,6 +775,7 @@ function MainApp() {
 
   // Acción: Llamada telefónica directa a la cuidadora
   const handleCallCaregiver = () => {
+    if (!emergencyProfile.emergencyContact.phone) return;
     CommunicationService.makePhoneCall(emergencyProfile.emergencyContact.phone);
   };
 
@@ -727,7 +804,7 @@ function MainApp() {
     defaultStorageService.saveLogs([]);
     syncToCloud([], [], {});
     setIsFamilyPairingModalVisible(false);
-    Alert.alert('Datos Vaciados', 'Se eliminaron los datos de prueba. Ahora puede registrar su propia receta médica real.');
+    showNotice('Datos Vaciados', 'Se eliminaron los datos de prueba. Ahora puede registrar su propia receta médica real.');
   };
 
   const handleRestoreDemoData = () => {
@@ -740,7 +817,7 @@ function MainApp() {
     defaultStorageService.saveLogs(INITIAL_LOGS);
     syncToCloud(INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_SCHEDULE_TIMES);
     setIsFamilyPairingModalVisible(false);
-    Alert.alert('Caso Demo Restaurado', 'Se cargaron los 3 medicamentos de prueba de Don Manuel.');
+    showNotice('Caso Demo Restaurado', 'Se cargaron los 3 medicamentos de prueba de Don Manuel.');
   };
 
   const handleFinishOnboarding = async (data: {
@@ -749,73 +826,58 @@ function MainApp() {
     patientName: string;
     pairCode?: string;
   }) => {
-    setActiveRole(data.role);
-    await defaultStorageService.saveActiveRole(data.role);
-    await defaultStorageService.saveOnboardingCompleted(true);
-
-    if (data.startMode === 'pair' && data.pairCode) {
-      const clean = sanitizeFamilyCode(data.pairCode);
-      const res = await handleConnectFamilyCode(clean);
-      if (!res.success) {
-        Alert.alert('Aviso de Enlace', res.message);
+    if (isOnboardingBusy) return;
+    setIsOnboardingBusy(true);
+    setOnboardingError('');
+    try {
+      if (data.startMode === 'pair') {
+        const result = await handleConnectFamilyCode(data.pairCode || '', data.role);
+        if (!result.success) {
+          setOnboardingError(result.message);
+          return;
+        }
+      } else {
+        const demo = data.startMode === 'demo';
+        const profile = demo ? { ...DEFAULT_PROFILE, patientFullName: data.patientName } : createEmptyProfile(data.patientName);
+        const nextMeds = demo ? INITIAL_MEDICINES : [];
+        const nextTimes = demo ? INITIAL_SCHEDULE_TIMES : {};
+        const nextLogs = demo ? INITIAL_LOGS : [];
+        const newCode = `MED-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+        await Promise.all([
+          defaultStorageService.saveEmergencyProfile(profile),
+          defaultStorageService.saveMedicines(nextMeds),
+          defaultStorageService.saveSchedules(nextTimes),
+          defaultStorageService.saveLogs(nextLogs),
+          defaultStorageService.saveFamilyCode(newCode),
+        ]);
+        setEmergencyProfile(profile);
+        setMedicines(nextMeds);
+        setScheduleTimes(nextTimes);
+        setLogs(nextLogs);
+        setExpandedMedId(nextMeds[0]?.id || '');
+        setFamilyCode(newCode);
+        setIsFamilyConnected(false);
       }
+      await defaultStorageService.saveActiveRole(data.role);
+      await defaultStorageService.saveOnboardingCompleted(true);
+      setActiveRole(data.role);
       setIsOnboardingVisible(false);
-      return;
+    } catch {
+      setOnboardingError('No se pudo guardar. Intente nuevamente. La configuración todavía no está completa.');
+    } finally {
+      setIsOnboardingBusy(false);
     }
-
-    const updatedProfile: EmergencyProfile = {
-      ...emergencyProfile,
-      patientFullName: data.patientName,
-    };
-    setEmergencyProfile(updatedProfile);
-    await defaultStorageService.saveEmergencyProfile(updatedProfile);
-
-    if (data.startMode === 'empty') {
-      const uniqueSuffix = Math.floor(10 + Math.random() * 89);
-      const codePrefix = data.role === 'caregiver' ? 'FAM' : (data.patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'PACI');
-      const newCode = `MED-${codePrefix}-${uniqueSuffix}`;
-      setFamilyCode(newCode);
-      await defaultStorageService.saveFamilyCode(newCode);
-
-      setMedicines([]);
-      setScheduleTimes({});
-      setLogs([]);
-      setExpandedMedId('');
-      await defaultStorageService.saveMedicines([]);
-      await defaultStorageService.saveSchedules({});
-      await defaultStorageService.saveLogs([]);
-
-      // Si es paciente, inicializa su nube privada vacía
-      if (data.role === 'patient') {
-        syncToCloud([], [], {}, updatedProfile);
-      }
-    } else {
-      const demoCode = 'MED-MANU-74';
-      setFamilyCode(demoCode);
-      await defaultStorageService.saveFamilyCode(demoCode);
-
-      setMedicines(INITIAL_MEDICINES);
-      setScheduleTimes(INITIAL_SCHEDULE_TIMES);
-      setLogs(INITIAL_LOGS);
-      setExpandedMedId(INITIAL_MEDICINES[0].id);
-      await defaultStorageService.saveMedicines(INITIAL_MEDICINES);
-      await defaultStorageService.saveSchedules(INITIAL_SCHEDULE_TIMES);
-      await defaultStorageService.saveLogs(INITIAL_LOGS);
-      syncToCloud(INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_SCHEDULE_TIMES, updatedProfile);
-    }
-
-    setIsOnboardingVisible(false);
   };
 
   const handleTestNotification = async () => {
     const success = await defaultNotificationService.triggerImmediateTestNotification(
-      '🔔 AcompañaMed: ¡Alarma de Dosis Activa!',
-      `${emergencyProfile.patientFullName}: Es momento de tomar Losartán Potásico (50 mg) con medio vaso de agua.`
+      'AcompañaMed: prueba de notificación',
+      'Este es un aviso de prueba. No indica que deba tomar un medicamento.'
     );
     if (success) {
-      Alert.alert('Notificación Emitida', 'Se disparó una notificación con sonido en su dispositivo/navegador.');
+      showNotice('Notificación Emitida', 'Se disparó una notificación con sonido en su dispositivo/navegador.');
     } else {
-      Alert.alert('Permiso de Notificación', 'Por favor habilite los permisos de notificaciones en su navegador o teléfono.');
+      showNotice('Permiso de Notificación', 'Por favor habilite los permisos de notificaciones en su navegador o teléfono.');
     }
   };
 
@@ -851,7 +913,7 @@ function MainApp() {
         <View style={[styles.topAppHeader, { paddingTop: isDesktop ? 12 : topInset + 6 }]}>
           <View style={styles.headerTitleGroup}>
             <Text style={styles.appNameLabel}>AcompañaMed</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <MaterialCommunityIcons
                 name={activeRole === 'patient' ? 'account-heart' : 'shield-account'}
                 size={14}
@@ -860,12 +922,12 @@ function MainApp() {
               <Text style={styles.patientSubLabel}>
                 {activeRole === 'patient'
                   ? `Modo Paciente (${emergencyProfile.patientFullName})`
-                  : `Modo Cuidadora (${emergencyProfile.emergencyContact.name})`}
+                  : `Modo Cuidador · ${emergencyProfile.patientFullName || 'Configure el perfil'}`}
               </Text>
               <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#94A3B8' }} />
-              <MaterialCommunityIcons name="cloud-check" size={12} color="#059669" />
+              <MaterialCommunityIcons name={isFamilyConnected && lastCloudSyncTime ? 'cloud-check' : 'cellphone'} size={12} color="#475569" />
               <Text style={{ fontSize: 10, color: '#059669', fontWeight: '700' }}>
-                {familyCode}
+                {isFamilyConnected && lastCloudSyncTime ? 'Enlace activo' : 'Guardado en este teléfono'}
               </Text>
             </View>
           </View>
@@ -954,7 +1016,7 @@ function MainApp() {
                 onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
                 onTakeDose={(id) => handleTakeDose(id, 'patient')}
                 onPostponeDose={handlePostponeDose}
-                adherencePercentage={adherence.adherencePercentage}
+                adherencePercentage={dailyProgress}
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
               />
@@ -1040,6 +1102,7 @@ function MainApp() {
                     <View style={{ flex: 1 }}>
                       {effectiveRightTab === 'caregiver' && (
                         <CaregiverDashboard
+                          contact={emergencyProfile.emergencyContact}
                           escalation={escalation}
                           adherence={adherence}
                           clinicalReport={clinicalReport}
@@ -1056,7 +1119,7 @@ function MainApp() {
                             <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
                             <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
                             <Text style={styles.protectedRoleSubtitle}>
-                              El Botiquín y la edición de recetas están restringidos para María Alhua para evitar alteraciones accidentales en el tratamiento de Don Manuel.
+                              Cambie al modo Cuidador para gestionar el botiquín y evitar cambios accidentales en la receta.
                             </Text>
                             <TouchableOpacity
                               style={styles.btnUnlockRole}
@@ -1103,7 +1166,7 @@ function MainApp() {
                 onToggleExpand={(id) => setExpandedMedId((prev) => (prev === id ? '' : id))}
                 onTakeDose={(id) => handleTakeDose(id, 'patient')}
                 onPostponeDose={handlePostponeDose}
-                adherencePercentage={adherence.adherencePercentage}
+                adherencePercentage={dailyProgress}
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
               />
@@ -1111,6 +1174,7 @@ function MainApp() {
 
             {activeTab === 'caregiver' && (
               <CaregiverDashboard
+                contact={emergencyProfile.emergencyContact}
                 escalation={escalation}
                 adherence={adherence}
                 clinicalReport={clinicalReport}
@@ -1128,7 +1192,7 @@ function MainApp() {
                   <MaterialCommunityIcons name="shield-lock-outline" size={48} color="#0284C7" />
                   <Text style={styles.protectedRoleTitle}>Área Protegida de la Cuidadora</Text>
                   <Text style={styles.protectedRoleSubtitle}>
-                    El Botiquín y la edición de recetas están restringidos para María Alhua para evitar alteraciones accidentales en el tratamiento de Don Manuel.
+                    Cambie al modo Cuidador para gestionar el botiquín y evitar cambios accidentales en la receta.
                   </Text>
                   <TouchableOpacity
                     style={styles.btnUnlockRole}
@@ -1237,6 +1301,8 @@ function MainApp() {
       {/* MODAL 7: BIENVENIDA Y CONFIGURACIÓN INICIAL (ONBOARDING) */}
       <OnboardingModal
         visible={isOnboardingVisible}
+        busy={isOnboardingBusy}
+        error={onboardingError}
         onFinishOnboarding={handleFinishOnboarding}
       />
     </View>
@@ -1311,6 +1377,9 @@ const styles = StyleSheet.create({
   },
   headerTitleGroup: {
     gap: 2,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
   },
   appNameLabel: {
     fontSize: 20,

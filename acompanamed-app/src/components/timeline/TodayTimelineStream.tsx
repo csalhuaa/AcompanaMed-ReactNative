@@ -42,7 +42,7 @@ export const TodayTimelineStream: React.FC<Props> = ({
         </View>
         <View style={styles.adherenceMiniBadge}>
           <Text style={styles.adherenceMiniBadgeText}>{adherencePercentage}%</Text>
-          <Text style={styles.adherenceMiniBadgeLabel}>Adherencia</Text>
+          <Text style={styles.adherenceMiniBadgeLabel}>Progreso de hoy</Text>
         </View>
       </View>
 

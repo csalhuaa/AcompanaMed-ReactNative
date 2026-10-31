@@ -39,8 +39,8 @@ export function buildDailySchedule(
   const items: ScheduledDoseItem[] = medicines.map((med) => {
     const timeStr = scheduleTimes[med.id] || '08:00';
     const [hStr, mStr] = timeStr.split(':');
-    const doseHour = parseInt(hStr, 10) || 8;
-    const doseMinute = parseInt(mStr, 10) || 0;
+    const doseHour = Number.isNaN(Number(hStr)) ? 8 : Number(hStr);
+    const doseMinute = Number.isNaN(Number(mStr)) ? 0 : Number(mStr);
     const doseTotalMinutes = doseHour * 60 + doseMinute;
 
     const timeSlot = getTimeSlot(doseHour);

@@ -1,132 +1,71 @@
-# AcompañaMed 🏥💊
+# AcompañaMed
 
-> **Asistente Gerontológico de Adherencia Farmacológica y Telemetría para Cuidadores Familiares**  
-> *Universidad Nacional de San Agustín de Arequipa (UNSA) — Escuela Profesional de Ingeniería de Sistemas*  
-> *Curso: Plataformas Emergentes (E) 2024-B — Docente: M. Sc. Ing. R. Fabrizio Calienes Rodriguez*
+Asistente de medicación para pacientes y cuidadores. Permite registrar un plan diario, confirmar tomas, reponer existencias y completar una ficha de emergencia. La interfaz existente está en español.
 
-[![Firebase Hosting](https://img.shields.io/badge/Live_Demo-Firebase_Hosting-0284C7?style=for-the-badge&logo=firebase)](https://acompanamed-unsa-2026.web.app)
-[![React Native](https://img.shields.io/badge/React_Native-0.76-61DAFB?style=for-the-badge&logo=react)](https://reactnative.dev)
-[![Expo SDK](https://img.shields.io/badge/Expo_SDK-52-000000?style=for-the-badge&logo=expo)](https://expo.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
-[![TDD Tests](https://img.shields.io/badge/TDD_Tests-35%2F35_Passing-059669?style=for-the-badge)](https://github.com/csalhuaa/AcompanaMed-ReactNative)
+## Ejecutar localmente
 
----
-
-## 🌐 Despliegue en Producción en Vivo
-
-La aplicación se encuentra desplegada y accesible públicamente en la nube de Google:
-
-🔗 **[https://acompanamed-unsa-2026.web.app](https://acompanamed-unsa-2026.web.app)**
-
----
-
-## 🎯 Propósito del Proyecto y Proyección Social
-
-En el Perú, más del 13% de la población supera los 60 años, enfrentando altas tasas de enfermedades crónicas no transmisibles (hipertensión, diabetes, dislipidemias) que conllevan cuadros de **polifarmacia geriátrica** (3 a 7 fármacos diarios).
-
-Las aplicaciones comerciales estándar cometen fallas críticas de accesibilidad para este grupo etario:
-- **Botones subdimensionados y horizontales:** Provocan tomas erróneas en pacientes con temblor senil o artrosis.
-- **Sobrecarga de emojis y slop visual:** Iconografía infantil que desorienta y no respeta la semántica de lectores de pantalla (TalkBack / VoiceOver).
-- **El antipatrón del "móvil inflado" en Web:** Elementos estirados horizontalmente en monitores de PC que rompen la ergonomía médica.
-- **Falta de roles protegidos:** El paciente puede alterar o borrar recetas críticas por confusión.
-
-**AcompañaMed** resuelve estos desafíos mediante un diseño minimalista de alto contraste **WCAG 2.2 AAA (>15:1)**, botonera vertical apilada al 100% de ancho (54dp / 48dp), renderizado anatómico de comprimidos, persistencia Offline-First (SQLite nativo) y control de acceso por roles (RBAC).
-
----
-
-## 🏛️ Arquitectura de Software (Clean Architecture)
-
-El proyecto desacopla las responsabilidades en capas estrictas:
-
-```text
-acompanamed-app/
-├── App.tsx                     # Orquestador principal de estado y navegación
-├── src/
-│   ├── domain/                 # Entidades y reglas de negocio puras (100% TDD)
-│   │   ├── types.ts            # Contratos de tipos TypeScript
-│   │   ├── DuplicateGuard.ts   # Bloqueo de tomas consecutivas (< 2 hrs)
-│   │   ├── StockManager.ts     # Control atómico de existencias y días de autonomía
-│   │   ├── AdherenceCalculator.ts # Métricas de adherencia terapéutica (%)
-│   │   ├── EscalationEngine.ts # Ventana de gracia de 30 min y alertas
-│   │   ├── ScheduleTimelineEngine.ts # Generador del río cronológico del día
-│   │   └── ClinicalReportEngine.ts   # Resumen estructurado para el geriatra
-│   ├── infrastructure/         # Adaptadores nativos (Storage, TTS, Haptics, Notifications)
-│   │   ├── StorageService.ts   # Persistencia Offline-First (AsyncStorage / SQLite)
-│   │   ├── SpeechService.ts    # Síntesis de voz pausada y accesible
-│   │   └── HapticService.ts    # Retroalimentación vibratoria diferenciada
-│   └── components/             # Librería de componentes UI modulares
-│       ├── timeline/           # Tarjeta de dosis y renderizador de pastillas
-│       ├── navigation/         # Barra de navegación accesible
-│       ├── caregiver/          # Panel de telemetría y canal WhatsApp
-│       ├── stock/              # Botiquín con barras de autonomía y reposición
-│       ├── ice/                # Ficha médica hospitalaria y botón SAMU 106
-│       └── modals/             # Centered Modals: Restock, ConfirmDialog, AddMedicine
-```
-
----
-
-## 🛡️ Control de Acceso Basado en Roles (RBAC)
-
-Para evitar modificaciones accidentales del adulto mayor:
-1. **Modo Don Manuel (Paciente, 82 años):** Vista simplificada con pastilla actual, botones gigantes de toma, posponer y llamada de auxilio. Si intenta ingresar al Botiquín, el sistema muestra un **candado de seguridad** que restringe la edición a la cuidadora.
-2. **Modo Cuidadora (María Alhua, 46 años):** Control total de recetas, reposición con packs de farmacia (`+10`, `+20`, `+30`, `+60`), retiro de fármacos y exportación del informe clínico.
-
----
-
-## 🖥️ Adaptación Multiplataforma para Escritorio
-
-Para superar el antipatrón de elementos estirados en la Web, la aplicación detecta el viewport mediante `useWindowDimensions()`:
-- **Móvil (<768px):** Disposición ergonómica vertical con barra de navegación accesible al pulgar.
-- **Desktop Shell Centrado (480px):** Confinamiento anatómico centrado sobre canvas neutro con sutil elevación.
-- **Desktop Split View (>=1024px):** Estación de trabajo clínica de dos columnas paralelas (Plan del Paciente a la izquierda, Panel del Cuidador y Botiquín a la derecha).
-
----
-
-## 🧪 Verificación con TDD (Test-Driven Development)
-
-La suite automatizada valida 35 casos de prueba unitarios en Node Test Runner:
-
-```bash
+```powershell
 cd acompanamed-app
-pnpm test
+npm ci
+npm start
 ```
 
-```text
-ℹ tests 35
-ℹ suites 16
-ℹ pass 35
-ℹ fail 0
-ℹ duration_ms 282 ms
+Abra el proyecto desde un dispositivo Android compatible con la versión de Expo del proyecto. Para generar e instalar la aplicación nativa con el SDK de Android configurado:
+
+```powershell
+npm run android
 ```
 
----
+Para usar la versión web:
 
-## 🚀 Guía de Instalación y Ejecución Local
-
-### Prerrequisitos
-- Node.js >= 18
-- pnpm >= 9
-
-### Pasos
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/csalhuaa/AcompanaMed-ReactNative.git
-cd AcompanaMed-ReactNative/acompanamed-app
-
-# 2. Instalar dependencias
-pnpm install
-
-# 3. Ejecutar pruebas automatizadas
-pnpm test
-
-# 4. Iniciar en modo Web
-pnpm web
-
-# 5. Iniciar para Android / iOS (Expo Go)
-pnpm start
+```powershell
+npm run web
 ```
 
----
+El proyecto usa Expo SDK 58, React Native 0.88, React 19 y TypeScript. Las versiones exactas están en `acompanamed-app/package.json` y su archivo de bloqueo.
 
-## 📄 Licencia y Créditos Académicos
-Desarrollado para el **Laboratorio 5 de Plataformas Emergentes (UNSA 2024-B)** bajo la dirección del **M. Sc. Ing. R. Fabrizio Calienes Rodriguez**.
+## Primer uso
+
+1. Seleccione Paciente o Cuidador y elija **Iniciar con Botiquín Vacío**. El caso de ejemplo se carga solamente al seleccionarlo.
+2. Registre el medicamento siguiendo la receta: nombre, dosis, hora diaria en formato `HH:MM`, existencias y umbral de reposición. Se aceptan existencias y umbral de cero; los valores negativos, fraccionarios o incompletos se rechazan.
+3. Complete su información y contacto de apoyo desde **Ajustes**. Los campos médicos vacíos se muestran como información no registrada.
+4. En **Hoy**, confirme la toma o pospóngala. La confirmación descuenta una unidad; una dosis diaria ya confirmada no puede registrarse nuevamente ese día. Reponga el medicamento si no quedan unidades.
+5. Use **Botiquín** en modo Cuidador para editar, reponer o retirar medicamentos. Retirar conserva el historial de tomas.
+
+Los datos locales se guardan con AsyncStorage y se recuperan al abrir la app. Los modos simplifican la interfaz para evitar cambios accidentales; no constituyen autenticación ni control de acceso entre personas.
+
+## Recordatorios
+
+- En Android, al guardar un medicamento se solicita permiso y se programa un aviso diario a la hora elegida. Editar reemplaza el aviso y retirar lo cancela.
+- **Posponer 15 minutos** programa un aviso puntual; confirmar la toma cancela ese aviso pospuesto.
+- Al abrir la app, los avisos se reconcilian sin abrir solicitudes de permiso automáticamente.
+- La versión web permite gestionar el plan y probar una notificación inmediata, pero no programa alarmas en segundo plano. La interfaz informa esta limitación al guardar o intentar posponer.
+- El panel del cuidador calcula los atrasos desde el plan local de hoy. WhatsApp y las llamadas se abren mediante una acción del usuario; no hay envío automático de mensajes ni vigilancia remota en segundo plano.
+
+La entrega de notificaciones con la aplicación cerrada depende de los permisos y ajustes del dispositivo Android. La programación se prueba con un adaptador simulado; la entrega real requiere verificarla en el teléfono.
+
+## Enlace familiar opcional
+
+La app inicia y trabaja localmente. No descarga ni sube la ficha médica al abrirla. En **Ajustes**, **Activar enlace de este botiquín** comparte el plan y la ficha mediante el servicio Firebase configurado; otro dispositivo puede introducir el mismo código. Para reanudar el enlace después de cerrar la app, vuelva a conectarlo explícitamente.
+
+El enlace existente funciona por código compartido, sin autenticación de usuarios. Cualquier persona que tenga el código puede acceder al estado compartido. Un error de descarga no se interpreta como una familia inexistente y una subida fallida no se muestra como sincronización exitosa. Esta tarea verifica el comportamiento de red con simulaciones locales; no realiza transferencias al servidor.
+
+## Verificar
+
+```powershell
+cd acompanamed-app
+npm test
+npm run typecheck
+npx expo export --platform web
+```
+
+Las pruebas cubren dominio, persistencia, validación de formularios, horarios locales, escalamiento y programación/cancelación de avisos con adaptadores simulados. No reemplazan las pruebas de permisos, sonido y entrega en un dispositivo Android.
+
+## Organización
+
+- `acompanamed-app/App.tsx`: navegación e integración de los flujos.
+- `acompanamed-app/src/domain`: reglas puras y pruebas.
+- `acompanamed-app/src/infrastructure`: almacenamiento, voz, avisos y enlace familiar.
+- `acompanamed-app/src/components`: pantallas, formularios y componentes accesibles.
+
+Proyecto académico de la Universidad Nacional de San Agustín de Arequipa, Escuela Profesional de Ingeniería de Sistemas.

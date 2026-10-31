@@ -7,11 +7,14 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillShape, Medicine } from '../../domain';
 import { CLINICAL_MEDICINE_PRESETS, MedicinePreset } from '../../domain/medicineAssets';
+import { validateMedicineForm, MedicineFormErrors } from '../../domain/MedicineFormValidation';
 
 export const COLOR_PALETTE = [
   { hex: '#0284C7', name: 'Azul Clínico' },
@@ -63,11 +66,15 @@ export const AddMedicineModal: React.FC<Props> = ({
   const [photoUri, setPhotoUri] = useState('');
   const [imprint, setImprint] = useState('');
   const [canSplit, setCanSplit] = useState(true);
+  const [errors, setErrors] = useState<MedicineFormErrors>({});
+  const { width } = useWindowDimensions();
+  const stackFields = width < 400;
 
   const isEditing = !!initialMedicine;
 
   useEffect(() => {
     if (visible) {
+      setErrors({});
       if (initialMedicine) {
         setName(initialMedicine.name);
         setDose(initialMedicine.doseDescription);
@@ -101,6 +108,7 @@ export const AddMedicineModal: React.FC<Props> = ({
   }, [visible, initialMedicine, initialScheduleTime]);
 
   const applyPreset = (preset: MedicinePreset) => {
+    setErrors({});
     setName(preset.name);
     setDose(preset.doseDescription);
     setInstructions(preset.instructions);
@@ -118,21 +126,19 @@ export const AddMedicineModal: React.FC<Props> = ({
   };
 
   const handleSave = () => {
-    if (!name.trim() || !dose.trim()) {
-      Alert.alert('Campos Obligatorios', 'Por favor indique el nombre y la dosis prescrita.');
+    const result = validateMedicineForm({ name, dose, scheduleTime, stock, minAlert });
+    if (!result.valid) {
+      setErrors(result.errors);
       return;
     }
+    setErrors({});
 
     onSave({
       id: initialMedicine?.id,
-      name: name.trim(),
-      doseDescription: dose.trim(),
-      scheduleTime: scheduleTime.trim() || '08:00',
+      ...result.value,
       instructions: instructions.trim() || 'Tomar según prescripción médica con agua.',
       shape,
       color,
-      stock: parseInt(stock, 10) || 30,
-      minStockAlert: parseInt(minAlert, 10) || 6,
       photoUri: photoUri.trim() || undefined,
       imprint: imprint.trim() || undefined,
       canSplit,
@@ -141,13 +147,20 @@ export const AddMedicineModal: React.FC<Props> = ({
     onClose();
   };
 
+  const fieldError = (field: keyof MedicineFormErrors) => errors[field] ? (
+    <Text style={styles.fieldError} accessibilityLiveRegion="polite">{errors[field]}</Text>
+  ) : null;
+
   return (
-    <Modal visible={visible} animationType="fade" transparent>
-      <View style={styles.modalBackdropScrim}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.modalBackdropScrim}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.modalSheetBox}>
           {/* Barra Superior del Modal */}
           <View style={styles.modalSheetTop}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <MaterialCommunityIcons
                 name={isEditing ? 'pencil-box-outline' : 'pill'}
                 size={22}
@@ -171,7 +184,13 @@ export const AddMedicineModal: React.FC<Props> = ({
           <ScrollView
             contentContainerStyle={styles.modalFormContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
+            {Object.keys(errors).length > 0 ? (
+              <Text style={styles.validationSummary} accessibilityRole="alert" accessibilityLiveRegion="assertive">
+                Revise los campos indicados. El medicamento todavía no se guardó.
+              </Text>
+            ) : null}
             {!isEditing && (
               <View style={styles.presetsBox}>
                 <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes:</Text>
@@ -195,36 +214,41 @@ export const AddMedicineModal: React.FC<Props> = ({
 
             <Text style={styles.formInputLabel}>Principio Activo (Nombre Comercial / Genérico)</Text>
             <TextInput
-              style={styles.formTextInput}
+              style={[styles.formTextInput, errors.name && styles.invalidInput]}
               placeholder="Ej. Enalapril, Glibenclamida, Losartán"
               placeholderTextColor="#94A3B8"
               value={name}
               onChangeText={setName}
               accessibilityLabel="Nombre del principio activo"
             />
+            {fieldError('name')}
 
-            <View style={styles.twoColumnInputs}>
+            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.formInputLabel}>Dosis Prescrita</Text>
                 <TextInput
-                  style={styles.formTextInput}
+                  style={[styles.formTextInput, errors.dose && styles.invalidInput]}
                   placeholder="Ej. 10 mg, 500 mg"
                   placeholderTextColor="#94A3B8"
                   value={dose}
                   onChangeText={setDose}
                   accessibilityLabel="Dosis prescrita"
                 />
+                {fieldError('dose')}
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginLeft: stackFields ? 0 : 12 }}>
                 <Text style={styles.formInputLabel}>Horario Diario (HH:MM)</Text>
                 <TextInput
-                  style={styles.formTextInput}
+                  style={[styles.formTextInput, errors.scheduleTime && styles.invalidInput]}
                   placeholder="08:00"
                   placeholderTextColor="#94A3B8"
                   value={scheduleTime}
                   onChangeText={setScheduleTime}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   accessibilityLabel="Horario diario de la toma"
                 />
+                {fieldError('scheduleTime')}
               </View>
             </View>
 
@@ -299,30 +323,32 @@ export const AddMedicineModal: React.FC<Props> = ({
               ))}
             </View>
 
-            <View style={styles.twoColumnInputs}>
+            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.formInputLabel}>Stock Inicial en Botiquín</Text>
                 <TextInput
-                  style={styles.formTextInput}
+                  style={[styles.formTextInput, errors.stock && styles.invalidInput]}
                   keyboardType="numeric"
                   value={stock}
                   onChangeText={setStock}
                   accessibilityLabel="Cantidad inicial en inventario"
                 />
+                {fieldError('stock')}
               </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginLeft: stackFields ? 0 : 12 }}>
                 <Text style={styles.formInputLabel}>Alerta de Stock Crítico</Text>
                 <TextInput
-                  style={styles.formTextInput}
+                  style={[styles.formTextInput, errors.minAlert && styles.invalidInput]}
                   keyboardType="numeric"
                   value={minAlert}
                   onChangeText={setMinAlert}
                   accessibilityLabel="Umbral de alerta de reposición"
                 />
+                {fieldError('minAlert')}
               </View>
             </View>
 
-            <View style={styles.twoColumnInputs}>
+            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.formInputLabel}>Grabado en Pastilla (Imprint)</Text>
                 <TextInput
@@ -361,7 +387,7 @@ export const AddMedicineModal: React.FC<Props> = ({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
@@ -397,14 +423,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   modalSheetTitle: {
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: '800',
     color: '#0F172A',
   },
   closeBtn: {
     padding: 6,
-    minHeight: 40,
-    minWidth: 40,
+    minHeight: 48,
+    minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -421,13 +448,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 6,
     padding: 12,
-    fontSize: 14,
+    fontSize: 16,
     color: '#0F172A',
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
   },
   twoColumnInputs: {
     flexDirection: 'row',
+  },
+  stackedInputs: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  invalidInput: {
+    borderColor: '#B91C1C',
+  },
+  fieldError: {
+    fontSize: 14,
+    color: '#991B1B',
+    marginTop: 6,
+  },
+  validationSummary: {
+    fontSize: 14,
+    color: '#991B1B',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 6,
   },
   shapeSelectorRow: {
     flexDirection: 'row',
@@ -446,7 +492,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
     gap: 6,
-    minHeight: 44,
+    minHeight: 48,
   },
   shapeOptionBtnActive: {
     borderColor: '#0F172A',
@@ -463,12 +509,13 @@ const styles = StyleSheet.create({
   },
   colorPaletteGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   colorCircleSwatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
   },
@@ -493,6 +540,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   presetChip: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -521,6 +569,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalSubmitButtonText: {
+    flexShrink: 1,
+    textAlign: 'center',
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',

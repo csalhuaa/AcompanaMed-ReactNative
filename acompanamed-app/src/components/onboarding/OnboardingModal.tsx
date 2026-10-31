@@ -14,6 +14,8 @@ import { ActorRole } from '../../domain';
 
 interface Props {
   visible: boolean;
+  busy?: boolean;
+  error?: string;
   onFinishOnboarding: (data: {
     role: ActorRole;
     startMode: 'empty' | 'demo' | 'pair';
@@ -24,6 +26,8 @@ interface Props {
 
 export const OnboardingModal: React.FC<Props> = ({
   visible,
+  busy = false,
+  error,
   onFinishOnboarding,
 }) => {
   const [selectedRole, setSelectedRole] = useState<ActorRole>('patient');
@@ -41,6 +45,7 @@ export const OnboardingModal: React.FC<Props> = ({
   };
 
   const handleStart = () => {
+    if (busy) return;
     if (selectedRole === 'caregiver' && startMode === 'pair') {
       const cleanCode = pairCode.trim().toUpperCase();
       if (!cleanCode) {
@@ -64,7 +69,7 @@ export const OnboardingModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => {}}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalCard}>
           {/* Cabecera de Bienvenida */}
@@ -325,13 +330,17 @@ export const OnboardingModal: React.FC<Props> = ({
             )}
 
             {/* BOTÓN COMENZAR */}
+            {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={{ color: '#991B1B', fontSize: 16, marginVertical: 12 }}>{error}</Text> : null}
             <TouchableOpacity
               style={styles.btnStart}
               onPress={handleStart}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityState={{ busy, disabled: busy }}
               activeOpacity={0.85}
             >
               <Text style={styles.btnStartText}>
-                {selectedRole === 'caregiver' && startMode === 'pair'
+                {busy ? 'Guardando configuración…' : selectedRole === 'caregiver' && startMode === 'pair'
                   ? 'Conectar y Comenzar'
                   : 'Comenzar a usar AcompañaMed'}
               </Text>

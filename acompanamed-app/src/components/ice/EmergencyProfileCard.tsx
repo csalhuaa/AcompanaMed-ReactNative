@@ -24,12 +24,12 @@ export const EmergencyProfileCard: React.FC<Props> = ({
         <View style={styles.headerCardRow}>
           <View style={styles.bloodTypeBadge}>
             <Text style={styles.bloodTypeLabel}>GRUPO</Text>
-            <Text style={styles.bloodTypeValue}>{emergencyProfile.bloodType}</Text>
+            <Text style={styles.bloodTypeValue}>{emergencyProfile.bloodType || '—'}</Text>
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.patientName}>{emergencyProfile.patientFullName}</Text>
             <Text style={styles.patientMeta}>
-              {emergencyProfile.age} años • {emergencyProfile.healthInsurance}
+              {emergencyProfile.age ? `${emergencyProfile.age} años` : 'Edad no registrada'} • {emergencyProfile.healthInsurance || 'Seguro no registrado'}
             </Text>
           </View>
           {onOpenFamilyPairing && (
@@ -48,10 +48,10 @@ export const EmergencyProfileCard: React.FC<Props> = ({
           <MaterialCommunityIcons name="alert-octagon" size={24} color="#DC2626" />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.allergySevereTitle}>
-              Alergias Severas a Medicamentos:
+              Alergias registradas:
             </Text>
             <Text style={styles.allergySevereList}>
-              {emergencyProfile.allergies.join(' • ')}
+              {emergencyProfile.allergies.join(' • ') || 'Sin información registrada. Complete su ficha.'}
             </Text>
           </View>
         </View>
@@ -64,13 +64,14 @@ export const EmergencyProfileCard: React.FC<Props> = ({
               • {cond}
             </Text>
           ))}
+          {emergencyProfile.chronicConditions.length === 0 && <Text style={styles.chronicItem}>Sin información registrada.</Text>}
         </View>
 
         {/* Contacto de Auxilio Inmediato */}
         <View style={styles.contactBox}>
           <Text style={styles.contactBoxHeader}>CONTACTO DE AUXILIO INMEDIATO</Text>
           <Text style={styles.contactName}>
-            {emergencyProfile.emergencyContact.name}
+            {emergencyProfile.emergencyContact.name || 'Configure un contacto en Ajustes y Perfil'}
           </Text>
           <Text style={styles.contactRelation}>
             {emergencyProfile.emergencyContact.relationship}
@@ -85,13 +86,15 @@ export const EmergencyProfileCard: React.FC<Props> = ({
               )
             }
             activeOpacity={0.85}
+            disabled={!emergencyProfile.emergencyContact.phone}
+            accessibilityState={{ disabled: !emergencyProfile.emergencyContact.phone }}
             accessibilityRole="button"
             accessibilityLabel={`Llamar de emergencia a ${emergencyProfile.emergencyContact.name} al ${emergencyProfile.emergencyContact.phone}`}
             accessibilityHint="Marca el teléfono del contacto de auxilio inmediato"
           >
             <MaterialCommunityIcons name="phone" size={20} color="#FFFFFF" />
             <Text style={styles.btnCallText}>
-              Llamar a {emergencyProfile.emergencyContact.phone}
+              {emergencyProfile.emergencyContact.phone ? `Llamar a ${emergencyProfile.emergencyContact.phone}` : 'Falta registrar un teléfono'}
             </Text>
           </TouchableOpacity>
         </View>

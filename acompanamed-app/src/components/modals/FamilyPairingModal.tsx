@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -55,6 +55,16 @@ export const FamilyPairingModal: React.FC<Props> = ({
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
+  useEffect(() => {
+    if (!visible) return;
+    setPatientName(emergencyProfile.patientFullName);
+    setAge(emergencyProfile.age ? String(emergencyProfile.age) : '');
+    setBloodType(emergencyProfile.bloodType);
+    setAllergiesText(emergencyProfile.allergies.join(', '));
+    setCaregiverName(emergencyProfile.emergencyContact.name);
+    setCaregiverPhone(emergencyProfile.emergencyContact.phone);
+  }, [visible, emergencyProfile]);
+
   // Generación de código único de familia basado en las iniciales y edad del paciente
   const generatedCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
   const effectiveFamilyCode = propFamilyCode || generatedCode;
@@ -63,16 +73,16 @@ export const FamilyPairingModal: React.FC<Props> = ({
     const updated: EmergencyProfile = {
       ...emergencyProfile,
       patientFullName: patientName.trim() || 'Paciente',
-      age: parseInt(age, 10) || 80,
-      bloodType: bloodType.trim() || 'O+',
+      age: /^\d+$/.test(age.trim()) ? Number(age) : 0,
+      bloodType: bloodType.trim(),
       allergies: allergiesText
         .split(',')
         .map((a) => a.trim())
         .filter(Boolean),
       emergencyContact: {
         ...emergencyProfile.emergencyContact,
-        name: caregiverName.trim() || 'Cuidador Principal',
-        phone: caregiverPhone.trim() || '+51 900 000 000',
+        name: caregiverName.trim(),
+        phone: caregiverPhone.trim(),
       },
     };
 
@@ -105,9 +115,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
         setEnteredPairingCode('');
       }
     } else {
-      setPairingSuccessMsg(`¡Dispositivo enlazado con éxito al paciente con código [${code}]!`);
-      Alert.alert('Vínculo Exitoso', `Dispositivo conectado telemétricamente al paciente con código: ${code}`);
-      setEnteredPairingCode('');
+      Alert.alert('Enlace no disponible', 'No se pudo iniciar el enlace en este dispositivo.');
     }
   };
 
@@ -191,8 +199,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
               </View>
 
               <Text style={styles.sectionDesc}>
-                ¿Cómo se conecta el teléfono del adulto mayor con el del cuidador en el mundo real?
-                El paciente genera un <Text style={{ fontWeight: '700' }}>Código de Familia</Text>. La hija descarga AcompañaMed en su celular, ingresa el código y ambos dispositivos se sincronizan en la nube.
+                La app guarda sus datos en este teléfono. Al activar un enlace se comparten medicamentos, historial y ficha médica con el servicio de sincronización y los dispositivos que tengan el código. Compártalo solo con personas de confianza. Vuelva a conectar al abrir la app para reanudar la sincronización.
               </Text>
 
               {/* Tarjeta del Código de Don Manuel */}
@@ -206,7 +213,23 @@ export const FamilyPairingModal: React.FC<Props> = ({
                 ) : null}
                 <TouchableOpacity style={styles.btnCopyCode} onPress={handleCopyCode} activeOpacity={0.85}>
                   <MaterialCommunityIcons name="content-copy" size={16} color="#FFFFFF" />
-                  <Text style={styles.btnCopyCodeText}>Copiar Código para la Hija / Cuidador</Text>
+                  <Text style={styles.btnCopyCodeText}>Copiar código familiar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnCopyCode}
+                  disabled={isConnecting || isSyncing}
+                  accessibilityRole="button"
+                  onPress={async () => {
+                    if (!onConnectFamilyCode) return;
+                    setIsConnecting(true);
+                    try {
+                      const result = await onConnectFamilyCode(effectiveFamilyCode);
+                      setPairingSuccessMsg(result.message);
+                      Alert.alert(result.success ? 'Enlace activado' : 'No se pudo activar', result.message);
+                    } finally { setIsConnecting(false); }
+                  }}
+                >
+                  <Text style={styles.btnCopyCodeText}>{isConnecting ? 'Conectando…' : 'Activar enlace de este botiquín'}</Text>
                 </TouchableOpacity>
               </View>
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { EscalationResult, AdherenceSummary, ClinicalSummaryReport } from '../../domain';
+import { EscalationResult, AdherenceSummary, ClinicalSummaryReport, EmergencyContact } from '../../domain';
 
 interface Props {
   escalation: EscalationResult;
@@ -12,6 +12,7 @@ interface Props {
   onCallCaregiver?: () => void;
   onOpenFamilyPairing?: () => void;
   onTestNotification?: () => void;
+  contact?: EmergencyContact;
 }
 
 export const CaregiverDashboard: React.FC<Props> = ({
@@ -23,6 +24,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
   onCallCaregiver,
   onOpenFamilyPairing,
   onTestNotification,
+  contact,
 }) => {
   return (
     <ScrollView
@@ -54,7 +56,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
 
         <View style={styles.escalationMetricBar}>
           <Text style={styles.metricBarText}>Tolerancia máxima de gracia: 30 minutos</Text>
-          <Text style={styles.metricBarText}>Monitoreo continuo activo</Text>
+          <Text style={styles.metricBarText}>Estado del plan de hoy</Text>
         </View>
       </View>
 
@@ -70,9 +72,9 @@ export const CaregiverDashboard: React.FC<Props> = ({
             <MaterialCommunityIcons name="account-heart" size={24} color="#0284C7" />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.caregiverNameText}>María Alhua (Hija / Cuidadora Principal)</Text>
-            <Text style={styles.caregiverPhoneText}>WhatsApp / Teléfono: +51 954 123 456</Text>
-            <Text style={styles.syncStatusText}>Estado: Sincronización telemétrica activa</Text>
+            <Text style={styles.caregiverNameText}>{contact?.name || 'Configure su contacto de apoyo'}</Text>
+            <Text style={styles.caregiverPhoneText}>{contact?.phone || 'Agregue un teléfono en Ajustes y Perfil'}</Text>
+            <Text style={styles.syncStatusText}>WhatsApp y llamadas se abren cuando usted lo solicita.</Text>
           </View>
         </View>
 
@@ -80,7 +82,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
           <View style={styles.protocolStepRow}>
             <View style={styles.stepBullet}><Text style={styles.stepBulletText}>1</Text></View>
             <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700' }}>Minuto 0:</Text> Alarma sonora + Lectura por voz en el velador de Don Manuel.
+              <Text style={{ fontWeight: '700' }}>Hora prevista:</Text> Recordatorio local si las notificaciones están habilitadas.
             </Text>
           </View>
           <View style={styles.protocolStepRow}>
@@ -94,7 +96,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
               <Text style={styles.stepBulletText}>3</Text>
             </View>
             <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> Notificación push y enlace directo a WhatsApp/Llamada para el cuidador.
+              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> La app muestra el atraso. Puede abrir WhatsApp o llamar; no se envían mensajes automáticos.
             </Text>
           </View>
         </View>
@@ -103,6 +105,8 @@ export const CaregiverDashboard: React.FC<Props> = ({
           <TouchableOpacity
             style={[styles.btnSimulateAlert, { flex: 1.3, marginTop: 0 }]}
             onPress={onSimulateEscalationAlert}
+            disabled={!contact?.phone || !escalation.shouldEscalate}
+            accessibilityState={{ disabled: !contact?.phone || !escalation.shouldEscalate }}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Abrir WhatsApp para alertar al cuidador"
@@ -117,6 +121,8 @@ export const CaregiverDashboard: React.FC<Props> = ({
             <TouchableOpacity
               style={styles.btnCallCaregiver}
               onPress={onCallCaregiver}
+              disabled={!contact?.phone}
+              accessibilityState={{ disabled: !contact?.phone }}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel="Llamar al cuidador por teléfono"

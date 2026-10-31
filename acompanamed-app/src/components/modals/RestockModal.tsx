@@ -56,7 +56,7 @@ export const RestockModal: React.FC<Props> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.modalBackdropScrim}>
         <View style={styles.modalCardBox}>
           {/* Cabecera */}
