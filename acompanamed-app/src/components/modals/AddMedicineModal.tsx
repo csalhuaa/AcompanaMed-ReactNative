@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillShape, Medicine } from '../../domain';
@@ -63,12 +62,7 @@ export const AddMedicineModal: React.FC<Props> = ({
   const [color, setColor] = useState(COLOR_PALETTE[0]);
   const [stock, setStock] = useState('30');
   const [minAlert, setMinAlert] = useState('6');
-  const [photoUri, setPhotoUri] = useState('');
-  const [imprint, setImprint] = useState('');
-  const [canSplit, setCanSplit] = useState(true);
   const [errors, setErrors] = useState<MedicineFormErrors>({});
-  const { width } = useWindowDimensions();
-  const stackFields = width < 400;
 
   const isEditing = !!initialMedicine;
 
@@ -78,7 +72,7 @@ export const AddMedicineModal: React.FC<Props> = ({
       if (initialMedicine) {
         setName(initialMedicine.name);
         setDose(initialMedicine.doseDescription);
-        setScheduleTime(initialScheduleTime);
+        setScheduleTime(initialScheduleTime || '08:00');
         setInstructions(initialMedicine.instructions);
         setShape(initialMedicine.visualPill.shape);
         const foundColor = COLOR_PALETTE.find((c) => c.hex === initialMedicine.visualPill.colorHex) || {
@@ -88,9 +82,6 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(foundColor);
         setStock(String(initialMedicine.stock));
         setMinAlert(String(initialMedicine.minStockAlert));
-        setPhotoUri(initialMedicine.visualPill.photoUri || '');
-        setImprint(initialMedicine.visualPill.imprint || '');
-        setCanSplit(initialMedicine.visualPill.canSplit ?? true);
       } else {
         setName('');
         setDose('');
@@ -100,9 +91,6 @@ export const AddMedicineModal: React.FC<Props> = ({
         setColor(COLOR_PALETTE[0]);
         setStock('30');
         setMinAlert('6');
-        setPhotoUri('');
-        setImprint('');
-        setCanSplit(true);
       }
     }
   }, [visible, initialMedicine, initialScheduleTime]);
@@ -120,23 +108,28 @@ export const AddMedicineModal: React.FC<Props> = ({
     setColor(foundColor);
     setStock(String(preset.stock));
     setMinAlert(String(preset.minStockAlert));
-    setPhotoUri(preset.visualPill.photoUri || '');
-    setImprint(preset.visualPill.imprint || '');
-    setCanSplit(preset.visualPill.canSplit ?? true);
   };
 
-  const adjustScheduleTime = (hourDelta: number, minuteDelta: number) => {
-    const [hStr, mStr] = (scheduleTime || '08:00').split(':');
-    let h = parseInt(hStr, 10);
-    let m = parseInt(mStr, 10);
+  // Desglose de hora y minutos
+  const [hStr, mStr] = (scheduleTime || '08:00').split(':');
+  const currentHour = (hStr || '08').padStart(2, '0');
+  const currentMinute = (mStr || '00').padStart(2, '0');
+
+  const adjustHour = (delta: number) => {
+    let h = parseInt(currentHour, 10);
     if (isNaN(h)) h = 8;
+    h = (h + delta + 24) % 24;
+    setScheduleTime(`${h.toString().padStart(2, '0')}:${currentMinute}`);
+    if (errors.scheduleTime) {
+      setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+    }
+  };
+
+  const adjustMinute = (delta: number) => {
+    let m = parseInt(currentMinute, 10);
     if (isNaN(m)) m = 0;
-
-    h = (h + hourDelta + 24) % 24;
-    m = (m + minuteDelta + 60) % 60;
-
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    setScheduleTime(`${pad(h)}:${pad(m)}`);
+    m = (m + delta + 60) % 60;
+    setScheduleTime(`${currentHour}:${m.toString().padStart(2, '0')}`);
     if (errors.scheduleTime) {
       setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
     }
@@ -156,17 +149,20 @@ export const AddMedicineModal: React.FC<Props> = ({
       instructions: instructions.trim() || 'Tomar según prescripción médica con agua.',
       shape,
       color,
-      photoUri: photoUri.trim() || undefined,
-      imprint: imprint.trim() || undefined,
-      canSplit,
+      photoUri: initialMedicine?.visualPill.photoUri,
+      imprint: initialMedicine?.visualPill.imprint,
+      canSplit: initialMedicine?.visualPill.canSplit ?? true,
     });
 
     onClose();
   };
 
-  const fieldError = (field: keyof MedicineFormErrors) => errors[field] ? (
-    <Text style={styles.fieldError} accessibilityLiveRegion="polite">{errors[field]}</Text>
-  ) : null;
+  const fieldError = (field: keyof MedicineFormErrors) =>
+    errors[field] ? (
+      <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+        {errors[field]}
+      </Text>
+    ) : null;
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
@@ -208,9 +204,10 @@ export const AddMedicineModal: React.FC<Props> = ({
                 Revise los campos indicados. El medicamento todavía no se guardó.
               </Text>
             ) : null}
+
             {!isEditing && (
               <View style={styles.presetsBox}>
-                <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes:</Text>
+                <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes (1 toque):</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsScroll}>
                   {CLINICAL_MEDICINE_PRESETS.map((p) => (
                     <TouchableOpacity
@@ -229,234 +226,296 @@ export const AddMedicineModal: React.FC<Props> = ({
               </View>
             )}
 
-            <Text style={styles.formInputLabel}>Principio Activo (Nombre Comercial / Genérico)</Text>
-            <TextInput
-              style={[styles.formTextInput, errors.name && styles.invalidInput]}
-              placeholder="Ej. Enalapril, Glibenclamida, Losartán"
-              placeholderTextColor="#94A3B8"
-              value={name}
-              onChangeText={setName}
-              accessibilityLabel="Nombre del principio activo"
-            />
-            {fieldError('name')}
+            {/* SECCIÓN 1: DATOS CLÍNICOS DE LA RECETA */}
+            <View style={styles.sectionDivider}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={16} color="#0F172A" />
+              <Text style={styles.sectionDividerTitle}>Prescripción Médica</Text>
+            </View>
 
-            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.formInputLabel}>Dosis Prescrita</Text>
-                <TextInput
-                  style={[styles.formTextInput, errors.dose && styles.invalidInput]}
-                  placeholder="Ej. 10 mg, 500 mg"
-                  placeholderTextColor="#94A3B8"
-                  value={dose}
-                  onChangeText={setDose}
-                  accessibilityLabel="Dosis prescrita"
-                />
-                {fieldError('dose')}
-              </View>
-              <View style={{ flex: 1, marginLeft: stackFields ? 0 : 12 }}>
-                <Text style={styles.formInputLabel}>Horario Diario (HH:MM)</Text>
-                <View style={[styles.timePickerContainer, errors.scheduleTime && styles.invalidInput]}>
-                  <MaterialCommunityIcons name="clock-time-four-outline" size={18} color="#0284C7" />
-                  <TextInput
-                    style={styles.timePickerInput}
-                    placeholder="08:00"
-                    placeholderTextColor="#94A3B8"
-                    value={scheduleTime}
-                    onChangeText={(val) => {
-                      setScheduleTime(val);
-                      if (errors.scheduleTime) {
-                        setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
-                      }
-                    }}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    accessibilityLabel="Horario diario de la toma"
-                    {...(Platform.OS === 'web' ? ({ type: 'time' } as any) : {})}
-                  />
-                  <View style={styles.timeSteppersRow}>
-                    <TouchableOpacity
-                      style={styles.timeStepBtn}
-                      onPress={() => adjustScheduleTime(-1, 0)}
-                      accessibilityLabel="Restar 1 hora"
-                    >
-                      <Text style={styles.timeStepBtnText}>-1h</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.timeStepBtn}
-                      onPress={() => adjustScheduleTime(1, 0)}
-                      accessibilityLabel="Sumar 1 hora"
-                    >
-                      <Text style={styles.timeStepBtnText}>+1h</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.timeStepBtn}
-                      onPress={() => adjustScheduleTime(0, 15)}
-                      accessibilityLabel="Sumar 15 minutos"
-                    >
-                      <Text style={styles.timeStepBtnText}>+15m</Text>
-                    </TouchableOpacity>
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Principio Activo (Nombre Comercial o Genérico)</Text>
+              <TextInput
+                style={[styles.formTextInput, errors.name && styles.invalidInput]}
+                placeholder="Ej. Losartán, Metformina, Atorvastatina"
+                placeholderTextColor="#94A3B8"
+                value={name}
+                onChangeText={(val) => {
+                  setName(val);
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                }}
+                accessibilityLabel="Nombre del principio activo"
+              />
+              {fieldError('name')}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Dosis Prescrita por el Médico</Text>
+              <TextInput
+                style={[styles.formTextInput, errors.dose && styles.invalidInput]}
+                placeholder="Ej. 50 mg cada 24 horas, 1 tableta"
+                placeholderTextColor="#94A3B8"
+                value={dose}
+                onChangeText={(val) => {
+                  setDose(val);
+                  if (errors.dose) setErrors((prev) => ({ ...prev, dose: undefined }));
+                }}
+                accessibilityLabel="Dosis prescrita"
+              />
+              {fieldError('dose')}
+            </View>
+
+            {/* SELECTOR ERGONÓMICO DE HORARIO */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Horario de la Toma Diaria</Text>
+              
+              <View style={[styles.timeSelectorCard, errors.scheduleTime && styles.invalidTimeCard]}>
+                <View style={styles.timeInputsRow}>
+                  {/* Selector de Hora */}
+                  <View style={styles.timeUnitCol}>
+                    <Text style={styles.timeUnitLabel}>Hora</Text>
+                    <View style={styles.timeNumberBox}>
+                      <TouchableOpacity
+                        style={styles.timeArrowBtn}
+                        onPress={() => adjustHour(-1)}
+                        accessibilityLabel="Restar 1 hora"
+                      >
+                        <MaterialCommunityIcons name="minus" size={18} color="#0F172A" />
+                      </TouchableOpacity>
+                      <Text style={styles.timeBigDigit}>{currentHour}</Text>
+                      <TouchableOpacity
+                        style={styles.timeArrowBtn}
+                        onPress={() => adjustHour(1)}
+                        accessibilityLabel="Sumar 1 hora"
+                      >
+                        <MaterialCommunityIcons name="plus" size={18} color="#0F172A" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <Text style={styles.timeColonSeparator}>:</Text>
+
+                  {/* Selector de Minutos */}
+                  <View style={styles.timeUnitCol}>
+                    <Text style={styles.timeUnitLabel}>Minuto</Text>
+                    <View style={styles.timeNumberBox}>
+                      <TouchableOpacity
+                        style={styles.timeArrowBtn}
+                        onPress={() => adjustMinute(-5)}
+                        accessibilityLabel="Restar 5 minutos"
+                      >
+                        <MaterialCommunityIcons name="minus" size={18} color="#0F172A" />
+                      </TouchableOpacity>
+                      <Text style={styles.timeBigDigit}>{currentMinute}</Text>
+                      <TouchableOpacity
+                        style={styles.timeArrowBtn}
+                        onPress={() => adjustMinute(5)}
+                        accessibilityLabel="Sumar 5 minutos"
+                      >
+                        <MaterialCommunityIcons name="plus" size={18} color="#0F172A" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* En Web: Selector Nativo del Navegador */}
+                  {Platform.OS === 'web' && (
+                    <View style={styles.webTimePickerWrapper}>
+                      <Text style={styles.timeUnitLabel}>Reloj Nativo</Text>
+                      {/* @ts-ignore */}
+                      <input
+                        type="time"
+                        value={scheduleTime}
+                        onChange={(e: any) => {
+                          if (e.target.value) {
+                            setScheduleTime(e.target.value);
+                            if (errors.scheduleTime) {
+                              setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+                            }
+                          }
+                        }}
+                        style={{
+                          height: 42,
+                          fontSize: 15,
+                          fontWeight: '700',
+                          color: '#0F172A',
+                          backgroundColor: '#FFFFFF',
+                          border: '1.5px solid #0284C7',
+                          borderRadius: 6,
+                          padding: '0 8px',
+                          cursor: 'pointer',
+                          outline: 'none',
+                        }}
+                      />
+                    </View>
+                  )}
+                </View>
+
+                {/* Chips de Selección Rápida en 1 Toque */}
+                <View style={styles.quickTimeChipsContainer}>
+                  <Text style={styles.quickTimeChipsTitle}>Pautas habituales (1 toque):</Text>
+                  <View style={styles.quickTimeChipsWrap}>
+                    {[
+                      { time: '08:00', label: '08:00 Desayuno' },
+                      { time: '13:00', label: '13:00 Almuerzo' },
+                      { time: '18:00', label: '18:00 Tarde' },
+                      { time: '20:00', label: '20:00 Noche' },
+                      { time: '22:00', label: '22:00 Dormir' },
+                    ].map((preset) => {
+                      const isSelected = scheduleTime === preset.time;
+                      return (
+                        <TouchableOpacity
+                          key={preset.time}
+                          style={[styles.quickPresetChip, isSelected && styles.quickPresetChipActive]}
+                          onPress={() => {
+                            setScheduleTime(preset.time);
+                            if (errors.scheduleTime) {
+                              setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <MaterialCommunityIcons
+                            name={isSelected ? 'check-circle' : 'clock-outline'}
+                            size={12}
+                            color={isSelected ? '#FFFFFF' : '#0284C7'}
+                          />
+                          <Text style={[styles.quickPresetChipText, isSelected && styles.quickPresetChipTextActive]}>
+                            {preset.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
-                {fieldError('scheduleTime')}
+              </View>
+              {fieldError('scheduleTime')}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Instrucciones de Ingestión</Text>
+              <TextInput
+                style={[styles.formTextInput, { minHeight: 64 }]}
+                placeholder="Ej. Tomar después del desayuno con medio vaso de agua."
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={instructions}
+                onChangeText={setInstructions}
+                accessibilityLabel="Instrucciones médicas de ingestión"
+              />
+            </View>
+
+            {/* SECCIÓN 2: RECONOCIMIENTO VISUAL (FORMA Y COLOR) */}
+            <View style={styles.sectionDivider}>
+              <MaterialCommunityIcons name="eye-outline" size={16} color="#0F172A" />
+              <Text style={styles.sectionDividerTitle}>Reconocimiento Visual de la Pastilla</Text>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Forma Anatómica</Text>
+              <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
+                {(
+                  [
+                    { id: 'round', label: 'Redonda', icon: 'checkbox-blank-circle' },
+                    { id: 'capsule', label: 'Cápsula', icon: 'pill' },
+                    { id: 'oval', label: 'Ovalada', icon: 'circle-double' },
+                    { id: 'scored', label: 'Ranurada', icon: 'plus-circle-outline' },
+                    { id: 'diamond', label: 'Romboide', icon: 'rhombus-outline' },
+                    { id: 'drop', label: 'Gotas', icon: 'water' },
+                  ] as const
+                ).map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.shapeOptionBtn,
+                      shape === item.id && styles.shapeOptionBtnActive,
+                    ]}
+                    onPress={() => setShape(item.id)}
+                    activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: shape === item.id }}
+                    accessibilityLabel={`Presentación: ${item.label}`}
+                  >
+                    <MaterialCommunityIcons
+                      name={item.icon as any}
+                      size={18}
+                      color={shape === item.id ? '#0F172A' : '#475569'}
+                    />
+                    <Text
+                      style={[
+                        styles.shapeOptionText,
+                        shape === item.id && styles.shapeOptionTextActive,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
 
-            {/* Selector Rápido de Horarios Clínicos Habituales */}
-            <View style={styles.quickTimeBox}>
-              <Text style={styles.quickTimeLabel}>Horarios habituales (toque para elegir):</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickTimeScroll}>
-                {[
-                  { time: '08:00', label: '08:00 Desayuno' },
-                  { time: '13:00', label: '13:00 Almuerzo' },
-                  { time: '18:00', label: '18:00 Tarde' },
-                  { time: '20:00', label: '20:00 Noche' },
-                  { time: '22:00', label: '22:00 Dormir' },
-                ].map((item) => {
-                  const isSelected = scheduleTime === item.time;
-                  return (
-                    <TouchableOpacity
-                      key={item.time}
-                      style={[styles.quickTimeChip, isSelected && styles.quickTimeChipActive]}
-                      onPress={() => {
-                        setScheduleTime(item.time);
-                        if (errors.scheduleTime) {
-                          setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
-                        }
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialCommunityIcons
-                        name={isSelected ? 'check-circle' : 'clock-outline'}
-                        size={12}
-                        color={isSelected ? '#FFFFFF' : '#0284C7'}
-                      />
-                      <Text style={[styles.quickTimeChipText, isSelected && styles.quickTimeChipTextActive]}>
-                        {item.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            <Text style={styles.formInputLabel}>Instrucciones de Ingestión</Text>
-            <TextInput
-              style={[styles.formTextInput, { minHeight: 60 }]}
-              placeholder="Ej. Tomar después del desayuno con medio vaso de agua."
-              placeholderTextColor="#94A3B8"
-              multiline
-              value={instructions}
-              onChangeText={setInstructions}
-              accessibilityLabel="Instrucciones médicas de ingestión"
-            />
-
-            <Text style={styles.formInputLabel}>Forma Anatómica y Presentación Farmacológica</Text>
-            <View style={styles.shapeSelectorRow} accessibilityRole="radiogroup">
-              {(
-                [
-                  { id: 'round', label: 'Redonda', icon: 'checkbox-blank-circle' },
-                  { id: 'capsule', label: 'Cápsula', icon: 'pill' },
-                  { id: 'oval', label: 'Ovalada', icon: 'circle-double' },
-                  { id: 'scored', label: 'Ranurada', icon: 'plus-circle-outline' },
-                  { id: 'diamond', label: 'Romboide', icon: 'rhombus-outline' },
-                  { id: 'drop', label: 'Gotas', icon: 'water' },
-                ] as const
-              ).map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[
-                    styles.shapeOptionBtn,
-                    shape === item.id && styles.shapeOptionBtnActive,
-                  ]}
-                  onPress={() => setShape(item.id)}
-                  activeOpacity={0.8}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: shape === item.id }}
-                  accessibilityLabel={`Presentación: ${item.label}`}
-                >
-                  <MaterialCommunityIcons
-                    name={item.icon as any}
-                    size={18}
-                    color={shape === item.id ? '#0F172A' : '#475569'}
-                  />
-                  <Text
+            <View style={styles.formGroup}>
+              <Text style={styles.formInputLabel}>Color Distintivo</Text>
+              <View style={styles.colorPaletteGrid} accessibilityRole="radiogroup">
+                {COLOR_PALETTE.map((c) => (
+                  <TouchableOpacity
+                    key={c.hex}
                     style={[
-                      styles.shapeOptionText,
-                      shape === item.id && styles.shapeOptionTextActive,
+                      styles.colorCircleSwatch,
+                      { backgroundColor: c.hex },
+                      color.hex === c.hex && styles.colorCircleSwatchActive,
                     ]}
+                    onPress={() => setColor(c)}
+                    activeOpacity={0.8}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: color.hex === c.hex }}
+                    accessibilityLabel={`Color distintivo: ${c.name}`}
                   >
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    {color.hex === c.hex && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={18}
+                        color={c.hex === '#E2E8F0' ? '#0F172A' : '#FFFFFF'}
+                      />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            <Text style={styles.formInputLabel}>Color Distintivo de la Presentación</Text>
-            <View style={styles.colorPaletteGrid} accessibilityRole="radiogroup">
-              {COLOR_PALETTE.map((c) => (
-                <TouchableOpacity
-                  key={c.hex}
-                  style={[
-                    styles.colorCircleSwatch,
-                    { backgroundColor: c.hex },
-                    color.hex === c.hex && styles.colorCircleSwatchActive,
-                  ]}
-                  onPress={() => setColor(c)}
-                  activeOpacity={0.8}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: color.hex === c.hex }}
-                  accessibilityLabel={`Color distintivo: ${c.name}`}
-                />
-              ))}
+            {/* SECCIÓN 3: CONTROL DE BOTIQUÍN E INVENTARIO */}
+            <View style={styles.sectionDivider}>
+              <MaterialCommunityIcons name="medical-bag" size={16} color="#0F172A" />
+              <Text style={styles.sectionDividerTitle}>Control de Botiquín y Existencias</Text>
             </View>
 
-            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
+            <View style={styles.inventoryRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.formInputLabel}>Stock Inicial en Botiquín</Text>
+                <Text style={styles.formInputLabel}>Stock Inicial (unid.)</Text>
                 <TextInput
                   style={[styles.formTextInput, errors.stock && styles.invalidInput]}
                   keyboardType="numeric"
                   value={stock}
-                  onChangeText={setStock}
+                  onChangeText={(val) => {
+                    setStock(val);
+                    if (errors.stock) setErrors((prev) => ({ ...prev, stock: undefined }));
+                  }}
                   accessibilityLabel="Cantidad inicial en inventario"
                 />
                 {fieldError('stock')}
               </View>
-              <View style={{ flex: 1, marginLeft: stackFields ? 0 : 12 }}>
-                <Text style={styles.formInputLabel}>Alerta de Stock Crítico</Text>
+
+              <View style={{ flex: 1 }}>
+                <Text style={styles.formInputLabel}>Alerta Crítica (unid.)</Text>
                 <TextInput
                   style={[styles.formTextInput, errors.minAlert && styles.invalidInput]}
                   keyboardType="numeric"
                   value={minAlert}
-                  onChangeText={setMinAlert}
+                  onChangeText={(val) => {
+                    setMinAlert(val);
+                    if (errors.minAlert) setErrors((prev) => ({ ...prev, minAlert: undefined }));
+                  }}
                   accessibilityLabel="Umbral de alerta de reposición"
                 />
                 {fieldError('minAlert')}
-              </View>
-            </View>
-
-            <View style={[styles.twoColumnInputs, stackFields && styles.stackedInputs]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.formInputLabel}>Grabado en Pastilla (Imprint)</Text>
-                <TextInput
-                  style={styles.formTextInput}
-                  placeholder="Ej. 50, 850, OM-20"
-                  placeholderTextColor="#94A3B8"
-                  value={imprint}
-                  onChangeText={setImprint}
-                  accessibilityLabel="Código o grabado en la pastilla"
-                />
-              </View>
-              <View style={{ flex: 1.5 }}>
-                <Text style={styles.formInputLabel}>Foto del Blíster (URL)</Text>
-                <TextInput
-                  style={styles.formTextInput}
-                  placeholder="https://..."
-                  placeholderTextColor="#94A3B8"
-                  value={photoUri}
-                  onChangeText={setPhotoUri}
-                  accessibilityLabel="URL de fotografía del empaque"
-                />
               </View>
             </View>
 
@@ -491,7 +550,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     width: '100%',
-    maxWidth: 520, // NUNCA se estira en pantallas anchas
+    maxWidth: 520,
     maxHeight: '90%',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -508,6 +567,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   modalSheetTitle: {
     flexShrink: 1,
@@ -517,14 +577,32 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 6,
-    minHeight: 48,
-    minWidth: 48,
+    minHeight: 40,
+    minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalFormContent: {
     padding: 20,
-    gap: 12,
+    gap: 14,
+  },
+  formGroup: {
+    gap: 6,
+  },
+  sectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 2,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  sectionDividerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
   },
   formInputLabel: {
     fontSize: 12,
@@ -534,92 +612,109 @@ const styles = StyleSheet.create({
   formTextInput: {
     backgroundColor: '#FFFFFF',
     borderRadius: 6,
-    padding: 12,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
     color: '#0F172A',
     borderWidth: 1.5,
     borderColor: '#CBD5E1',
-  },
-  twoColumnInputs: {
-    flexDirection: 'row',
-  },
-  stackedInputs: {
-    flexDirection: 'column',
-    gap: 12,
+    minHeight: 44,
   },
   invalidInput: {
     borderColor: '#B91C1C',
   },
   fieldError: {
-    fontSize: 14,
+    fontSize: 12.5,
     color: '#991B1B',
-    marginTop: 6,
+    marginTop: 2,
   },
   validationSummary: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#991B1B',
     backgroundColor: '#FEF2F2',
-    padding: 12,
+    padding: 10,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
-  timePickerContainer: {
+  /* SELECTOR ERGONÓMICO DE TIEMPO */
+  timeSelectorCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    padding: 12,
+    gap: 10,
+  },
+  invalidTimeCard: {
+    borderColor: '#B91C1C',
+  },
+  timeInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  timeUnitCol: {
+    alignItems: 'center',
+  },
+  timeUnitLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  timeNumberBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 8,
-    minHeight: 48,
+    borderColor: '#94A3B8',
+    borderRadius: 6,
+    paddingHorizontal: 4,
   },
-  timePickerInput: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
+  timeBigDigit: {
+    fontSize: 20,
+    fontWeight: '900',
     color: '#0F172A',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    fontVariant: ['tabular-nums'],
+    paddingHorizontal: 10,
   },
-  timeSteppersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timeStepBtn: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    minHeight: 28,
+  timeArrowBtn: {
+    width: 32,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 4,
   },
-  timeStepBtnText: {
-    fontSize: 10.5,
+  timeColonSeparator: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginTop: 14,
+  },
+  webTimePickerWrapper: {
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  quickTimeChipsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
+    gap: 6,
+  },
+  quickTimeChipsTitle: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#334155',
+    color: '#64748B',
   },
-  quickTimeBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 10,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  quickTimeLabel: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 6,
-  },
-  quickTimeScroll: {
+  quickTimeChipsWrap: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  quickTimeChip: {
+  quickPresetChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -627,23 +722,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
     paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    marginRight: 6,
-    minHeight: 32,
+    paddingHorizontal: 8,
+    borderRadius: 14,
   },
-  quickTimeChipActive: {
+  quickPresetChipActive: {
     backgroundColor: '#0284C7',
     borderColor: '#0284C7',
   },
-  quickTimeChipText: {
-    fontSize: 11.5,
+  quickPresetChipText: {
+    fontSize: 11,
     fontWeight: '700',
     color: '#334155',
   },
-  quickTimeChipTextActive: {
+  quickPresetChipTextActive: {
     color: '#FFFFFF',
   },
+  /* FORMAS Y COLORES */
   shapeSelectorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -651,7 +745,6 @@ const styles = StyleSheet.create({
   },
   shapeOptionBtn: {
     width: '31%',
-    minWidth: 92,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -661,7 +754,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
     gap: 6,
-    minHeight: 48,
+    minHeight: 44,
   },
   shapeOptionBtnActive: {
     borderColor: '#0F172A',
@@ -678,20 +771,28 @@ const styles = StyleSheet.create({
   },
   colorPaletteGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
+    paddingVertical: 4,
   },
   colorCircleSwatch: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   colorCircleSwatchActive: {
     borderColor: '#0F172A',
-    borderWidth: 3,
+    transform: [{ scale: 1.15 }],
   },
+  /* INVENTARIO */
+  inventoryRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  /* PRESETS COMUNES */
   presetsBox: {
     backgroundColor: '#F0F9FF',
     borderRadius: 8,
@@ -700,7 +801,7 @@ const styles = StyleSheet.create({
     borderColor: '#BAE6FD',
   },
   presetsTitle: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#0369A1',
     marginBottom: 6,
@@ -709,7 +810,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   presetChip: {
-    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -726,20 +826,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0369A1',
   },
+  /* BOTÓN GUARDAR */
   modalSubmitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0F172A',
     paddingVertical: 14,
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: 8,
     gap: 8,
     marginTop: 8,
   },
   modalSubmitButtonText: {
-    flexShrink: 1,
-    textAlign: 'center',
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
