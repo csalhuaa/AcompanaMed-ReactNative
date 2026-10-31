@@ -110,6 +110,15 @@ export const FamilySyncSection: React.FC<Props> = ({
             <Image source={{ uri: qrDataUrl }} style={styles.qrImage} resizeMode="contain" />
           ) : null}
 
+          {effectiveFamilyCode ? (
+            <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 4 }}>
+              <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '700' }}>CÓDIGO DE ENLACE:</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#0284C7', letterSpacing: 1 }}>
+                {effectiveFamilyCode}
+              </Text>
+            </View>
+          ) : null}
+
           <Text style={styles.qrHintText}>
             Apunte con la cámara del celular hacia este código QR para abrir y conectar AcompañaMed de forma directa.
           </Text>

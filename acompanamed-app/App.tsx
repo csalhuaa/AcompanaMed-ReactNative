@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
   AppState,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -27,6 +28,8 @@ import {
 import {
   defaultStorageService,
   defaultNotificationService,
+  defaultCloudSyncService,
+  FamilySyncPayload,
   CommunicationService,
 } from './src/infrastructure';
 import {
@@ -326,13 +329,47 @@ function MainApp() {
           defaultStorageService.saveFamilyCode(newCode),
         ]);
 
+        // Publicar inmediatamente a Firebase para que el código esté activo desde el segundo 0
+        const nowIso = new Date().toISOString();
+        const payload: FamilySyncPayload = {
+          familyCode: newCode,
+          updatedAt: nowIso,
+          updatedBy: data.role,
+          patientName: profile.patientFullName,
+          medicines: nextMeds,
+          schedules: nextTimes,
+          logs: nextLogs,
+          emergencyProfile: profile,
+        };
+        await defaultCloudSyncService.pushFamilyState(payload);
+
+        if (deviceId) {
+          const devName =
+            data.role === 'patient'
+              ? `Teléfono de ${profile.patientFullName || 'Don Manuel'} (Paciente)`
+              : `Celular de Cuidador`;
+          await defaultCloudSyncService.registerDevice(newCode, {
+            deviceId,
+            role: data.role,
+            deviceName: devName,
+            platform:
+              Platform.OS === 'web'
+                ? 'Navegador Web'
+                : Platform.OS === 'android'
+                ? 'Android'
+                : 'iOS',
+            connectedAt: nowIso,
+            lastSeen: nowIso,
+          });
+        }
+
         setEmergencyProfile(profile);
         setMedicines(nextMeds);
         setScheduleTimes(nextTimes);
         setLogs(nextLogs);
         setExpandedMedId(nextMeds[0]?.id || '');
         setFamilyCode(newCode);
-        setIsFamilyConnected(false);
+        setIsFamilyConnected(true);
       }
 
       await defaultStorageService.saveActiveRole(data.role);

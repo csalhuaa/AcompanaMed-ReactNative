@@ -116,6 +116,13 @@ export const FamilyPairingModal: React.FC<Props> = ({
         }
       });
       loadDevices();
+
+      // Asegurar que el código que se está mostrando en el QR esté 100% activo en Firebase
+      if (onConnectFamilyCode) {
+        onConnectFamilyCode(effectiveFamilyCode).then(() => {
+          if (isMounted) loadDevices();
+        });
+      }
     }
     return () => {
       isMounted = false;

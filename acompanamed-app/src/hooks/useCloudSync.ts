@@ -110,6 +110,72 @@ export function useCloudSync({
     }
   };
 
+  // Asegurar que el código familiar esté publicado en Firebase inmediatamente
+  useEffect(() => {
+    if (!isLoaded || !familyCode || isOnboardingVisible) return;
+
+    let isCancelled = false;
+
+    const ensureCloudActive = async () => {
+      try {
+        const cloudData = await defaultCloudSyncService.fetchFamilyState(familyCode);
+        if (!cloudData && !isCancelled) {
+          // El código aún no está en Firebase: subir el estado local para activarlo de inmediato
+          const nowIso = new Date().toISOString();
+          const payload: FamilySyncPayload = {
+            familyCode,
+            updatedAt: nowIso,
+            updatedBy: activeRole,
+            patientName: emergencyProfile.patientFullName || 'Paciente',
+            medicines,
+            schedules: scheduleTimes,
+            logs,
+            emergencyProfile,
+          };
+          await defaultCloudSyncService.pushFamilyState(payload);
+          if (!isCancelled) {
+            setIsFamilyConnected(true);
+            setLastCloudSyncTime(
+              new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            );
+          }
+          if (deviceId) {
+            const devName =
+              activeRole === 'patient'
+                ? `Teléfono de ${emergencyProfile.patientFullName || 'Don Manuel'} (Paciente)`
+                : `Celular de ${emergencyProfile.emergencyContact?.name || 'Cuidador'} (Cuidador)`;
+            await defaultCloudSyncService.registerDevice(familyCode, {
+              deviceId,
+              role: activeRole,
+              deviceName: devName,
+              platform:
+                Platform.OS === 'web'
+                  ? 'Navegador Web'
+                  : Platform.OS === 'android'
+                  ? 'Android'
+                  : 'iOS',
+              connectedAt: nowIso,
+              lastSeen: nowIso,
+            });
+          }
+        } else if (cloudData && !isCancelled) {
+          setIsFamilyConnected(true);
+          setLastCloudSyncTime(
+            new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          );
+        }
+      } catch (e) {
+        console.warn('ensureCloudActive error:', e);
+      }
+    };
+
+    ensureCloudActive();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isLoaded, familyCode, isOnboardingVisible, deviceId]);
+
   // Sondeo en tiempo real cada 3.5 segundos entre dispositivos
   useEffect(() => {
     if (!isLoaded || !familyCode || !isFamilyConnected || isOnboardingVisible) return;
