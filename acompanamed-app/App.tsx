@@ -104,13 +104,6 @@ function MainApp() {
     };
   }, []);
 
-  // Salvaguarda: En modo paciente solo se permite navegar entre Hoy y Emergencia
-  useEffect(() => {
-    if (activeRole === 'patient' && (activeTab === 'caregiver' || activeTab === 'stock')) {
-      setActiveTab('today');
-    }
-  }, [activeRole, activeTab]);
-
   const handleRemoteRevocation = async () => {
     try {
       await defaultStorageService.clearAllData();
@@ -164,10 +157,15 @@ function MainApp() {
     onDeviceRevokedRemotely: handleRemoteRevocation,
   });
 
-  // Si el paciente tiene un cuidador vinculado, las pestañas de supervisión/botiquín quedan restringidas
+  // Restricciones de navegación según rol y supervisión:
+  // - Un paciente nunca accede al panel de telemetría de cuidador.
+  // - Un paciente con cuidador vinculado (supervisado) no accede al botiquín.
+  // - Un paciente autónomo (sin cuidador vinculado) tiene acceso pleno a su botiquín.
   useEffect(() => {
-    if (activeRole === 'patient' && hasCaregiverConnected && (activeTab === 'stock' || activeTab === 'caregiver')) {
-      setActiveTab('today');
+    if (activeRole === 'patient') {
+      if (activeTab === 'caregiver' || (activeTab === 'stock' && hasCaregiverConnected)) {
+        setActiveTab('today');
+      }
     }
   }, [activeRole, hasCaregiverConnected, activeTab]);
 

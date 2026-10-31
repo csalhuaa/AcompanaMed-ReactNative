@@ -25,6 +25,60 @@ export const COLOR_PALETTE = [
   { hex: '#7C3AED', name: 'Violeta Suave' },
 ];
 
+function useHorizontalScroll() {
+  const scrollRef = useRef<ScrollView>(null);
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftPos = useRef(0);
+  const isDragging = useRef(false);
+
+  const scrollBy = (offset: number) => {
+    if (!scrollRef.current) return;
+    const node: any = (scrollRef.current as any).getScrollableNode?.() || scrollRef.current;
+    if (node && typeof node.scrollBy === 'function') {
+      node.scrollBy({ left: offset, behavior: 'smooth' });
+    } else if (typeof (scrollRef.current as any).scrollTo === 'function') {
+      (scrollRef.current as any).scrollTo({ x: (node?.scrollLeft || 0) + offset, animated: true });
+    }
+  };
+
+  const webHandlers = Platform.OS === 'web' ? {
+    onWheel: (e: any) => {
+      if (e.deltaY !== 0) {
+        e.currentTarget.scrollLeft += e.deltaY;
+      }
+    },
+    onMouseDown: (e: any) => {
+      isDown.current = true;
+      isDragging.current = false;
+      startX.current = e.pageX - e.currentTarget.offsetLeft;
+      scrollLeftPos.current = e.currentTarget.scrollLeft;
+      e.currentTarget.style.cursor = 'grabbing';
+      e.currentTarget.style.userSelect = 'none';
+    },
+    onMouseLeave: (e: any) => {
+      isDown.current = false;
+      e.currentTarget.style.cursor = 'grab';
+    },
+    onMouseUp: (e: any) => {
+      isDown.current = false;
+      e.currentTarget.style.cursor = 'grab';
+    },
+    onMouseMove: (e: any) => {
+      if (!isDown.current) return;
+      e.preventDefault();
+      const x = e.pageX - e.currentTarget.offsetLeft;
+      const walk = (x - startX.current) * 1.5;
+      if (Math.abs(walk) > 5) {
+        isDragging.current = true;
+      }
+      e.currentTarget.scrollLeft = scrollLeftPos.current - walk;
+    },
+  } : {};
+
+  return { scrollRef, scrollBy, webHandlers, isDragging };
+}
+
 export interface NewMedicineData {
   id?: string;
   name: string;
@@ -67,6 +121,8 @@ export const AddMedicineModal: React.FC<Props> = ({
   const [errors, setErrors] = useState<MedicineFormErrors>({});
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const presetsScroll = useHorizontalScroll();
+  const pautasScroll = useHorizontalScroll();
   const isEditing = !!initialMedicine;
 
   useEffect(() => {
@@ -271,13 +327,45 @@ export const AddMedicineModal: React.FC<Props> = ({
 
             {!isEditing && (
               <View style={styles.presetsBox}>
-                <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes (1 toque):</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsScroll}>
+                <View style={styles.carouselHeaderRow}>
+                  <Text style={styles.presetsTitle}>Plantillas de medicamentos comunes (1 toque):</Text>
+                  <View style={styles.carouselNavRow}>
+                    <TouchableOpacity
+                      style={styles.btnCarouselNav}
+                      onPress={() => presetsScroll.scrollBy(-150)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Deslizar plantillas hacia la izquierda"
+                    >
+                      <MaterialCommunityIcons name="chevron-left" size={16} color="#0284C7" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.btnCarouselNav}
+                      onPress={() => presetsScroll.scrollBy(150)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Deslizar plantillas hacia la derecha"
+                    >
+                      <MaterialCommunityIcons name="chevron-right" size={16} color="#0284C7" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <ScrollView
+                  ref={presetsScroll.scrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.presetsScroll}
+                  {...(presetsScroll.webHandlers as any)}
+                >
                   {CLINICAL_MEDICINE_PRESETS.map((p) => (
                     <TouchableOpacity
                       key={p.id}
                       style={styles.presetChip}
-                      onPress={() => applyPreset(p)}
+                      onPress={() => {
+                        if (presetsScroll.isDragging.current) return;
+                        applyPreset(p);
+                      }}
                       activeOpacity={0.8}
                     >
                       <MaterialCommunityIcons name="pill" size={13} color="#0284C7" />
@@ -421,11 +509,36 @@ export const AddMedicineModal: React.FC<Props> = ({
 
                 {/* 3. Carrusel horizontal de Pautas Habituales (1 toque) */}
                 <View style={styles.quickTimeChipsContainer}>
-                  <Text style={styles.quickTimeChipsTitle}>Pautas habituales (1 toque):</Text>
+                  <View style={styles.carouselHeaderRow}>
+                    <Text style={styles.quickTimeChipsTitle}>Pautas habituales (1 toque):</Text>
+                    <View style={styles.carouselNavRow}>
+                      <TouchableOpacity
+                        style={styles.btnCarouselNav}
+                        onPress={() => pautasScroll.scrollBy(-140)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Deslizar pautas hacia la izquierda"
+                      >
+                        <MaterialCommunityIcons name="chevron-left" size={16} color="#0284C7" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.btnCarouselNav}
+                        onPress={() => pautasScroll.scrollBy(140)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Deslizar pautas hacia la derecha"
+                      >
+                        <MaterialCommunityIcons name="chevron-right" size={16} color="#0284C7" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
                   <ScrollView
+                    ref={pautasScroll.scrollRef}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     style={styles.quickTimeChipsScroll}
+                    {...(pautasScroll.webHandlers as any)}
                   >
                     {[
                       { time: '08:00', label: '08:00 Desayuno' },
@@ -440,6 +553,7 @@ export const AddMedicineModal: React.FC<Props> = ({
                           key={preset.time}
                           style={[styles.quickPresetChip, isSelected && styles.quickPresetChipActive]}
                           onPress={() => {
+                            if (pautasScroll.isDragging.current) return;
                             setScheduleTime(preset.time);
                             if (errors.scheduleTime) {
                               setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
@@ -868,6 +982,7 @@ const styles = StyleSheet.create({
   },
   quickTimeChipsScroll: {
     flexDirection: 'row',
+    ...(Platform.OS === 'web' ? ({ cursor: 'grab' } as any) : {}),
   },
   quickPresetChip: {
     flexDirection: 'row',
@@ -956,14 +1071,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BAE6FD',
   },
+  carouselHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  carouselNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  btnCarouselNav: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
   presetsTitle: {
     fontSize: 11.5,
     fontWeight: '700',
     color: '#0369A1',
-    marginBottom: 6,
   },
   presetsScroll: {
     flexDirection: 'row',
+    ...(Platform.OS === 'web' ? ({ cursor: 'grab' } as any) : {}),
   },
   presetChip: {
     flexDirection: 'row',
