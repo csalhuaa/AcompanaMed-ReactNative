@@ -7,6 +7,8 @@ node_modules/
 dist/
 web-dist/
 .firebase/
+*.apk
+local.properties
 *.jks
 *.p8
 *.p12
