@@ -173,11 +173,12 @@ export function useCloudSync({
     try {
       const cloudData = await defaultCloudSyncService.fetchFamilyState(clean);
       if (!cloudData) {
-        if (connectingRole === 'caregiver' && clean !== familyCode) {
+        if (clean !== familyCode) {
           setIsCloudSyncing(false);
+          const targetLabel = connectingRole === 'caregiver' ? 'paciente' : 'familiar o cuidador';
           return {
             success: false,
-            message: `No se encontró ningún paciente con el código [${clean}]. Verifique que el paciente tenga AcompañaMed abierto con dicho código.`,
+            message: `No se encontró ningún botiquín con el código [${clean}]. Verifique que su ${targetLabel} tenga AcompañaMed configurado con dicho código.`,
           };
         }
 
