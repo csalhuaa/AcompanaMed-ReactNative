@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { EmergencyProfile } from '../../domain';
+import { ActorRole, EmergencyProfile } from '../../domain';
 import { CommunicationService } from '../../infrastructure/CommunicationService';
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
   familyCode?: string;
   onCallEmergency: (phone: string, name: string) => void;
   onOpenFamilyPairing?: () => void;
+  activeRole?: ActorRole;
 }
 
 export const EmergencyProfileCard: React.FC<Props> = ({
@@ -16,15 +17,55 @@ export const EmergencyProfileCard: React.FC<Props> = ({
   familyCode,
   onCallEmergency,
   onOpenFamilyPairing,
+  activeRole = 'patient',
 }) => {
+  const isCaregiver = activeRole === 'caregiver';
   const contact = emergencyProfile?.emergencyContact;
-  const hasContactPhone = !!contact?.phone?.trim();
+
+  // Si quien visualiza la pantalla es el Cuidador, el contacto de auxilio es el Paciente / Teléfono del Hogar
+  // Si quien visualiza la pantalla es el Paciente, el contacto es su Cuidadora Principal (ej. María Alhua)
+  const targetName = isCaregiver
+    ? emergencyProfile?.patientFullName || 'Don Manuel'
+    : contact?.name || 'Contacto de Auxilio';
+
+  const targetRelationship = isCaregiver
+    ? 'Paciente a cargo (Teléfono directo o casa)'
+    : contact?.relationship
+    ? `Parentesco: ${contact.relationship}`
+    : 'Contacto familiar de auxilio';
+
+  const targetPhone = isCaregiver
+    ? emergencyProfile?.patientPhone || contact?.phone || ''
+    : contact?.phone || '';
+
+  const hasPhone = Boolean(targetPhone && targetPhone.trim().length > 3);
+
+  const boxHeader = isCaregiver
+    ? 'CONTACTO DIRECTO CON EL PACIENTE / HOGAR'
+    : 'CONTACTO DE AUXILIO FAMILIAR';
+
+  const callButtonLabel = isCaregiver
+    ? hasPhone
+      ? `Llamar a ${targetName} (${targetPhone})`
+      : 'Falta registrar teléfono del paciente'
+    : hasPhone
+    ? `Llamar a ${targetName} (${targetPhone})`
+    : 'Falta registrar número de teléfono';
+
+  const whatsAppButtonLabel = isCaregiver
+    ? 'Enviar Mensaje de Auxilio al Paciente'
+    : 'Enviar Mensaje de Auxilio por WhatsApp';
 
   const handleSendWhatsAppAlert = () => {
-    if (!hasContactPhone) return;
+    if (!hasPhone) return;
     const patientName = emergencyProfile?.patientFullName || 'El paciente';
-    const message = `🚨 *ALERTA DE EMERGENCIA — AcompañaMed*\n\nHola ${contact?.name || 'familiar'}, ${patientName} necesita asistencia inmediata.\n\nPor favor, comunícate o acude a su domicilio a la brevedad.`;
-    CommunicationService.openWhatsApp(contact!.phone, message);
+    let message = '';
+    if (isCaregiver) {
+      message = `🚨 *ALERTA DE EMERGENCIA — AcompañaMed*\n\nHola ${patientName}, te escribe tu cuidador (${contact?.name || 'Familiar'}). Detectamos una alerta o necesitamos comunicarnos contigo de inmediato.\n\nPor favor contesta la llamada o abre la aplicación.`;
+    } else {
+      message = `🚨 *ALERTA DE EMERGENCIA — AcompañaMed*\n\nHola ${contact?.name || 'familiar'}, ${patientName} necesita asistencia inmediata.\n\nPor favor, comunícate o acude a su domicilio a la brevedad.`;
+    }
+    CommunicationService.openWhatsApp(targetPhone, message);
   };
 
   return (
@@ -84,47 +125,47 @@ export const EmergencyProfileCard: React.FC<Props> = ({
           )}
         </View>
 
-        {/* Contacto de Auxilio Inmediato (Red Familiar) */}
+        {/* Contacto de Auxilio Inmediato (Red Familiar / Paciente) */}
         <View style={styles.contactBox}>
           <View style={styles.contactHeaderRow}>
-            <MaterialCommunityIcons name="account-alert" size={18} color="#065F46" />
-            <Text style={styles.contactBoxHeader}>CONTACTO DE AUXILIO FAMILIAR</Text>
+            <MaterialCommunityIcons
+              name={isCaregiver ? 'account-box-outline' : 'account-alert'}
+              size={18}
+              color="#065F46"
+            />
+            <Text style={styles.contactBoxHeader}>{boxHeader}</Text>
           </View>
           
-          <Text style={styles.contactName}>
-            {contact?.name || 'Contacto no configurado'}
-          </Text>
-          <Text style={styles.contactRelation}>
-            {contact?.relationship ? `Parentesco: ${contact.relationship}` : 'Edite la ficha en Ajustes para registrarlo'}
-          </Text>
+          <Text style={styles.contactName}>{targetName}</Text>
+          <Text style={styles.contactRelation}>{targetRelationship}</Text>
 
           {/* Botón Primario: Llamada Telefónica Directa */}
           <TouchableOpacity
-            style={[styles.btnCall, !hasContactPhone && styles.btnCallDisabled]}
-            onPress={() => onCallEmergency(contact?.phone || '', contact?.name || 'Contacto')}
+            style={[styles.btnCall, !hasPhone && styles.btnCallDisabled]}
+            onPress={() => onCallEmergency(targetPhone, targetName)}
             activeOpacity={0.85}
-            disabled={!hasContactPhone}
+            disabled={!hasPhone}
             accessibilityRole="button"
-            accessibilityLabel={`Llamar de emergencia a ${contact?.name || 'contacto'} al ${contact?.phone || ''}`}
+            accessibilityLabel={callButtonLabel}
           >
-            <MaterialCommunityIcons name="phone" size={22} color="#FFFFFF" />
-            <Text style={styles.btnCallText}>
-              {hasContactPhone ? `Llamar a ${contact?.name || 'Contacto'} (${contact?.phone})` : 'Falta registrar un número de teléfono'}
+            <MaterialCommunityIcons name="phone" size={20} color="#FFFFFF" />
+            <Text style={styles.btnCallText} numberOfLines={1} ellipsizeMode="tail">
+              {callButtonLabel}
             </Text>
           </TouchableOpacity>
 
           {/* Botón Secundario: Alerta Rápida por WhatsApp */}
-          {hasContactPhone && (
+          {hasPhone && (
             <TouchableOpacity
               style={styles.btnWhatsApp}
               onPress={handleSendWhatsAppAlert}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Enviar mensaje de alerta inmediata por WhatsApp"
+              accessibilityLabel={whatsAppButtonLabel}
             >
               <MaterialCommunityIcons name="whatsapp" size={20} color="#FFFFFF" />
-              <Text style={styles.btnWhatsAppText}>
-                Enviar Mensaje de Auxilio por WhatsApp
+              <Text style={styles.btnWhatsAppText} numberOfLines={1} ellipsizeMode="tail">
+                {whatsAppButtonLabel}
               </Text>
             </TouchableOpacity>
           )}
@@ -178,15 +219,15 @@ export const EmergencyProfileCard: React.FC<Props> = ({
           </View>
         </View>
 
-        {/* Carnet de Vinculación y Respaldo Familiar */}
+        {/* Respaldo Familiar en la Nube */}
         {familyCode ? (
           <View style={styles.backupCardBox}>
             <View style={styles.backupHeaderRow}>
-              <MaterialCommunityIcons name="shield-key-outline" size={18} color="#0284C7" />
-              <Text style={styles.backupTitle}>CÓDIGO DE VINCULACIÓN FAMILIAR</Text>
+              <MaterialCommunityIcons name="cloud-sync" size={16} color="#0369A1" />
+              <Text style={styles.backupTitle}>CÓDIGO DE ENLACE DE EMERGENCIA</Text>
             </View>
             <Text style={styles.backupDesc}>
-              Este código conecta los teléfonos del paciente y del cuidador, y permite restaurar todo el botiquín si cambia de equipo:
+              Comparta este código con médicos o paramédicos para acceder al historial farmacológico desde cualquier teléfono.
             </Text>
             <View style={styles.codePillRow}>
               <Text style={styles.codePillText}>{familyCode}</Text>
@@ -196,10 +237,10 @@ export const EmergencyProfileCard: React.FC<Props> = ({
                   onPress={onOpenFamilyPairing}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Ver código QR para vincular celular"
+                  accessibilityLabel="Ver código QR familiar"
                 >
                   <MaterialCommunityIcons name="qrcode" size={16} color="#0284C7" />
-                  <Text style={styles.btnShowPairingQrText}>Ver Código QR</Text>
+                  <Text style={styles.btnShowPairingQrText}>Ver QR</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -217,7 +258,7 @@ const styles = StyleSheet.create({
   },
   panelCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -226,100 +267,100 @@ const styles = StyleSheet.create({
   headerCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    gap: 12,
   },
   bloodTypeBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 8,
     backgroundColor: '#FEF2F2',
     borderWidth: 1.5,
-    borderColor: '#991B1B',
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 52,
   },
   bloodTypeLabel: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#991B1B',
+    letterSpacing: 0.5,
   },
   bloodTypeValue: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#991B1B',
+    color: '#DC2626',
+    marginTop: -2,
   },
   headerInfo: {
     flex: 1,
-    marginLeft: 14,
   },
   patientName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
     color: '#0F172A',
   },
   patientMeta: {
-    fontSize: 12.5,
-    color: '#334155',
+    fontSize: 12,
+    color: '#64748B',
     marginTop: 2,
   },
   btnEditHeader: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 6,
+    minHeight: 40,
+    minWidth: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#F0F9FF',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#BAE6FD',
-    alignSelf: 'center',
   },
   allergySevereCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF2F2',
-    padding: 12,
-    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
   },
   allergySevereTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#991B1B',
   },
   allergySevereList: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#7F1D1D',
+    color: '#DC2626',
     marginTop: 2,
-    lineHeight: 18,
   },
   chronicBox: {
     backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 10,
-    gap: 4,
+    borderRadius: 8,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   chronicBoxTitle: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0F172A',
   },
   chronicItem: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#334155',
     lineHeight: 18,
+    marginLeft: 6,
   },
   contactBox: {
     backgroundColor: '#F0FDF4',
-    padding: 14,
-    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#BBF7D0',
-    gap: 6,
+    borderRadius: 10,
+    padding: 14,
+    gap: 8,
   },
   contactHeaderRow: {
     flexDirection: 'row',
@@ -347,18 +388,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#059669',
     paddingVertical: 14,
+    paddingHorizontal: 16,
     minHeight: 52,
     borderRadius: 8,
-    gap: 8,
+    gap: 10,
     marginTop: 6,
   },
   btnCallDisabled: {
     backgroundColor: '#94A3B8',
   },
   btnCallText: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   btnWhatsApp: {
     flexDirection: 'row',
@@ -366,14 +410,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#0284C7',
     paddingVertical: 12,
+    paddingHorizontal: 16,
     minHeight: 46,
     borderRadius: 8,
     gap: 8,
   },
   btnWhatsAppText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   publicServicesBox: {
     backgroundColor: '#F8FAFC',
@@ -395,15 +442,16 @@ const styles = StyleSheet.create({
   },
   publicServiceChip: {
     flex: 1,
-    minWidth: 90,
+    minWidth: 100,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    gap: 6,
   },
   publicServiceChipCode: {
     fontSize: 13,

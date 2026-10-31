@@ -259,7 +259,7 @@ export const ClinicalReportModal: React.FC<Props> = ({
                 accessibilityLabel="Compartir informe con el médico geriatra por WhatsApp"
               >
                 <MaterialCommunityIcons name="whatsapp" size={20} color="#FFFFFF" />
-                <Text style={styles.btnShareWhatsAppText}>Enviar por WhatsApp al Médico</Text>
+                <Text style={styles.btnShareWhatsAppText}>Enviar por WhatsApp</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -538,6 +538,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 14,
+    paddingHorizontal: 12,
     minHeight: 50,
     borderRadius: 8,
     backgroundColor: '#F1F5F9',
@@ -548,14 +549,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   btnShareWhatsApp: {
-    flex: 2,
+    flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
+    paddingHorizontal: 14,
     minHeight: 50,
     borderRadius: 8,
     backgroundColor: '#15803D',
@@ -564,5 +568,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
 });

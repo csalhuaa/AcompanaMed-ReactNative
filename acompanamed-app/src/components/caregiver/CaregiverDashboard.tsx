@@ -235,7 +235,7 @@ export const CaregiverDashboard: React.FC<Props> = ({
         >
           <MaterialCommunityIcons name="file-document-outline" size={18} color="#0F172A" />
           <Text style={styles.openReportCTAButtonText}>
-            Generar Informe Completo para la Consulta Médica
+            Generar Informe para la Consulta Médica
           </Text>
         </TouchableOpacity>
       </View>
@@ -362,20 +362,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnAlertWhatsApp: {
-    flex: 1.4,
+    flex: 1.3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#059669',
     paddingVertical: 12,
+    paddingHorizontal: 12,
     minHeight: 46,
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 8,
   },
   btnAlertWhatsAppText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   btnCallCaregiver: {
     flex: 1,
@@ -384,14 +387,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#0284C7',
     paddingVertical: 12,
+    paddingHorizontal: 12,
     minHeight: 46,
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 6,
   },
   btnCallCaregiverText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFFFFF',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   btnDisabled: {
     opacity: 0.5,
@@ -404,14 +410,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BAE6FD',
     paddingVertical: 10,
+    paddingHorizontal: 14,
     minHeight: 42,
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 6,
   },
   btnPairingActionText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#0369A1',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   adherenceScoreContainer: {
     flexDirection: 'row',
@@ -471,8 +480,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
     paddingVertical: 12,
+    paddingHorizontal: 16,
     minHeight: 48,
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 8,
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -482,6 +492,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   emptyBreakdownText: {
     fontSize: 13,

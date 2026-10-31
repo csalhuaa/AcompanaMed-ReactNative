@@ -70,36 +70,51 @@ export function generateClinicalSummary(
   const overallPercentage =
     logs.length === 0 ? 100 : Math.round((overallTaken / logs.length) * 100);
 
-  // Generar texto estructurado para el geriatra
+  const overallRating =
+    overallPercentage >= 85
+      ? 'Óptima'
+      : overallPercentage >= 70
+      ? 'Regular'
+      : 'Riesgo Clínico';
+
+  // Generar texto estructurado con formato nativo de WhatsApp (*negrita*, _cursiva_)
   const lines: string[] = [
-    '====================================================',
-    '       REPORTE CLÍNICO DE ADHERENCIA FARMACOLÓGICA   ',
-    '                   ACOMPAÑAMED                      ',
-    '====================================================',
-    `Paciente: ${profile.patientFullName} (${profile.age ? `${profile.age} años` : 'Edad no registrada'})`,
-    `Grupo Sanguíneo: ${profile.bloodType || 'No registrado'} | Seguro: ${profile.healthInsurance || 'No registrado'}`,
-    `Alergias Conocidas: ${(profile.allergies || []).join(', ') || 'Ninguna reportada'}`,
-    `Patologías Crónicas: ${(profile.chronicConditions || []).join(', ') || 'En evaluación'}`,
-    `Contacto de Auxilio: ${profile.emergencyContact?.name || 'No registrado'} (${profile.emergencyContact?.relationship || 'Contacto'}) - Tel: ${profile.emergencyContact?.phone || 'No registrado'}`,
-    '----------------------------------------------------',
-    `ADHERENCIA GLOBAL DEL TRATAMIENTO: ${overallPercentage}%`,
-    '----------------------------------------------------',
-    'DESGLOSE POR MEDICAMENTO:',
+    '📋 *REPORTE CLÍNICO DE ADHERENCIA FARMACOLÓGICA*',
+    '*AcompañaMed · Asistencia Médica y Familiar*',
+    '',
+    '👤 *Datos del Paciente:*',
+    `• *Nombre:* ${profile.patientFullName} (${profile.age ? `${profile.age} años` : 'Edad no registrada'})`,
+    `• *Grupo Sanguíneo:* ${profile.bloodType || 'No registrado'} | *Seguro:* ${profile.healthInsurance || 'No registrado'}`,
+    `• *Patologías Crónicas:* ${(profile.chronicConditions || []).join(', ') || 'En evaluación'}`,
+    `• *Alergias Conocidas:* ${(profile.allergies || []).join(', ') || 'Ninguna reportada'}`,
+    `• *Contacto Familiar:* ${profile.emergencyContact?.name || 'No registrado'} (${profile.emergencyContact?.relationship || 'Contacto'}) - Tel: ${profile.emergencyContact?.phone || 'No registrado'}`,
+    '',
+    `📊 *Adherencia Global del Tratamiento:* *${overallPercentage}%* _(${overallRating})_`,
+    '',
+    '💊 *Desglose por Medicamento:*',
   ];
 
   medicationBreakdown.forEach((b) => {
+    const statusLabel =
+      b.status === 'optimal'
+        ? 'ÓPTIMO'
+        : b.status === 'regular'
+        ? 'REGULAR'
+        : 'EN RIESGO';
+
     lines.push(
-      `• ${b.medicineName} (${b.doseDescription}): ${b.adherenceRate}% (${b.totalTaken}/${b.totalScheduled} tomas) - Estado: ${b.status.toUpperCase()}`
+      `• *${b.medicineName} (${b.doseDescription}):* *${b.adherenceRate}%* (${b.totalTaken}/${b.totalScheduled} tomas) — _${statusLabel}_`
     );
   });
 
   if (clinicalWarnings.length > 0) {
-    lines.push('----------------------------------------------------');
-    lines.push('ALERTAS CLÍNICAS:');
-    clinicalWarnings.forEach((w) => lines.push(`[ALERTA] ${w}`));
+    lines.push('');
+    lines.push('⚠️ *Alertas Clínicas:*');
+    clinicalWarnings.forEach((w) => lines.push(`• _${w}_`));
   }
 
-  lines.push('====================================================');
+  lines.push('');
+  lines.push('_Generado automáticamente por AcompañaMed para la consulta médica._');
 
   return {
     patientName: profile.patientFullName,

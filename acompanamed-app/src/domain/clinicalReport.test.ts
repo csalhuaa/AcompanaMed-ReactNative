@@ -120,8 +120,8 @@ describe('AcompañaMed - ClinicalReportEngine (TDD Tests)', () => {
 
       assert.doesNotThrow(() => {
         const summary = generateClinicalSummary(sampleMeds, [], partialProfile);
-        assert.ok(summary.formattedReportText.includes('Alergias Conocidas: Ninguna reportada'));
-        assert.ok(summary.formattedReportText.includes('Patologías Crónicas: En evaluación'));
+        assert.ok(/Alergias Conocidas[:* ]+Ninguna reportada/i.test(summary.formattedReportText));
+        assert.ok(/Patolog[íi]as Cr[óo]nicas[:* ]+En evaluaci[óo]n/i.test(summary.formattedReportText));
       });
     });
   });

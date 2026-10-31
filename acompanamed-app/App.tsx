@@ -703,6 +703,7 @@ function MainApp() {
                           familyCode={familyCode}
                           onCallEmergency={handleCallEmergency}
                           onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
+                          activeRole={activeRole}
                         />
                       )}
                     </View>
@@ -770,6 +771,7 @@ function MainApp() {
                 familyCode={familyCode}
                 onCallEmergency={handleCallEmergency}
                 onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
+                activeRole={activeRole}
               />
             )}
 
