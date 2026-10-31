@@ -49,7 +49,7 @@ export function buildEscalationNotificationPayload(
   gracePeriodMinutes: number = 30
 ): NotificationPayload {
   return {
-    title: `⚠️ Alerta de Omisión: ${medicine.name}`,
+    title: `Alerta de Omisión • ${medicine.name}`,
     body: `${patientName} no ha confirmado su dosis de las ${timeStr}. Han transcurrido ${gracePeriodMinutes} minutos sin registro.`,
     sound: true,
     priority: 'high',

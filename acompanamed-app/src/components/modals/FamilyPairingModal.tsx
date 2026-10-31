@@ -20,8 +20,6 @@ import { CameraQrScannerModal } from './CameraQrScannerModal';
 import { RoleSelectorSection } from './pairing/RoleSelectorSection';
 import { FamilySyncSection } from './pairing/FamilySyncSection';
 import { PatientProfileSection } from './pairing/PatientProfileSection';
-import { DemoScenariosSection } from './pairing/DemoScenariosSection';
-import { NotificationDiagnosticSection } from './pairing/NotificationDiagnosticSection';
 import { pairingStyles as styles } from './pairing/pairingStyles';
 
 interface Props {
@@ -29,9 +27,9 @@ interface Props {
   onClose: () => void;
   emergencyProfile: EmergencyProfile;
   onUpdateProfile: (updated: EmergencyProfile) => void;
-  onClearDemoData: () => void;
-  onRestoreDemoData: () => void;
-  onTestNotification: () => void;
+  onClearDemoData?: () => void;
+  onRestoreDemoData?: () => void;
+  onTestNotification?: () => void;
   activeRole: 'patient' | 'caregiver';
   onSelectRole: (role: 'patient' | 'caregiver') => void;
   familyCode?: string;
@@ -302,15 +300,6 @@ export const FamilyPairingModal: React.FC<Props> = ({
               setCaregiverPhone={setCaregiverPhone}
               onSaveProfile={handleSaveProfile}
             />
-
-            {/* SECCIÓN 3: SELECTOR DE ESCENARIO */}
-            <DemoScenariosSection
-              onClearDemoData={onClearDemoData}
-              onRestoreDemoData={onRestoreDemoData}
-            />
-
-            {/* SECCIÓN 4: DIAGNÓSTICO DE NOTIFICACIONES */}
-            <NotificationDiagnosticSection onTestNotification={onTestNotification} />
           </ScrollView>
         </View>
       </View>

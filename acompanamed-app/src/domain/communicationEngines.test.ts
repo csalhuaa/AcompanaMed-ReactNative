@@ -21,7 +21,7 @@ describe('AcompañaMed - CommunicationEngines (TDD Tests)', () => {
 
   it('construye la URL canónica de wa.me codificando caracteres especiales y saltos de línea', () => {
     const phone = '+51 954 123 456';
-    const message = '⚠️ Alerta Médica: Don Manuel olvidó su dosis de Losartán.';
+    const message = 'Alerta Médica: Don Manuel olvidó su dosis de Losartán.';
     const url = buildWhatsAppUrl(phone, message);
 
     assert.ok(url.startsWith('https://wa.me/51954123456?text='));

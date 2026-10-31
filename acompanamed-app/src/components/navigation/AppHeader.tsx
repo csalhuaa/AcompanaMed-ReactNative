@@ -39,7 +39,7 @@ export const AppHeader: React.FC<Props> = ({
           />
           <Text style={styles.patientSubLabel}>
             {activeRole === 'patient'
-              ? `Modo Paciente (${patientFullName || 'Don Manuel'})`
+              ? `Plan de tomas · ${patientFullName || 'Don Manuel'}`
               : `Modo Cuidador · ${patientFullName || 'Configure el perfil'}`}
           </Text>
           <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#94A3B8' }} />
@@ -49,7 +49,7 @@ export const AppHeader: React.FC<Props> = ({
             color="#475569"
           />
           <Text style={{ fontSize: 10, color: '#059669', fontWeight: '700' }}>
-            {isFamilyConnected && lastCloudSyncTime ? 'Enlace activo' : 'Guardado en este teléfono'}
+            {isFamilyConnected && lastCloudSyncTime ? 'Familia vinculada' : 'Guardado en este teléfono'}
           </Text>
         </View>
       </View>
@@ -106,17 +106,19 @@ export const AppHeader: React.FC<Props> = ({
           </View>
         )}
 
-        {/* Botón Ajustes / Perfil */}
-        <TouchableOpacity
-          style={styles.btnHeaderSettings}
-          onPress={onOpenSettings}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Configuración, cambio de rol y ajustes"
-        >
-          <MaterialCommunityIcons name="cog-outline" size={16} color="#0F172A" />
-          <Text style={styles.btnHeaderSettingsText}>Ajustes</Text>
-        </TouchableOpacity>
+        {/* Botón Ajustes / Perfil (Solo visible en Modo Cuidador) */}
+        {activeRole === 'caregiver' && (
+          <TouchableOpacity
+            style={styles.btnHeaderSettings}
+            onPress={onOpenSettings}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Configuración y vinculación familiar"
+          >
+            <MaterialCommunityIcons name="cog-outline" size={16} color="#0F172A" />
+            <Text style={styles.btnHeaderSettingsText}>Ajustes</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

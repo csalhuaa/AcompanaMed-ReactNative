@@ -13,6 +13,8 @@ interface Props {
   adherencePercentage: number;
   onOpenAddMedicine?: () => void;
   onInspectMedicine?: (medicine: Medicine) => void;
+  activeRole?: 'patient' | 'caregiver';
+  onSwitchRole?: () => void;
 }
 
 export const TodayTimelineStream: React.FC<Props> = ({
@@ -24,6 +26,8 @@ export const TodayTimelineStream: React.FC<Props> = ({
   adherencePercentage,
   onOpenAddMedicine,
   onInspectMedicine,
+  activeRole,
+  onSwitchRole,
 }) => {
   const completedCount = dailySchedule.filter((d) => d.isTakenToday).length;
 
@@ -87,6 +91,22 @@ export const TodayTimelineStream: React.FC<Props> = ({
           })}
         </View>
       )}
+
+      {/* Enlace discreto para el cuidador al pie de pantalla */}
+      {activeRole === 'patient' && onSwitchRole && (
+        <View style={styles.caregiverSwitchFooter}>
+          <TouchableOpacity
+            style={styles.caregiverSwitchBtn}
+            onPress={onSwitchRole}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar al modo de supervisión de cuidador"
+          >
+            <MaterialCommunityIcons name="shield-account-outline" size={14} color="#64748B" />
+            <Text style={styles.caregiverSwitchText}>¿Es usted el cuidador? Toca para cambiar de modo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -95,6 +115,27 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     paddingBottom: 84,
+  },
+  caregiverSwitchFooter: {
+    marginTop: 28,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  caregiverSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  caregiverSwitchText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
   },
   todayHeroBanner: {
     flexDirection: 'row',

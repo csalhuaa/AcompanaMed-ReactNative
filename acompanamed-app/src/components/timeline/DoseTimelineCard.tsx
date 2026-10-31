@@ -34,7 +34,6 @@ export const DoseTimelineCard: React.FC<Props> = ({
       medicine.instructions
     );
     defaultSpeechService.speak(text);
-    Alert.alert('Lectura en Voz Alta', text);
   };
 
   return (
@@ -144,18 +143,6 @@ export const DoseTimelineCard: React.FC<Props> = ({
                   </Text>
                 </View>
                 <MaterialCommunityIcons name="magnify-plus-outline" size={24} color="#0284C7" />
-              </TouchableOpacity>
-
-              {/* Botón Acceso Rápido a Lupa con Foto Real */}
-              <TouchableOpacity
-                style={styles.inspectButton}
-                onPress={() => onInspectMedicine && onInspectMedicine(medicine)}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={`Ver foto real del blíster de ${medicine.name}`}
-              >
-                <MaterialCommunityIcons name="image-search-outline" size={20} color="#0284C7" />
-                <Text style={styles.inspectButtonText}>Lupa de Inspección y Foto Real de Blíster</Text>
               </TouchableOpacity>
 
               {/* Instrucción Médica de Ingestión */}

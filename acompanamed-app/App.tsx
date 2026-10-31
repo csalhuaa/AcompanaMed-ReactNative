@@ -453,6 +453,8 @@ function MainApp() {
                 adherencePercentage={dailyProgress}
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
+                activeRole={activeRole}
+                onSwitchRole={() => setActiveRole(activeRole === 'patient' ? 'caregiver' : 'patient')}
               />
             </View>
 
@@ -597,6 +599,8 @@ function MainApp() {
                 adherencePercentage={dailyProgress}
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
+                activeRole={activeRole}
+                onSwitchRole={() => setActiveRole(activeRole === 'patient' ? 'caregiver' : 'patient')}
               />
             )}
 
