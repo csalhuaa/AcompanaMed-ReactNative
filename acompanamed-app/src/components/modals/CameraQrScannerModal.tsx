@@ -10,7 +10,10 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import jsQR from 'jsqr';
-import { extractCodeFromQrPayload } from '../../infrastructure/QrCodeService';
+import {
+  extractCodeFromQrPayload,
+  OFFICIAL_WEB_URL,
+} from '../../infrastructure/QrCodeService';
 
 interface Props {
   visible: boolean;
@@ -18,7 +21,12 @@ interface Props {
   onScanSuccess: (extractedCode: string) => void;
 }
 
-type CameraStatus = 'initializing' | 'active' | 'permission_denied' | 'unavailable' | 'unsupported';
+type CameraStatus =
+  | 'initializing'
+  | 'active'
+  | 'permission_denied'
+  | 'unavailable'
+  | 'unsupported';
 
 export const CameraQrScannerModal: React.FC<Props> = ({
   visible,
@@ -27,10 +35,20 @@ export const CameraQrScannerModal: React.FC<Props> = ({
 }) => {
   const [status, setStatus] = useState<CameraStatus>('initializing');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<any>(null);
   const isScannedRef = useRef<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isHttpInsecure =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'http:' &&
+    !window.isSecureContext;
 
   const stopCamera = () => {
     if (scanIntervalRef.current) {
@@ -41,9 +59,7 @@ export const CameraQrScannerModal: React.FC<Props> = ({
       streamRef.current.getTracks().forEach((track) => {
         try {
           track.stop();
-        } catch {
-          // Ignorar errores de detención
-        }
+        } catch {}
       });
       streamRef.current = null;
     }
@@ -62,18 +78,133 @@ export const CameraQrScannerModal: React.FC<Props> = ({
     onScanSuccess(cleanCode);
   };
 
+  const triggerNativeCamera = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileCapture = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+
+    setIsProcessingPhoto(true);
+    setPhotoError('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) {
+        setIsProcessingPhoto(false);
+        setPhotoError('No se pudo leer el archivo de la cámara.');
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 1200;
+          let targetWidth = img.width;
+          let targetHeight = img.height;
+          if (targetWidth > maxDim || targetHeight > maxDim) {
+            if (targetWidth > targetHeight) {
+              targetHeight = Math.round((targetHeight * maxDim) / targetWidth);
+              targetWidth = maxDim;
+            } else {
+              targetWidth = Math.round((targetWidth * maxDim) / targetHeight);
+              targetHeight = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          if (!ctx) {
+            setIsProcessingPhoto(false);
+            setPhotoError('No se pudo inicializar el procesador de imágenes.');
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+
+          // 1. Probar detector nativo si está disponible
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+              detector
+                .detect(img)
+                .then((barcodes: any[]) => {
+                  if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    setIsProcessingPhoto(false);
+                    handleDetectedCode(barcodes[0].rawValue);
+                    return;
+                  }
+                  tryJsQr();
+                })
+                .catch(() => tryJsQr());
+              return;
+            } catch {
+              tryJsQr();
+              return;
+            }
+          }
+
+          tryJsQr();
+
+          function tryJsQr() {
+            const result = jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'attemptBoth',
+            });
+            setIsProcessingPhoto(false);
+            if (result && result.data) {
+              handleDetectedCode(result.data);
+            } else {
+              setPhotoError(
+                'No se detectó ningún código QR nítido. Enfoque de más cerca y con buena iluminación.'
+              );
+            }
+          }
+        } catch {
+          setIsProcessingPhoto(false);
+          setPhotoError('Error al decodificar la foto.');
+        }
+      };
+      img.onerror = () => {
+        setIsProcessingPhoto(false);
+        setPhotoError('No se pudo cargar la fotografía tomada.');
+      };
+      img.src = dataUrl;
+    };
+    reader.onerror = () => {
+      setIsProcessingPhoto(false);
+      setPhotoError('Error al leer la foto.');
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     if (!visible) {
       stopCamera();
       setStatus('initializing');
       setErrorMessage('');
+      setPhotoError('');
+      setIsProcessingPhoto(false);
       isScannedRef.current = false;
       return;
     }
 
     isScannedRef.current = false;
+    setPhotoError('');
 
-    if (Platform.OS !== 'web' || typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    // Si no hay WebRTC o getUserMedia (ej. HTTP en red local en el teléfono)
+    if (
+      Platform.OS !== 'web' ||
+      typeof window === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
       setStatus('unsupported');
       return;
     }
@@ -103,9 +234,7 @@ export const CameraQrScannerModal: React.FC<Props> = ({
           videoRef.current.srcObject = stream;
           try {
             await videoRef.current.play();
-          } catch {
-            // Error de reproducción automática
-          }
+          } catch {}
         }
 
         setStatus('active');
@@ -123,7 +252,7 @@ export const CameraQrScannerModal: React.FC<Props> = ({
           const height = video.videoHeight;
           if (width === 0 || height === 0) return;
 
-          // Detección nativa por hardware si BarcodeDetector está disponible (ej. Chrome en Android)
+          // Detección nativa por hardware si BarcodeDetector está disponible (Chrome Android)
           if ('BarcodeDetector' in window) {
             try {
               const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
@@ -132,9 +261,7 @@ export const CameraQrScannerModal: React.FC<Props> = ({
                 handleDetectedCode(barcodes[0].rawValue);
                 return;
               }
-            } catch {
-              // Si falla o no tiene soporte nativo, continúa con jsQR
-            }
+            } catch {}
           }
 
           // Detección universal mediante jsQR
@@ -159,10 +286,10 @@ export const CameraQrScannerModal: React.FC<Props> = ({
           setErrorMessage('Permiso de cámara denegado en el navegador.');
         } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
           setStatus('unavailable');
-          setErrorMessage('No se encontró una cámara en este dispositivo.');
+          setErrorMessage('No se encontró un sensor de cámara en este dispositivo.');
         } else {
           setStatus('unavailable');
-          setErrorMessage('No fue posible acceder a la cámara del dispositivo.');
+          setErrorMessage('No fue posible iniciar el video de la cámara.');
         }
       }
     }
@@ -195,6 +322,17 @@ export const CameraQrScannerModal: React.FC<Props> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Input oculto para captura nativa directa con la cámara */}
+          {Platform.OS === 'web' &&
+            React.createElement('input', {
+              ref: fileInputRef,
+              type: 'file',
+              accept: 'image/*',
+              capture: 'environment',
+              style: { display: 'none' },
+              onChange: handleFileCapture,
+            })}
+
           {/* Contenido del Escáner */}
           <View style={styles.body}>
             {status === 'initializing' && (
@@ -205,37 +343,52 @@ export const CameraQrScannerModal: React.FC<Props> = ({
             )}
 
             {status === 'active' && (
-              <View style={styles.viewportContainer}>
-                {Platform.OS === 'web' &&
-                  React.createElement('video', {
-                    ref: (el: HTMLVideoElement | null) => {
-                      videoRef.current = el;
-                      if (el && streamRef.current && el.srcObject !== streamRef.current) {
-                        el.srcObject = streamRef.current;
-                        el.play().catch(() => {});
-                      }
-                    },
-                    autoPlay: true,
-                    playsInline: true,
-                    muted: true,
-                    style: {
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                    },
-                  })}
+              <>
+                <View style={styles.viewportContainer}>
+                  {Platform.OS === 'web' &&
+                    React.createElement('video', {
+                      ref: (el: HTMLVideoElement | null) => {
+                        videoRef.current = el;
+                        if (el && streamRef.current && el.srcObject !== streamRef.current) {
+                          el.srcObject = streamRef.current;
+                          el.play().catch(() => {});
+                        }
+                      },
+                      autoPlay: true,
+                      playsInline: true,
+                      muted: true,
+                      style: {
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                      },
+                    })}
 
-                {/* Recuadro de Enfoque */}
-                <View style={styles.reticleOverlay} pointerEvents="none">
-                  <View style={styles.reticleFrame}>
-                    <View style={[styles.corner, styles.cornerTL]} />
-                    <View style={[styles.corner, styles.cornerTR]} />
-                    <View style={[styles.corner, styles.cornerBL]} />
-                    <View style={[styles.corner, styles.cornerBR]} />
+                  {/* Recuadro de Enfoque */}
+                  <View style={styles.reticleOverlay} pointerEvents="none">
+                    <View style={styles.reticleFrame}>
+                      <View style={[styles.corner, styles.cornerTL]} />
+                      <View style={[styles.corner, styles.cornerTR]} />
+                      <View style={[styles.corner, styles.cornerBL]} />
+                      <View style={[styles.corner, styles.cornerBR]} />
+                    </View>
                   </View>
                 </View>
-              </View>
+
+                {/* Opción alternativa para tomar foto si hay problemas de foco */}
+                <TouchableOpacity
+                  style={styles.btnSecondaryPhoto}
+                  onPress={triggerNativeCamera}
+                  disabled={isProcessingPhoto}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="camera" size={16} color="#0284C7" />
+                  <Text style={styles.btnSecondaryPhotoText}>
+                    {isProcessingPhoto ? 'Procesando foto…' : '¿No enfoca? Tomar foto del QR'}
+                  </Text>
+                </TouchableOpacity>
+              </>
             )}
 
             {status === 'permission_denied' && (
@@ -243,11 +396,21 @@ export const CameraQrScannerModal: React.FC<Props> = ({
                 <MaterialCommunityIcons name="camera-off-outline" size={36} color="#DC2626" />
                 <Text style={styles.errorTitle}>Permiso de Cámara Denegado</Text>
                 <Text style={styles.errorDescription}>
-                  {errorMessage || 'Autorice el acceso a la cámara en la configuración de su navegador para escanear.'}
+                  {errorMessage ||
+                    'Autorice el acceso a la cámara en el navegador para video en vivo.'}
                 </Text>
-                <Text style={styles.errorHint}>
-                  También puede ingresar el código familiar alfanumérico manualmente.
-                </Text>
+
+                <TouchableOpacity
+                  style={styles.btnAction}
+                  onPress={triggerNativeCamera}
+                  disabled={isProcessingPhoto}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons name="camera" size={18} color="#FFFFFF" />
+                  <Text style={styles.btnActionText}>
+                    {isProcessingPhoto ? 'Procesando…' : 'Tomar Foto con Cámara'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -256,18 +419,70 @@ export const CameraQrScannerModal: React.FC<Props> = ({
                 <MaterialCommunityIcons name="alert-circle-outline" size={36} color="#D97706" />
                 <Text style={styles.errorTitle}>Cámara no disponible</Text>
                 <Text style={styles.errorDescription}>
-                  {errorMessage || 'No se pudo iniciar el sensor de cámara en este dispositivo.'}
+                  {errorMessage || 'No se pudo iniciar el sensor de video en este navegador.'}
                 </Text>
+
+                <TouchableOpacity
+                  style={styles.btnAction}
+                  onPress={triggerNativeCamera}
+                  disabled={isProcessingPhoto}
+                  activeOpacity={0.85}
+                >
+                  <MaterialCommunityIcons name="camera" size={18} color="#FFFFFF" />
+                  <Text style={styles.btnActionText}>
+                    {isProcessingPhoto ? 'Procesando…' : 'Tomar Foto del QR'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
             {status === 'unsupported' && (
-              <View style={styles.centeredMessage}>
-                <MaterialCommunityIcons name="cellphone-information" size={36} color="#64748B" />
-                <Text style={styles.errorTitle}>Cámara web no soportada</Text>
-                <Text style={styles.errorDescription}>
-                  Utilice la cámara nativa del teléfono o ingrese el código alfanumérico manualmente.
+              <View style={styles.unsupportedContainer}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="camera" size={32} color="#0284C7" />
+                </View>
+                <Text style={styles.errorTitle}>
+                  {isHttpInsecure ? 'Cámara en Vivo Requiere HTTPS' : 'Captura con Cámara del Teléfono'}
                 </Text>
+                <Text style={styles.errorDescription}>
+                  {isHttpInsecure
+                    ? 'Los navegadores móviles requieren conexión segura HTTPS para video continuo en vivo. Puede capturar una foto del QR directamente con su cámara:'
+                    : 'Tome una fotografía del código QR del paciente con la cámara de su teléfono:'}
+                </Text>
+
+                {/* Botón Principal para tomar foto */}
+                <TouchableOpacity
+                  style={styles.btnAction}
+                  onPress={triggerNativeCamera}
+                  disabled={isProcessingPhoto}
+                  activeOpacity={0.85}
+                >
+                  {isProcessingPhoto ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 6 }} />
+                  ) : (
+                    <MaterialCommunityIcons name="camera" size={18} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.btnActionText}>
+                    {isProcessingPhoto ? 'Decodificando código…' : 'Tomar Foto del QR con Cámara'}
+                  </Text>
+                </TouchableOpacity>
+
+                {photoError ? (
+                  <View style={styles.photoErrorBox}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={15} color="#B91C1C" />
+                    <Text style={styles.photoErrorText}>{photoError}</Text>
+                  </View>
+                ) : null}
+
+                {isHttpInsecure ? (
+                  <View style={styles.httpsBox}>
+                    <MaterialCommunityIcons name="shield-check-outline" size={16} color="#059669" />
+                    <Text style={styles.httpsText}>
+                      Para escaneo de video continuo en vivo, use la dirección segura:{'\n'}
+                      <Text style={{ fontWeight: '700', color: '#0284C7' }}>{OFFICIAL_WEB_URL}</Text>
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
 
@@ -298,9 +513,9 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: 390,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -316,6 +531,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   headerTitleGroup: {
     flexDirection: 'row',
@@ -323,8 +539,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0F172A',
   },
   btnClose: {
@@ -334,6 +550,15 @@ const styles = StyleSheet.create({
   body: {
     padding: 16,
     alignItems: 'center',
+  },
+  iconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#E0F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
   viewportContainer: {
     width: 280,
@@ -355,14 +580,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reticleFrame: {
-    width: 200,
-    height: 200,
+    width: 190,
+    height: 190,
     position: 'relative',
   },
   corner: {
     position: 'absolute',
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderColor: '#38BDF8',
   },
   cornerTL: {
@@ -395,11 +620,17 @@ const styles = StyleSheet.create({
   },
   centeredMessage: {
     width: 280,
-    minHeight: 240,
+    minHeight: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     gap: 8,
+  },
+  unsupportedContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
   },
   statusText: {
     fontSize: 13,
@@ -408,28 +639,95 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#0F172A',
     marginTop: 4,
+    textAlign: 'center',
   },
   errorDescription: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#475569',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 17,
+    marginTop: 2,
+    marginBottom: 8,
   },
-  errorHint: {
+  btnAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0284C7',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    gap: 8,
+    marginTop: 8,
+    width: '100%',
+    maxWidth: 280,
+  },
+  btnActionText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  btnSecondaryPhoto: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
+  },
+  btnSecondaryPhotoText: {
     fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-    marginTop: 4,
+    fontWeight: '600',
+    color: '#0284C7',
+  },
+  photoErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
+    marginTop: 8,
+    maxWidth: 280,
+  },
+  photoErrorText: {
+    fontSize: 11.5,
+    color: '#B91C1C',
+    lineHeight: 15,
+    flex: 1,
+  },
+  httpsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+    marginTop: 10,
+    maxWidth: 280,
+  },
+  httpsText: {
+    fontSize: 11,
+    color: '#166534',
+    lineHeight: 15,
+    flex: 1,
   },
   instructionText: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#64748B',
     textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 16,
+    marginTop: 10,
+    lineHeight: 15,
     paddingHorizontal: 8,
   },
   footer: {
