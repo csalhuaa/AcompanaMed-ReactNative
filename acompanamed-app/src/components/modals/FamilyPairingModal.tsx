@@ -21,6 +21,7 @@ import {
   formatDeviceActivityStatus,
   ConnectedDevice,
 } from '../../infrastructure';
+import { CameraQrScannerModal } from './CameraQrScannerModal';
 
 interface Props {
   visible: boolean;
@@ -74,6 +75,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
   const [isLoadingQr, setIsLoadingQr] = useState<boolean>(false);
   const [connectedDevices, setConnectedDevices] = useState<ConnectedDevice[]>([]);
   const [isLoadingDevices, setIsLoadingDevices] = useState<boolean>(false);
+  const [isScannerVisible, setIsScannerVisible] = useState<boolean>(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -194,13 +196,29 @@ export const FamilyPairingModal: React.FC<Props> = ({
       const res = await onConnectFamilyCode(code);
       setIsConnecting(false);
       setPairingSuccessMsg(res.message);
-      Alert.alert(res.success ? '¡Conexión Exitosa!' : 'Aviso de Conexión', res.message);
+      Alert.alert(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
       if (res.success) {
         setEnteredPairingCode('');
         loadDevices();
       }
     } else {
       Alert.alert('Enlace no disponible', 'No se pudo iniciar el enlace en este dispositivo.');
+    }
+  };
+
+  const handleScanSuccess = async (scannedCode: string) => {
+    setIsScannerVisible(false);
+    setEnteredPairingCode(scannedCode);
+    if (onConnectFamilyCode) {
+      setIsConnecting(true);
+      const res = await onConnectFamilyCode(scannedCode);
+      setIsConnecting(false);
+      setPairingSuccessMsg(res.message);
+      Alert.alert(res.success ? 'Conexión Exitosa' : 'Aviso de Conexión', res.message);
+      if (res.success) {
+        setEnteredPairingCode('');
+        loadDevices();
+      }
     }
   };
 
@@ -300,7 +318,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
                     color={pairingTab === 'qr' ? '#FFFFFF' : '#475569'}
                   />
                   <Text style={[styles.pairingTabBtnText, pairingTab === 'qr' && styles.pairingTabBtnTextActive]}>
-                    Código QR (Cámara)
+                    Código QR
                   </Text>
                 </TouchableOpacity>
 
@@ -315,7 +333,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
                     color={pairingTab === 'code' ? '#FFFFFF' : '#475569'}
                   />
                   <Text style={[styles.pairingTabBtnText, pairingTab === 'code' && styles.pairingTabBtnTextActive]}>
-                    Código de Texto
+                    Código de texto
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -329,12 +347,12 @@ export const FamilyPairingModal: React.FC<Props> = ({
                   ) : null}
 
                   <Text style={styles.qrHintText}>
-                    📱 Apunte con la cámara del celular de su familiar hacia este código QR para abrir y conectar AcompañaMed al instante sin tener que escribir nada.
+                    Apunte con la cámara del celular hacia este código QR para abrir y conectar AcompañaMed de forma directa.
                   </Text>
 
                   <TouchableOpacity style={styles.btnCopyLink} onPress={handleCopyDirectLink} activeOpacity={0.85}>
                     <MaterialCommunityIcons name="link-variant" size={16} color="#0284C7" />
-                    <Text style={styles.btnCopyLinkText}>Copiar Enlace Directo (WhatsApp)</Text>
+                    <Text style={styles.btnCopyLinkText}>Copiar enlace directo</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -344,7 +362,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
                   <Text style={styles.pairingCodeValue}>{effectiveFamilyCode}</Text>
                   {lastSyncTime ? (
                     <Text style={{ fontSize: 10, color: '#38BDF8', marginTop: 2, marginBottom: 6 }}>
-                      ☁️ Sincronizado en la nube: {lastSyncTime}
+                      Sincronizado en la nube: {lastSyncTime}
                     </Text>
                   ) : null}
                   <TouchableOpacity style={styles.btnCopyCode} onPress={handleCopyCode} activeOpacity={0.85}>
@@ -455,7 +473,7 @@ export const FamilyPairingModal: React.FC<Props> = ({
 
               {/* Campo para conectar desde el celular del cuidador */}
               <View style={styles.connectCaregiverBox}>
-                <Text style={styles.inputLabel}>¿Desea enlazar este teléfono a otro paciente? Ingrese el código:</Text>
+                <Text style={styles.inputLabel}>Enlazar este teléfono al paciente:</Text>
                 <View style={styles.inputWithButtonRow}>
                   <TextInput
                     style={[styles.textInput, { flex: 1, textTransform: 'uppercase' }]}
@@ -465,6 +483,15 @@ export const FamilyPairingModal: React.FC<Props> = ({
                     onChangeText={setEnteredPairingCode}
                     autoCapitalize="characters"
                   />
+                  <TouchableOpacity
+                    style={styles.btnScanCamera}
+                    onPress={() => setIsScannerVisible(true)}
+                    activeOpacity={0.85}
+                    accessibilityLabel="Escanear código QR con la cámara"
+                  >
+                    <MaterialCommunityIcons name="camera-outline" size={16} color="#0284C7" />
+                    <Text style={styles.btnScanCameraText}>Escanear</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.btnConnect, isConnecting && { opacity: 0.6 }]}
                     onPress={handleConnectCaregiver}
@@ -628,15 +655,21 @@ export const FamilyPairingModal: React.FC<Props> = ({
               </Text>
 
               <TouchableOpacity style={styles.btnTestNotification} onPress={onTestNotification} activeOpacity={0.85}>
-                <MaterialCommunityIcons name="bell-check" size={20} color="#FFFFFF" />
+                <MaterialCommunityIcons name="bell-check-outline" size={18} color="#FFFFFF" />
                 <Text style={styles.btnTestNotificationText}>
-                  🔔 Disparar Notificación de Prueba Ahora
+                  Disparar notificación de prueba
                 </Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
         </View>
       </View>
+
+      <CameraQrScannerModal
+        visible={isScannerVisible}
+        onClose={() => setIsScannerVisible(false)}
+        onScanSuccess={handleScanSuccess}
+      />
     </Modal>
   );
 };
@@ -795,6 +828,22 @@ const styles = StyleSheet.create({
   btnConnectText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '700',
+  },
+  btnScanCamera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    justifyContent: 'center',
+  },
+  btnScanCameraText: {
+    color: '#0284C7',
+    fontSize: 12.5,
     fontWeight: '700',
   },
   pairingSuccessText: {
