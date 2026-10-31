@@ -144,55 +144,57 @@ export const MedicineInventoryPanel: React.FC<Props> = ({
                     </View>
                   </View>
 
-                  {/* Fila Inferior: Botonera de Gestión Real (Reponer, Editar, Retirar, Lupa) */}
-                  <View style={styles.cardActionsRow}>
-                    {/* Botón Lupa de Inspección y Foto Real */}
-                    <TouchableOpacity
-                      style={styles.actionBtnInspect}
-                      onPress={() => onInspect && onInspect(med)}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Inspeccionar pastilla y ver foto de ${med.name}`}
-                    >
-                      <MaterialCommunityIcons name="magnify-scan" size={16} color="#0284C7" />
-                      <Text style={styles.actionBtnInspectText}>Lupa / Foto</Text>
-                    </TouchableOpacity>
+                  {/* Fila Inferior: Botonera de Gestión en 2 Filas Espaciosas */}
+                  <View style={styles.cardActionsGrid}>
+                    {/* Fila 1: Acciones Operativas (Reponer Stock + Lupa/Foto) */}
+                    <View style={styles.cardActionsRow}>
+                      <TouchableOpacity
+                        style={styles.actionBtnRestock}
+                        onPress={() => onOpenRestock(med)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Reponer unidades de ${med.name}`}
+                      >
+                        <MaterialCommunityIcons name="package-variant-closed-plus" size={17} color="#065F46" />
+                        <Text style={styles.actionBtnRestockText}>Reponer Stock</Text>
+                      </TouchableOpacity>
 
-                    {/* Botón 1: Reponer Existencias (Abre modal de compra/pack) */}
-                    <TouchableOpacity
-                      style={styles.actionBtnRestock}
-                      onPress={() => onOpenRestock(med)}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Reponer unidades de ${med.name}`}
-                    >
-                      <MaterialCommunityIcons name="package-variant-closed-plus" size={16} color="#059669" />
-                      <Text style={styles.actionBtnRestockText}>Reponer</Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnInspect}
+                        onPress={() => onInspect && onInspect(med)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Inspeccionar pastilla y ver foto de ${med.name}`}
+                      >
+                        <MaterialCommunityIcons name="magnify-scan" size={17} color="#0369A1" />
+                        <Text style={styles.actionBtnInspectText}>Lupa / Foto</Text>
+                      </TouchableOpacity>
+                    </View>
 
-                    {/* Botón 2: Editar Prescripción / Horario */}
-                    <TouchableOpacity
-                      style={styles.actionBtnEdit}
-                      onPress={() => onEdit(med)}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Editar prescripción de ${med.name}`}
-                    >
-                      <MaterialCommunityIcons name="pencil-outline" size={16} color="#0F172A" />
-                      <Text style={styles.actionBtnEditText}>Editar</Text>
-                    </TouchableOpacity>
+                    {/* Fila 2: Gestión de la Prescripción (Editar Horario/Dosis + Retirar) */}
+                    <View style={styles.cardActionsRow}>
+                      <TouchableOpacity
+                        style={styles.actionBtnEdit}
+                        onPress={() => onEdit(med)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Editar prescripción de ${med.name}`}
+                      >
+                        <MaterialCommunityIcons name="pencil-outline" size={16} color="#0F172A" />
+                        <Text style={styles.actionBtnEditText}>Editar Horario</Text>
+                      </TouchableOpacity>
 
-                    {/* Botón 3: Retirar Fármaco (Abre ConfirmDialogModal interactivo) */}
-                    <TouchableOpacity
-                      style={styles.actionBtnDelete}
-                      onPress={() => onRequestDelete(med)}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Retirar ${med.name} del pastillero`}
-                    >
-                      <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
-                      <Text style={styles.actionBtnDeleteText}>Retirar</Text>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.actionBtnDelete}
+                        onPress={() => onRequestDelete(med)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Retirar ${med.name} del pastillero`}
+                      >
+                        <MaterialCommunityIcons name="trash-can-outline" size={16} color="#DC2626" />
+                        <Text style={styles.actionBtnDeleteText}>Retirar</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               );
@@ -375,82 +377,89 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
   },
-  cardActionsRow: {
-    flexDirection: 'row',
+  cardActionsGrid: {
     gap: 8,
-    paddingTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
   },
-  actionBtnInspect: {
-    flex: 1.4,
+  cardActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F9FF',
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 4,
-    minHeight: 40,
-  },
-  actionBtnInspectText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0369A1',
+    gap: 8,
   },
   actionBtnRestock: {
-    flex: 1.5,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderRadius: 6,
     gap: 6,
-    minHeight: 40,
+    minHeight: 42,
   },
   actionBtnRestockText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#065F46',
   },
-  actionBtnEdit: {
+  actionBtnInspect: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 6,
+    minHeight: 42,
+  },
+  actionBtnInspectText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  actionBtnEdit: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderRadius: 6,
     gap: 6,
-    minHeight: 40,
+    minHeight: 42,
   },
   actionBtnEditText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#0F172A',
   },
   actionBtnDelete: {
-    flex: 1,
+    flex: 0.8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FEF2F2',
     borderWidth: 1,
     borderColor: '#FECACA',
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderRadius: 6,
     gap: 6,
-    minHeight: 40,
+    minHeight: 42,
   },
   actionBtnDeleteText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#991B1B',
   },

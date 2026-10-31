@@ -125,6 +125,23 @@ export const AddMedicineModal: React.FC<Props> = ({
     setCanSplit(preset.visualPill.canSplit ?? true);
   };
 
+  const adjustScheduleTime = (hourDelta: number, minuteDelta: number) => {
+    const [hStr, mStr] = (scheduleTime || '08:00').split(':');
+    let h = parseInt(hStr, 10);
+    let m = parseInt(mStr, 10);
+    if (isNaN(h)) h = 8;
+    if (isNaN(m)) m = 0;
+
+    h = (h + hourDelta + 24) % 24;
+    m = (m + minuteDelta + 60) % 60;
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    setScheduleTime(`${pad(h)}:${pad(m)}`);
+    if (errors.scheduleTime) {
+      setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+    }
+  };
+
   const handleSave = () => {
     const result = validateMedicineForm({ name, dose, scheduleTime, stock, minAlert });
     if (!result.valid) {
@@ -238,18 +255,88 @@ export const AddMedicineModal: React.FC<Props> = ({
               </View>
               <View style={{ flex: 1, marginLeft: stackFields ? 0 : 12 }}>
                 <Text style={styles.formInputLabel}>Horario Diario (HH:MM)</Text>
-                <TextInput
-                  style={[styles.formTextInput, errors.scheduleTime && styles.invalidInput]}
-                  placeholder="08:00"
-                  placeholderTextColor="#94A3B8"
-                  value={scheduleTime}
-                  onChangeText={setScheduleTime}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Horario diario de la toma"
-                />
+                <View style={[styles.timePickerContainer, errors.scheduleTime && styles.invalidInput]}>
+                  <MaterialCommunityIcons name="clock-time-four-outline" size={18} color="#0284C7" />
+                  <TextInput
+                    style={styles.timePickerInput}
+                    placeholder="08:00"
+                    placeholderTextColor="#94A3B8"
+                    value={scheduleTime}
+                    onChangeText={(val) => {
+                      setScheduleTime(val);
+                      if (errors.scheduleTime) {
+                        setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+                      }
+                    }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Horario diario de la toma"
+                    {...(Platform.OS === 'web' ? ({ type: 'time' } as any) : {})}
+                  />
+                  <View style={styles.timeSteppersRow}>
+                    <TouchableOpacity
+                      style={styles.timeStepBtn}
+                      onPress={() => adjustScheduleTime(-1, 0)}
+                      accessibilityLabel="Restar 1 hora"
+                    >
+                      <Text style={styles.timeStepBtnText}>-1h</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.timeStepBtn}
+                      onPress={() => adjustScheduleTime(1, 0)}
+                      accessibilityLabel="Sumar 1 hora"
+                    >
+                      <Text style={styles.timeStepBtnText}>+1h</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.timeStepBtn}
+                      onPress={() => adjustScheduleTime(0, 15)}
+                      accessibilityLabel="Sumar 15 minutos"
+                    >
+                      <Text style={styles.timeStepBtnText}>+15m</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
                 {fieldError('scheduleTime')}
               </View>
+            </View>
+
+            {/* Selector Rápido de Horarios Clínicos Habituales */}
+            <View style={styles.quickTimeBox}>
+              <Text style={styles.quickTimeLabel}>Horarios habituales (toque para elegir):</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickTimeScroll}>
+                {[
+                  { time: '08:00', label: '08:00 Desayuno' },
+                  { time: '13:00', label: '13:00 Almuerzo' },
+                  { time: '18:00', label: '18:00 Tarde' },
+                  { time: '20:00', label: '20:00 Noche' },
+                  { time: '22:00', label: '22:00 Dormir' },
+                ].map((item) => {
+                  const isSelected = scheduleTime === item.time;
+                  return (
+                    <TouchableOpacity
+                      key={item.time}
+                      style={[styles.quickTimeChip, isSelected && styles.quickTimeChipActive]}
+                      onPress={() => {
+                        setScheduleTime(item.time);
+                        if (errors.scheduleTime) {
+                          setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+                        }
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons
+                        name={isSelected ? 'check-circle' : 'clock-outline'}
+                        size={12}
+                        color={isSelected ? '#FFFFFF' : '#0284C7'}
+                      />
+                      <Text style={[styles.quickTimeChipText, isSelected && styles.quickTimeChipTextActive]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
             <Text style={styles.formInputLabel}>Instrucciones de Ingestión</Text>
@@ -474,6 +561,88 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 12,
     borderRadius: 6,
+  },
+  timePickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 8,
+    minHeight: 48,
+  },
+  timePickerInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  timeSteppersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeStepBtn: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    minHeight: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeStepBtnText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  quickTimeBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  quickTimeLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 6,
+  },
+  quickTimeScroll: {
+    flexDirection: 'row',
+  },
+  quickTimeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    marginRight: 6,
+    minHeight: 32,
+  },
+  quickTimeChipActive: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+  quickTimeChipText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  quickTimeChipTextActive: {
+    color: '#FFFFFF',
   },
   shapeSelectorRow: {
     flexDirection: 'row',
