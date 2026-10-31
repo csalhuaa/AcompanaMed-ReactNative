@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Medicine, DoseLog, ActorRole, EmergencyProfile } from '../domain/types';
+import { sanitizeEmergencyProfile } from '../domain/LocalWorkflow';
 
 export interface IStorageAdapter {
   getItem(key: string): Promise<string | null>;
@@ -153,8 +154,8 @@ export class StorageService {
       const raw = await this.adapter.getItem(STORAGE_KEYS.PROFILE);
       if (!raw) return defaultProfile;
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && parsed.patientFullName) {
-        return parsed;
+      if (parsed && typeof parsed === 'object') {
+        return sanitizeEmergencyProfile(parsed, defaultProfile.patientFullName);
       }
       return defaultProfile;
     } catch {

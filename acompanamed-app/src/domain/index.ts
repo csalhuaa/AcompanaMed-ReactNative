@@ -6,3 +6,4 @@ export * from './EscalationEngine';
 export * from './ScheduleTimelineEngine';
 export * from './ClinicalReportEngine';
 export * from './communicationEngines';
+export * from './LocalWorkflow';

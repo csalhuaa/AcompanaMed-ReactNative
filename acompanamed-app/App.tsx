@@ -241,12 +241,13 @@ function MainApp() {
   };
 
   const handleExportReport = () => {
-    if (!emergencyProfile.emergencyContact.phone) {
+    const contactPhone = emergencyProfile?.emergencyContact?.phone;
+    if (!contactPhone) {
       showNotice('Falta el contacto', 'Agregue un teléfono en Ajustes para compartir el informe.');
       return;
     }
     const summary = generateClinicalSummary(medicines, logs, emergencyProfile);
-    CommunicationService.openWhatsApp(emergencyProfile.emergencyContact.phone, summary.formattedReportText);
+    CommunicationService.openWhatsApp(contactPhone, summary.formattedReportText);
   };
 
   const handleSimulateEscalationAlert = () => {
@@ -254,13 +255,15 @@ function MainApp() {
       showNotice('Sin tomas atrasadas', 'No hay una dosis pendiente que haya superado los 30 minutos de espera.');
       return;
     }
-    const message = `AcompañaMed — ${emergencyProfile.patientFullName}\n${escalation.message}\nPor favor, revise el plan de hoy.`;
-    CommunicationService.openWhatsApp(emergencyProfile.emergencyContact.phone, message);
+    const contactPhone = emergencyProfile?.emergencyContact?.phone || '';
+    const message = `AcompañaMed — ${emergencyProfile?.patientFullName || 'Paciente'}\n${escalation.message}\nPor favor, revise el plan de hoy.`;
+    CommunicationService.openWhatsApp(contactPhone, message);
   };
 
   const handleCallCaregiver = () => {
-    if (!emergencyProfile.emergencyContact.phone) return;
-    CommunicationService.makePhoneCall(emergencyProfile.emergencyContact.phone);
+    const contactPhone = emergencyProfile?.emergencyContact?.phone;
+    if (!contactPhone) return;
+    CommunicationService.makePhoneCall(contactPhone);
   };
 
   const handleUpdateProfile = (updated: EmergencyProfile) => {

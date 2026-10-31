@@ -51,7 +51,7 @@ export const EmergencyProfileCard: React.FC<Props> = ({
               Alergias registradas:
             </Text>
             <Text style={styles.allergySevereList}>
-              {emergencyProfile.allergies.join(' • ') || 'Sin información registrada. Complete su ficha.'}
+              {(emergencyProfile?.allergies || []).join(' • ') || 'Sin información registrada. Complete su ficha.'}
             </Text>
           </View>
         </View>
@@ -59,42 +59,44 @@ export const EmergencyProfileCard: React.FC<Props> = ({
         {/* Condiciones Médicas Crónicas */}
         <View style={styles.chronicBox}>
           <Text style={styles.chronicBoxTitle}>Condiciones Médicas Crónicas:</Text>
-          {emergencyProfile.chronicConditions.map((cond, idx) => (
+          {(emergencyProfile?.chronicConditions || []).map((cond, idx) => (
             <Text key={idx} style={styles.chronicItem}>
               • {cond}
             </Text>
           ))}
-          {emergencyProfile.chronicConditions.length === 0 && <Text style={styles.chronicItem}>Sin información registrada.</Text>}
+          {(!emergencyProfile?.chronicConditions || emergencyProfile.chronicConditions.length === 0) && (
+            <Text style={styles.chronicItem}>Sin información registrada.</Text>
+          )}
         </View>
 
         {/* Contacto de Auxilio Inmediato */}
         <View style={styles.contactBox}>
           <Text style={styles.contactBoxHeader}>CONTACTO DE AUXILIO INMEDIATO</Text>
           <Text style={styles.contactName}>
-            {emergencyProfile.emergencyContact.name || 'Configure un contacto en Ajustes y Perfil'}
+            {emergencyProfile?.emergencyContact?.name || 'Configure un contacto en Ajustes y Perfil'}
           </Text>
           <Text style={styles.contactRelation}>
-            {emergencyProfile.emergencyContact.relationship}
+            {emergencyProfile?.emergencyContact?.relationship || ''}
           </Text>
 
           <TouchableOpacity
             style={styles.btnCall}
             onPress={() =>
               onCallEmergency(
-                emergencyProfile.emergencyContact.phone,
-                emergencyProfile.emergencyContact.name
+                emergencyProfile?.emergencyContact?.phone || '',
+                emergencyProfile?.emergencyContact?.name || 'Contacto'
               )
             }
             activeOpacity={0.85}
-            disabled={!emergencyProfile.emergencyContact.phone}
-            accessibilityState={{ disabled: !emergencyProfile.emergencyContact.phone }}
+            disabled={!emergencyProfile?.emergencyContact?.phone}
+            accessibilityState={{ disabled: !emergencyProfile?.emergencyContact?.phone }}
             accessibilityRole="button"
-            accessibilityLabel={`Llamar de emergencia a ${emergencyProfile.emergencyContact.name} al ${emergencyProfile.emergencyContact.phone}`}
+            accessibilityLabel={`Llamar de emergencia a ${emergencyProfile?.emergencyContact?.name || 'contacto'} al ${emergencyProfile?.emergencyContact?.phone || ''}`}
             accessibilityHint="Marca el teléfono del contacto de auxilio inmediato"
           >
             <MaterialCommunityIcons name="phone" size={20} color="#FFFFFF" />
             <Text style={styles.btnCallText}>
-              {emergencyProfile.emergencyContact.phone ? `Llamar a ${emergencyProfile.emergencyContact.phone}` : 'Falta registrar un teléfono'}
+              {emergencyProfile?.emergencyContact?.phone ? `Llamar a ${emergencyProfile.emergencyContact.phone}` : 'Falta registrar un teléfono'}
             </Text>
           </TouchableOpacity>
         </View>

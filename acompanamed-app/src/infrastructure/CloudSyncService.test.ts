@@ -130,4 +130,34 @@ describe('AcompañaMed - CloudSyncService (Inter-Device Cloud Sync)', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('sanitiza el emergencyProfile descargado si Firebase omite arreglos vacíos', async () => {
+    const service = new CloudSyncService();
+    const originalFetch = globalThis.fetch;
+    try {
+      const mockPayload = {
+        familyCode: 'MED-TEST-01',
+        updatedAt: '2026-10-31T12:00:00.000Z',
+        patientName: 'Manuel Alhua',
+        emergencyProfile: {
+          patientFullName: 'Manuel Alhua',
+          age: 74,
+          bloodType: 'O+',
+          emergencyContact: {
+            name: 'María',
+            phone: '954123456',
+          },
+        },
+      };
+      globalThis.fetch = async () => new Response(JSON.stringify(mockPayload), { status: 200 });
+      const result = await service.fetchFamilyState('MED-TEST-01');
+      assert.ok(result);
+      assert.ok(result.emergencyProfile);
+      assert.deepEqual(result.emergencyProfile.allergies, []);
+      assert.deepEqual(result.emergencyProfile.chronicConditions, []);
+      assert.equal(result.emergencyProfile.emergencyContact.phone, '954123456');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

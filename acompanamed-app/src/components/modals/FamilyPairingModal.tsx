@@ -59,12 +59,12 @@ export const FamilyPairingModal: React.FC<Props> = ({
   currentDeviceId,
   onRevokeDevice,
 }) => {
-  const [patientName, setPatientName] = useState(emergencyProfile.patientFullName);
-  const [age, setAge] = useState(String(emergencyProfile.age));
-  const [bloodType, setBloodType] = useState(emergencyProfile.bloodType);
-  const [allergiesText, setAllergiesText] = useState(emergencyProfile.allergies.join(', '));
-  const [caregiverName, setCaregiverName] = useState(emergencyProfile.emergencyContact.name);
-  const [caregiverPhone, setCaregiverPhone] = useState(emergencyProfile.emergencyContact.phone);
+  const [patientName, setPatientName] = useState(emergencyProfile?.patientFullName || '');
+  const [age, setAge] = useState(String(emergencyProfile?.age || ''));
+  const [bloodType, setBloodType] = useState(emergencyProfile?.bloodType || '');
+  const [allergiesText, setAllergiesText] = useState((emergencyProfile?.allergies || []).join(', '));
+  const [caregiverName, setCaregiverName] = useState(emergencyProfile?.emergencyContact?.name || '');
+  const [caregiverPhone, setCaregiverPhone] = useState(emergencyProfile?.emergencyContact?.phone || '');
 
   const [enteredPairingCode, setEnteredPairingCode] = useState('');
   const [pairingSuccessMsg, setPairingSuccessMsg] = useState('');
@@ -80,12 +80,12 @@ export const FamilyPairingModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!visible) return;
-    setPatientName(emergencyProfile.patientFullName);
-    setAge(emergencyProfile.age ? String(emergencyProfile.age) : '');
-    setBloodType(emergencyProfile.bloodType);
-    setAllergiesText(emergencyProfile.allergies.join(', '));
-    setCaregiverName(emergencyProfile.emergencyContact.name);
-    setCaregiverPhone(emergencyProfile.emergencyContact.phone);
+    setPatientName(emergencyProfile?.patientFullName || '');
+    setAge(emergencyProfile?.age ? String(emergencyProfile.age) : '');
+    setBloodType(emergencyProfile?.bloodType || '');
+    setAllergiesText((emergencyProfile?.allergies || []).join(', '));
+    setCaregiverName(emergencyProfile?.emergencyContact?.name || '');
+    setCaregiverPhone(emergencyProfile?.emergencyContact?.phone || '');
   }, [visible, emergencyProfile]);
 
   const generatedCode = `MED-${patientName.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase() || 'MANU'}-${age || '82'}`;
@@ -131,7 +131,6 @@ export const FamilyPairingModal: React.FC<Props> = ({
 
   const handleSaveProfile = () => {
     const updated: EmergencyProfile = {
-      ...emergencyProfile,
       patientFullName: patientName.trim() || 'Paciente',
       age: /^\d+$/.test(age.trim()) ? Number(age) : 0,
       bloodType: bloodType.trim(),
@@ -139,10 +138,13 @@ export const FamilyPairingModal: React.FC<Props> = ({
         .split(',')
         .map((a) => a.trim())
         .filter(Boolean),
+      chronicConditions: emergencyProfile?.chronicConditions || [],
+      healthInsurance: emergencyProfile?.healthInsurance || '',
       emergencyContact: {
-        ...emergencyProfile.emergencyContact,
+        ...(emergencyProfile?.emergencyContact || {}),
         name: caregiverName.trim(),
         phone: caregiverPhone.trim(),
+        relationship: emergencyProfile?.emergencyContact?.relationship || 'Cuidador',
       },
     };
 

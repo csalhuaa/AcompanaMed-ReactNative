@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createEmptyProfile, getScheduleEscalation, getScheduledDate } from './LocalWorkflow';
+import {
+  createEmptyProfile,
+  sanitizeEmergencyProfile,
+  getScheduleEscalation,
+  getScheduledDate,
+} from './LocalWorkflow';
 import { buildDailySchedule } from './ScheduleTimelineEngine';
 import type { Medicine } from './types';
 
@@ -49,5 +54,49 @@ describe('Everyday local workflows', () => {
     const result = getScheduleEscalation(schedule, now);
     assert.equal(result.shouldEscalate, true);
     assert.equal(result.minutesElapsed, 30);
+  });
+
+  it('sanitizes missing, undefined and indexed fields from remote sync or storage into a valid EmergencyProfile', () => {
+    // Escenario 1: Perfil completamente undefined o null
+    const empty1 = sanitizeEmergencyProfile(undefined);
+    assert.equal(empty1.patientFullName, 'Paciente');
+    assert.deepEqual(empty1.allergies, []);
+    assert.deepEqual(empty1.chronicConditions, []);
+    assert.deepEqual(empty1.emergencyContact, { name: '', relationship: '', phone: '' });
+
+    // Escenario 2: RTDB de Firebase serializa arrays vacíos como undefined
+    const rtdbProfile = {
+      patientFullName: 'Manuel Jesús',
+      age: 74,
+      bloodType: 'O+',
+      allergies: undefined as unknown as string[],
+      chronicConditions: undefined as unknown as string[],
+      healthInsurance: 'EsSalud',
+      emergencyContact: {
+        name: 'María',
+        relationship: 'Hija',
+        phone: '954123456',
+      },
+    };
+    const sanitizedRtdb = sanitizeEmergencyProfile(rtdbProfile);
+    assert.equal(sanitizedRtdb.patientFullName, 'Manuel Jesús');
+    assert.equal(sanitizedRtdb.age, 74);
+    assert.deepEqual(sanitizedRtdb.allergies, []);
+    assert.deepEqual(sanitizedRtdb.chronicConditions, []);
+    assert.equal(sanitizedRtdb.emergencyContact.phone, '954123456');
+
+    // Escenario 3: Objeto indexado tipo Firebase { "0": "Penicilina" } o strings
+    const indexedProfile = {
+      patientFullName: 'Rosa',
+      age: '80' as unknown as number,
+      allergies: { '0': 'Penicilina', '1': 'Ibuprofeno' } as unknown as string[],
+      chronicConditions: 'Hipertensión, Diabetes' as unknown as string[],
+      emergencyContact: undefined,
+    };
+    const sanitizedIndexed = sanitizeEmergencyProfile(indexedProfile as any);
+    assert.equal(sanitizedIndexed.age, 80);
+    assert.deepEqual(sanitizedIndexed.allergies, ['Penicilina', 'Ibuprofeno']);
+    assert.deepEqual(sanitizedIndexed.chronicConditions, ['Hipertensión', 'Diabetes']);
+    assert.deepEqual(sanitizedIndexed.emergencyContact, { name: '', relationship: '', phone: '' });
   });
 });

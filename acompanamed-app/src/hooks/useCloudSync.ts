@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { Medicine, DoseLog, EmergencyProfile, ActorRole } from '../domain/types';
+import { sanitizeEmergencyProfile } from '../domain/LocalWorkflow';
 import {
   defaultCloudSyncService,
   defaultStorageService,
@@ -208,7 +209,7 @@ export function useCloudSync({
           setScheduleTimes(cloudData.schedules || {});
           setLogs(cloudData.logs || []);
           if (cloudData.emergencyProfile) {
-            setEmergencyProfile(cloudData.emergencyProfile);
+            setEmergencyProfile(sanitizeEmergencyProfile(cloudData.emergencyProfile));
           }
           setLastCloudSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         }
@@ -292,7 +293,9 @@ export function useCloudSync({
       const downloadedMeds = cloudData.medicines || [];
       const downloadedSchedules = cloudData.schedules || {};
       const downloadedLogs = cloudData.logs || [];
-      const downloadedProfile = cloudData.emergencyProfile || emergencyProfile;
+      const downloadedProfile = cloudData.emergencyProfile
+        ? sanitizeEmergencyProfile(cloudData.emergencyProfile)
+        : emergencyProfile;
 
       setMedicines(downloadedMeds);
       setScheduleTimes(downloadedSchedules);

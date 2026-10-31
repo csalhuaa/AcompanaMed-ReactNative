@@ -10,6 +10,65 @@ export function createEmptyProfile(patientName = ''): EmergencyProfile {
   };
 }
 
+export function sanitizeEmergencyProfile(
+  raw?: Partial<EmergencyProfile> | null,
+  fallbackName = 'Paciente'
+): EmergencyProfile {
+  if (!raw || typeof raw !== 'object') {
+    return createEmptyProfile(fallbackName);
+  }
+
+  const patientFullName =
+    typeof raw.patientFullName === 'string' && raw.patientFullName.trim()
+      ? raw.patientFullName.trim()
+      : fallbackName;
+
+  const age =
+    typeof raw.age === 'number' && !isNaN(raw.age)
+      ? raw.age
+      : Number(raw.age) || 0;
+
+  const bloodType = typeof raw.bloodType === 'string' ? raw.bloodType : '';
+
+  const parseStringArray = (input: unknown): string[] => {
+    if (Array.isArray(input)) {
+      return input.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    }
+    if (input && typeof input === 'object') {
+      return Object.values(input).filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    }
+    if (typeof input === 'string' && input.trim()) {
+      return input.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const allergies = parseStringArray(raw.allergies);
+  const chronicConditions = parseStringArray(raw.chronicConditions);
+  const healthInsurance = typeof raw.healthInsurance === 'string' ? raw.healthInsurance : '';
+
+  const rawContact =
+    raw.emergencyContact && typeof raw.emergencyContact === 'object'
+      ? raw.emergencyContact
+      : undefined;
+
+  const emergencyContact = {
+    name: typeof rawContact?.name === 'string' ? rawContact.name : '',
+    relationship: typeof rawContact?.relationship === 'string' ? rawContact.relationship : '',
+    phone: typeof rawContact?.phone === 'string' ? rawContact.phone : '',
+  };
+
+  return {
+    patientFullName,
+    age,
+    bloodType,
+    allergies,
+    chronicConditions,
+    healthInsurance,
+    emergencyContact,
+  };
+}
+
 export function getScheduledDate(time: string, referenceDate: Date): Date {
   const [hour, minute] = time.split(':').map(Number);
   const scheduled = new Date(referenceDate);

@@ -5,11 +5,13 @@ import {
   ClinicalSummaryReport,
   MedicationAdherenceBreakdown,
 } from './types';
+import { sanitizeEmergencyProfile } from './LocalWorkflow';
 
-export function validateEmergencyProfile(profile: EmergencyProfile): {
+export function validateEmergencyProfile(rawProfile: EmergencyProfile): {
   isValid: boolean;
   errors: string[];
 } {
+  const profile = sanitizeEmergencyProfile(rawProfile);
   const errors: string[] = [];
   if (!profile.patientFullName.trim()) {
     errors.push('El nombre completo del paciente es requerido.');
@@ -26,8 +28,9 @@ export function validateEmergencyProfile(profile: EmergencyProfile): {
 export function generateClinicalSummary(
   medicines: Medicine[],
   logs: DoseLog[],
-  profile: EmergencyProfile
+  rawProfile: EmergencyProfile
 ): ClinicalSummaryReport {
+  const profile = sanitizeEmergencyProfile(rawProfile);
   const clinicalWarnings: string[] = [];
 
   const medicationBreakdown: MedicationAdherenceBreakdown[] = medicines.map((med) => {
@@ -73,11 +76,11 @@ export function generateClinicalSummary(
     '       REPORTE CLÍNICO DE ADHERENCIA FARMACOLÓGICA   ',
     '                   ACOMPAÑAMED                      ',
     '====================================================',
-    `Paciente: ${profile.patientFullName} (${profile.age} años)`,
-    `Grupo Sanguíneo: ${profile.bloodType} | Seguro: ${profile.healthInsurance}`,
-    `Alergias Conocidas: ${profile.allergies.join(', ') || 'Ninguna reportada'}`,
-    `Patologías Crónicas: ${profile.chronicConditions.join(', ') || 'En evaluación'}`,
-    `Contacto de Auxilio: ${profile.emergencyContact.name} (${profile.emergencyContact.relationship}) - Tel: ${profile.emergencyContact.phone}`,
+    `Paciente: ${profile.patientFullName} (${profile.age ? `${profile.age} años` : 'Edad no registrada'})`,
+    `Grupo Sanguíneo: ${profile.bloodType || 'No registrado'} | Seguro: ${profile.healthInsurance || 'No registrado'}`,
+    `Alergias Conocidas: ${(profile.allergies || []).join(', ') || 'Ninguna reportada'}`,
+    `Patologías Crónicas: ${(profile.chronicConditions || []).join(', ') || 'En evaluación'}`,
+    `Contacto de Auxilio: ${profile.emergencyContact?.name || 'No registrado'} (${profile.emergencyContact?.relationship || 'Contacto'}) - Tel: ${profile.emergencyContact?.phone || 'No registrado'}`,
     '----------------------------------------------------',
     `ADHERENCIA GLOBAL DEL TRATAMIENTO: ${overallPercentage}%`,
     '----------------------------------------------------',
@@ -93,7 +96,7 @@ export function generateClinicalSummary(
   if (clinicalWarnings.length > 0) {
     lines.push('----------------------------------------------------');
     lines.push('ALERTAS CLÍNICAS:');
-    clinicalWarnings.forEach((w) => lines.push(`⚠️ ${w}`));
+    clinicalWarnings.forEach((w) => lines.push(`[ALERTA] ${w}`));
   }
 
   lines.push('====================================================');

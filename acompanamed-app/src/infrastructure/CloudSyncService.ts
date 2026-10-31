@@ -1,4 +1,5 @@
 import { Medicine, DoseLog, EmergencyProfile } from '../domain/types';
+import { sanitizeEmergencyProfile } from '../domain/LocalWorkflow';
 
 export const FIREBASE_RTDB_URL = 'https://acompanamed-unsa-2026-default-rtdb.firebaseio.com';
 
@@ -56,7 +57,7 @@ export interface FamilySyncPayload {
   medicines: Medicine[];
   schedules: Record<string, string>;
   logs: DoseLog[];
-  emergencyProfile: EmergencyProfile;
+  emergencyProfile?: EmergencyProfile;
   connectedDevices?: Record<string, ConnectedDevice>;
 }
 
@@ -127,15 +128,20 @@ export class CloudSyncService {
       const schedules: Record<string, string> =
         data.schedules && typeof data.schedules === 'object' ? data.schedules : {};
 
+      const rawProfile = data.emergencyProfile;
+      const emergencyProfile = rawProfile
+        ? sanitizeEmergencyProfile(rawProfile, data.patientName || 'Paciente')
+        : undefined;
+
       return {
         familyCode: data.familyCode || familyCode,
         updatedAt: data.updatedAt || new Date().toISOString(),
         updatedBy: data.updatedBy || 'unknown',
-        patientName: data.patientName || 'Paciente',
+        patientName: data.patientName || (emergencyProfile ? emergencyProfile.patientFullName : 'Paciente'),
         medicines,
         schedules,
         logs,
-        emergencyProfile: data.emergencyProfile,
+        emergencyProfile,
       };
     } catch (error) {
       console.warn('CloudSyncService fetch error:', error);

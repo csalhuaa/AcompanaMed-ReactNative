@@ -102,5 +102,27 @@ describe('AcompañaMed - ClinicalReportEngine (TDD Tests)', () => {
       assert.ok(summary.formattedReportText.includes('EsSalud'));
       assert.ok(summary.formattedReportText.includes('Penicilina'));
     });
+
+    it('soporta de manera segura perfiles con campos o arreglos undefined procedentes de Firebase RTDB', () => {
+      const partialProfile = {
+        patientFullName: 'Manuel Jesús Alhua',
+        age: 74,
+        bloodType: 'O+',
+        allergies: undefined as unknown as string[],
+        chronicConditions: undefined as unknown as string[],
+        healthInsurance: 'EsSalud',
+        emergencyContact: {
+          name: 'María Alhua',
+          relationship: 'Hija',
+          phone: '954123456',
+        },
+      } as unknown as EmergencyProfile;
+
+      assert.doesNotThrow(() => {
+        const summary = generateClinicalSummary(sampleMeds, [], partialProfile);
+        assert.ok(summary.formattedReportText.includes('Alergias Conocidas: Ninguna reportada'));
+        assert.ok(summary.formattedReportText.includes('Patologías Crónicas: En evaluación'));
+      });
+    });
   });
 });
