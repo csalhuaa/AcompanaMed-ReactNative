@@ -8,7 +8,11 @@ import {
   AppState,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import {
@@ -53,7 +57,7 @@ import { useCloudSync } from './src/hooks/useCloudSync';
 import { useMedicationActions } from './src/hooks/useMedicationActions';
 import { appStyles as styles } from './src/styles/appStyles';
 
-export default function App() {
+function MainApp() {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, 16);
   const { width } = useWindowDimensions();
@@ -686,5 +690,13 @@ export default function App() {
         onFinishOnboarding={handleFinishOnboarding}
       />
     </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider initialMetrics={initialWindowMetrics ?? undefined}>
+      <MainApp />
+    </SafeAreaProvider>
   );
 }
