@@ -113,9 +113,6 @@ export const AddMedicineModal: React.FC<Props> = ({
     setColor(foundColor);
     setStock(String(preset.stock));
     setMinAlert(String(preset.minStockAlert));
-    if (preset.visualPill.photoUri) {
-      setPhotoUri(preset.visualPill.photoUri);
-    }
   };
 
   const triggerPhotoPick = () => {
@@ -336,6 +333,7 @@ export const AddMedicineModal: React.FC<Props> = ({
               <Text style={styles.formInputLabel}>Horario de la Toma Diaria</Text>
               
               <View style={[styles.timeSelectorCard, errors.scheduleTime && styles.invalidTimeCard]}>
+                {/* 1. Selector de Hora y Minutos (Centrado y amplio sin comprimirse) */}
                 <View style={styles.timeInputsRow}>
                   {/* Selector de Hora */}
                   <View style={styles.timeUnitCol}>
@@ -344,6 +342,7 @@ export const AddMedicineModal: React.FC<Props> = ({
                       <TouchableOpacity
                         style={styles.timeArrowBtn}
                         onPress={() => adjustHour(-1)}
+                        accessibilityRole="button"
                         accessibilityLabel="Restar 1 hora"
                       >
                         <MaterialCommunityIcons name="minus" size={18} color="#0F172A" />
@@ -352,6 +351,7 @@ export const AddMedicineModal: React.FC<Props> = ({
                       <TouchableOpacity
                         style={styles.timeArrowBtn}
                         onPress={() => adjustHour(1)}
+                        accessibilityRole="button"
                         accessibilityLabel="Sumar 1 hora"
                       >
                         <MaterialCommunityIcons name="plus" size={18} color="#0F172A" />
@@ -368,6 +368,7 @@ export const AddMedicineModal: React.FC<Props> = ({
                       <TouchableOpacity
                         style={styles.timeArrowBtn}
                         onPress={() => adjustMinute(-5)}
+                        accessibilityRole="button"
                         accessibilityLabel="Restar 5 minutos"
                       >
                         <MaterialCommunityIcons name="minus" size={18} color="#0F172A" />
@@ -376,50 +377,56 @@ export const AddMedicineModal: React.FC<Props> = ({
                       <TouchableOpacity
                         style={styles.timeArrowBtn}
                         onPress={() => adjustMinute(5)}
+                        accessibilityRole="button"
                         accessibilityLabel="Sumar 5 minutos"
                       >
                         <MaterialCommunityIcons name="plus" size={18} color="#0F172A" />
                       </TouchableOpacity>
                     </View>
                   </View>
-
-                  {/* En Web: Selector Nativo del Navegador */}
-                  {Platform.OS === 'web' && (
-                    <View style={styles.webTimePickerWrapper}>
-                      <Text style={styles.timeUnitLabel}>Reloj Nativo</Text>
-                      {/* @ts-ignore */}
-                      <input
-                        type="time"
-                        value={scheduleTime}
-                        onChange={(e: any) => {
-                          if (e.target.value) {
-                            setScheduleTime(e.target.value);
-                            if (errors.scheduleTime) {
-                              setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
-                            }
-                          }
-                        }}
-                        style={{
-                          height: 42,
-                          fontSize: 15,
-                          fontWeight: '700',
-                          color: '#0F172A',
-                          backgroundColor: '#FFFFFF',
-                          border: '1.5px solid #0284C7',
-                          borderRadius: 6,
-                          padding: '0 8px',
-                          cursor: 'pointer',
-                          outline: 'none',
-                        }}
-                      />
-                    </View>
-                  )}
                 </View>
 
-                {/* Chips de Selección Rápida en 1 Toque */}
+                {/* 2. Selector nativo del navegador en su propia fila independiente */}
+                {Platform.OS === 'web' && (
+                  <View style={styles.nativeTimeBar}>
+                    <MaterialCommunityIcons name="clock-outline" size={16} color="#0284C7" />
+                    <Text style={styles.nativeTimeBarLabel}>O elija con el reloj del sistema:</Text>
+                    {/* @ts-ignore */}
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e: any) => {
+                        if (e.target.value) {
+                          setScheduleTime(e.target.value);
+                          if (errors.scheduleTime) {
+                            setErrors((prev) => ({ ...prev, scheduleTime: undefined }));
+                          }
+                        }
+                      }}
+                      style={{
+                        height: 36,
+                        fontSize: 14,
+                        fontWeight: '700',
+                        color: '#0F172A',
+                        backgroundColor: '#FFFFFF',
+                        border: '1.5px solid #0284C7',
+                        borderRadius: 6,
+                        padding: '0 8px',
+                        cursor: 'pointer',
+                        outline: 'none',
+                      }}
+                    />
+                  </View>
+                )}
+
+                {/* 3. Carrusel horizontal de Pautas Habituales (1 toque) */}
                 <View style={styles.quickTimeChipsContainer}>
                   <Text style={styles.quickTimeChipsTitle}>Pautas habituales (1 toque):</Text>
-                  <View style={styles.quickTimeChipsWrap}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.quickTimeChipsScroll}
+                  >
                     {[
                       { time: '08:00', label: '08:00 Desayuno' },
                       { time: '13:00', label: '13:00 Almuerzo' },
@@ -439,6 +446,8 @@ export const AddMedicineModal: React.FC<Props> = ({
                             }
                           }}
                           activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Pauta horaria ${preset.label}`}
                         >
                           <MaterialCommunityIcons
                             name={isSelected ? 'check-circle' : 'clock-outline'}
@@ -451,7 +460,7 @@ export const AddMedicineModal: React.FC<Props> = ({
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 </View>
               </View>
               {fieldError('scheduleTime')}
@@ -601,47 +610,21 @@ export const AddMedicineModal: React.FC<Props> = ({
                 </View>
               </View>
             ) : (
-              <View style={styles.noPhotoBox}>
-                <TouchableOpacity
-                  style={styles.uploadPhotoBtn}
-                  onPress={triggerPhotoPick}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel="Tomar foto con la cámara o subir imagen"
-                >
-                  <View style={styles.uploadPhotoIconCircle}>
-                    <MaterialCommunityIcons name="camera-plus" size={20} color="#0284C7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.uploadPhotoTitle}>Tomar Foto o Subir Imagen</Text>
-                    <Text style={styles.uploadPhotoSubtitle}>Usa la cámara del teléfono o sube una imagen</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <View style={styles.samplePhotosBox}>
-                  <Text style={styles.samplePhotosTitle}>O elige una foto de muestra (1 toque):</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.samplePhotosScroll}>
-                    {CLINICAL_MEDICINE_PRESETS.filter((p) => !!p.visualPill.photoUri).map((p) => (
-                      <TouchableOpacity
-                        key={`sample-${p.id}`}
-                        style={styles.samplePhotoThumbBtn}
-                        onPress={() => p.visualPill.photoUri && setPhotoUri(p.visualPill.photoUri)}
-                        activeOpacity={0.8}
-                        accessibilityLabel={`Elegir foto de ${p.name}`}
-                      >
-                        <Image
-                          source={{ uri: p.visualPill.photoUri }}
-                          style={styles.samplePhotoThumbImg}
-                          resizeMode="cover"
-                        />
-                        <Text style={styles.samplePhotoThumbText} numberOfLines={1}>
-                          {p.name.split(' ')[0]}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+              <TouchableOpacity
+                style={styles.uploadPhotoBtn}
+                onPress={triggerPhotoPick}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Tomar foto con la cámara o subir imagen"
+              >
+                <View style={styles.uploadPhotoIconCircle}>
+                  <MaterialCommunityIcons name="camera-plus" size={20} color="#0284C7" />
                 </View>
-              </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.uploadPhotoTitle}>Tomar Foto con Cámara o Subir Imagen Real</Text>
+                  <Text style={styles.uploadPhotoSubtitle}>Fotografía la caja o blíster físico de tu paciente</Text>
+                </View>
+              </TouchableOpacity>
             )}
 
             {/* SECCIÓN 4: CONTROL DE BOTIQUÍN E INVENTARIO */}
@@ -816,7 +799,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 16,
+    paddingVertical: 4,
   },
   timeUnitCol: {
     alignItems: 'center',
@@ -837,29 +821,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   timeBigDigit: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
     color: '#0F172A',
     fontVariant: ['tabular-nums'],
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
   timeArrowBtn: {
-    width: 32,
-    height: 38,
+    width: 34,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F1F5F9',
     borderRadius: 4,
   },
   timeColonSeparator: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
     color: '#0F172A',
     marginTop: 14,
   },
-  webTimePickerWrapper: {
+  nativeTimeBar: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 6,
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  nativeTimeBarLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
   },
   quickTimeChipsContainer: {
     borderTopWidth: 1,
@@ -868,14 +862,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   quickTimeChipsTitle: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#64748B',
+    color: '#0369A1',
   },
-  quickTimeChipsWrap: {
+  quickTimeChipsScroll: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
   },
   quickPresetChip: {
     flexDirection: 'row',
@@ -883,10 +875,11 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#0284C7',
     paddingVertical: 5,
     paddingHorizontal: 8,
     borderRadius: 14,
+    marginRight: 6,
   },
   quickPresetChipActive: {
     backgroundColor: '#0284C7',
@@ -895,7 +888,7 @@ const styles = StyleSheet.create({
   quickPresetChipText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#334155',
+    color: '#0369A1',
   },
   quickPresetChipTextActive: {
     color: '#FFFFFF',
@@ -1068,9 +1061,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#DC2626',
   },
-  noPhotoBox: {
-    gap: 10,
-  },
   uploadPhotoBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1098,42 +1088,6 @@ const styles = StyleSheet.create({
   uploadPhotoSubtitle: {
     fontSize: 11,
     color: '#64748B',
-  },
-  samplePhotosBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 8,
-    gap: 6,
-  },
-  samplePhotosTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  samplePhotosScroll: {
-    flexDirection: 'row',
-  },
-  samplePhotoThumbBtn: {
-    alignItems: 'center',
-    marginRight: 8,
-    width: 60,
-  },
-  samplePhotoThumbImg: {
-    width: 54,
-    height: 54,
-    borderRadius: 6,
-    backgroundColor: '#E2E8F0',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  samplePhotoThumbText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 2,
-    textAlign: 'center',
   },
   /* BOTÓN GUARDAR */
   modalSubmitButton: {
