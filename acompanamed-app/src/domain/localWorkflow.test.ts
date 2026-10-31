@@ -5,6 +5,7 @@ import {
   sanitizeEmergencyProfile,
   getScheduleEscalation,
   getScheduledDate,
+  getVisibleTabsForRole,
 } from './LocalWorkflow';
 import { buildDailySchedule } from './ScheduleTimelineEngine';
 import type { Medicine } from './types';
@@ -98,5 +99,10 @@ describe('Everyday local workflows', () => {
     assert.deepEqual(sanitizedIndexed.allergies, ['Penicilina', 'Ibuprofeno']);
     assert.deepEqual(sanitizedIndexed.chronicConditions, ['Hipertensión', 'Diabetes']);
     assert.deepEqual(sanitizedIndexed.emergencyContact, { name: '', relationship: '', phone: '' });
+  });
+
+  it('filters navigation tabs by role: patient only gets today and emergency, caregiver gets all tabs', () => {
+    assert.deepEqual(getVisibleTabsForRole('patient'), ['today', 'emergency']);
+    assert.deepEqual(getVisibleTabsForRole('caregiver'), ['today', 'caregiver', 'stock', 'emergency']);
   });
 });

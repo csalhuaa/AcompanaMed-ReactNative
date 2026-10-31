@@ -88,6 +88,13 @@ function MainApp() {
   const [inspectingMedicine, setInspectingMedicine] = useState<Medicine | null>(null);
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
 
+  // Salvaguarda: En modo paciente solo se permite navegar entre Hoy y Emergencia
+  useEffect(() => {
+    if (activeRole === 'patient' && (activeTab === 'caregiver' || activeTab === 'stock')) {
+      setActiveTab('today');
+    }
+  }, [activeRole, activeTab]);
+
   // Hook de Sincronización en la Nube y Dispositivos
   const {
     familyCode,
@@ -491,53 +498,64 @@ function MainApp() {
 
             <View style={styles.splitRightColumn}>
               {(() => {
-                const effectiveRightTab = activeTab === 'today' ? 'caregiver' : activeTab;
+                const effectiveRightTab =
+                  activeTab === 'today'
+                    ? activeRole === 'patient'
+                      ? 'emergency'
+                      : 'caregiver'
+                    : activeRole === 'patient'
+                    ? 'emergency'
+                    : activeTab;
                 return (
                   <>
                     <View style={styles.splitSubTabsHeader}>
-                      <TouchableOpacity
-                        style={[
-                          styles.splitSubTabItem,
-                          effectiveRightTab === 'caregiver' && styles.splitSubTabItemActive,
-                        ]}
-                        onPress={() => setActiveTab('caregiver')}
-                      >
-                        <MaterialCommunityIcons
-                          name="chart-timeline-variant"
-                          size={16}
-                          color={effectiveRightTab === 'caregiver' ? '#0F172A' : '#64748B'}
-                        />
-                        <Text
-                          style={[
-                            styles.splitSubTabLabel,
-                            effectiveRightTab === 'caregiver' && styles.splitSubTabLabelActive,
-                          ]}
-                        >
-                          Cuidador
-                        </Text>
-                      </TouchableOpacity>
+                      {activeRole === 'caregiver' && (
+                        <>
+                          <TouchableOpacity
+                            style={[
+                              styles.splitSubTabItem,
+                              effectiveRightTab === 'caregiver' && styles.splitSubTabItemActive,
+                            ]}
+                            onPress={() => setActiveTab('caregiver')}
+                          >
+                            <MaterialCommunityIcons
+                              name="chart-timeline-variant"
+                              size={16}
+                              color={effectiveRightTab === 'caregiver' ? '#0F172A' : '#64748B'}
+                            />
+                            <Text
+                              style={[
+                                styles.splitSubTabLabel,
+                                effectiveRightTab === 'caregiver' && styles.splitSubTabLabelActive,
+                              ]}
+                            >
+                              Cuidador
+                            </Text>
+                          </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={[
-                          styles.splitSubTabItem,
-                          effectiveRightTab === 'stock' && styles.splitSubTabItemActive,
-                        ]}
-                        onPress={() => setActiveTab('stock')}
-                      >
-                        <MaterialCommunityIcons
-                          name="medical-bag"
-                          size={16}
-                          color={effectiveRightTab === 'stock' ? '#0F172A' : '#64748B'}
-                        />
-                        <Text
-                          style={[
-                            styles.splitSubTabLabel,
-                            effectiveRightTab === 'stock' && styles.splitSubTabLabelActive,
-                          ]}
-                        >
-                          Botiquín
-                        </Text>
-                      </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[
+                              styles.splitSubTabItem,
+                              effectiveRightTab === 'stock' && styles.splitSubTabItemActive,
+                            ]}
+                            onPress={() => setActiveTab('stock')}
+                          >
+                            <MaterialCommunityIcons
+                              name="medical-bag"
+                              size={16}
+                              color={effectiveRightTab === 'stock' ? '#0F172A' : '#64748B'}
+                            />
+                            <Text
+                              style={[
+                                styles.splitSubTabLabel,
+                                effectiveRightTab === 'stock' && styles.splitSubTabLabelActive,
+                              ]}
+                            >
+                              Botiquín
+                            </Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
 
                       <TouchableOpacity
                         style={[
@@ -570,10 +588,9 @@ function MainApp() {
                           adherence={adherence}
                           clinicalReport={clinicalReport}
                           onOpenReport={() => setIsReportModalVisible(true)}
-                          onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                          onSendEscalationAlert={handleSimulateEscalationAlert}
                           onCallCaregiver={handleCallCaregiver}
                           onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
-                          onTestNotification={handleTestNotification}
                         />
                       )}
                       {effectiveRightTab === 'stock' &&
@@ -630,7 +647,6 @@ function MainApp() {
                 onOpenAddMedicine={handleOpenAddModal}
                 onInspectMedicine={(med) => setInspectingMedicine(med)}
                 activeRole={activeRole}
-                onSwitchRole={() => setActiveRole(activeRole === 'patient' ? 'caregiver' : 'patient')}
               />
             )}
 
@@ -641,10 +657,9 @@ function MainApp() {
                 adherence={adherence}
                 clinicalReport={clinicalReport}
                 onOpenReport={() => setIsReportModalVisible(true)}
-                onSimulateEscalationAlert={handleSimulateEscalationAlert}
+                onSendEscalationAlert={handleSimulateEscalationAlert}
                 onCallCaregiver={handleCallCaregiver}
                 onOpenFamilyPairing={() => setIsFamilyPairingModalVisible(true)}
-                onTestNotification={handleTestNotification}
               />
             )}
 
@@ -685,7 +700,11 @@ function MainApp() {
               />
             )}
 
-            <BottomNavBar activeTab={activeTab} onSelectTab={setActiveTab} />
+            <BottomNavBar
+              activeTab={activeTab}
+              onSelectTab={setActiveTab}
+              activeRole={activeRole}
+            />
           </View>
         )}
       </View>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { EscalationResult, AdherenceSummary, ClinicalSummaryReport, EmergencyContact } from '../../domain';
 
@@ -8,7 +8,8 @@ interface Props {
   adherence: AdherenceSummary;
   clinicalReport: ClinicalSummaryReport;
   onOpenReport: () => void;
-  onSimulateEscalationAlert: () => void;
+  onSimulateEscalationAlert?: () => void;
+  onSendEscalationAlert?: () => void;
   onCallCaregiver?: () => void;
   onOpenFamilyPairing?: () => void;
   onTestNotification?: () => void;
@@ -21,17 +22,19 @@ export const CaregiverDashboard: React.FC<Props> = ({
   clinicalReport,
   onOpenReport,
   onSimulateEscalationAlert,
+  onSendEscalationAlert,
   onCallCaregiver,
   onOpenFamilyPairing,
-  onTestNotification,
   contact,
 }) => {
+  const onSendAlert = onSendEscalationAlert || onSimulateEscalationAlert;
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      {/* 1. Monitor de Escalamiento / Período de Gracia (30 min) */}
+      {/* 1. Monitor de Supervisión en Tiempo Real y Red de Apoyo */}
       <View
         style={[
           styles.panelCard,
@@ -41,91 +44,76 @@ export const CaregiverDashboard: React.FC<Props> = ({
         <View style={styles.panelCardHeader}>
           <MaterialCommunityIcons
             name={escalation.shouldEscalate ? 'alert-circle' : 'shield-check-outline'}
-            size={24}
+            size={26}
             color={escalation.shouldEscalate ? '#DC2626' : '#059669'}
           />
           <View style={styles.headerTextGroup}>
             <Text style={styles.panelCardTitle}>
               {escalation.shouldEscalate
-                ? 'Alerta de Escalamiento Clínico Activa'
+                ? 'Alerta de Dosis Atrasada (> 30 min)'
                 : 'Supervisión en Tiempo Real'}
             </Text>
             <Text style={styles.panelCardBody}>{escalation.message}</Text>
           </View>
         </View>
 
+        {/* Indicador de tolerancia de gracia */}
         <View style={styles.escalationMetricBar}>
-          <Text style={styles.metricBarText}>Tolerancia máxima de gracia: 30 minutos</Text>
-          <Text style={styles.metricBarText}>Estado del plan de hoy</Text>
-        </View>
-      </View>
-
-      {/* 2. Canal de Notificaciones y Enlace Telemétrico */}
-      <View style={styles.panelCard}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <MaterialCommunityIcons name="cellphone-wireless" size={20} color="#0F172A" />
-          <Text style={styles.panelCardTitle}>Canal de Alertas del Cuidador</Text>
+          <MaterialCommunityIcons name="clock-outline" size={15} color="#475569" />
+          <Text style={styles.metricBarText}>
+            Margen de tolerancia: 30 minutos de gracia antes de activar alerta de escalamiento.
+          </Text>
         </View>
 
+        {/* Ficha del contacto de apoyo */}
         <View style={styles.caregiverContactCard}>
           <View style={styles.caregiverAvatar}>
             <MaterialCommunityIcons name="account-heart" size={24} color="#0284C7" />
           </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.caregiverNameText}>{contact?.name || 'Configure su contacto de apoyo'}</Text>
-            <Text style={styles.caregiverPhoneText}>{contact?.phone || 'Agregue un teléfono en Ajustes y Perfil'}</Text>
-            <Text style={styles.syncStatusText}>WhatsApp y llamadas se abren cuando usted lo solicita.</Text>
-          </View>
-        </View>
-
-        <View style={styles.protocolList}>
-          <View style={styles.protocolStepRow}>
-            <View style={styles.stepBullet}><Text style={styles.stepBulletText}>1</Text></View>
-            <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700' }}>Hora prevista:</Text> Recordatorio local si las notificaciones están habilitadas.
+            <Text style={styles.caregiverNameText}>
+              {contact?.name || 'Contacto de apoyo no configurado'}
             </Text>
-          </View>
-          <View style={styles.protocolStepRow}>
-            <View style={styles.stepBullet}><Text style={styles.stepBulletText}>2</Text></View>
-            <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700' }}>Minutos 1 a 30:</Text> Ventana de gracia respetuosa (sin molestar al cuidador).
-            </Text>
-          </View>
-          <View style={styles.protocolStepRow}>
-            <View style={[styles.stepBullet, { backgroundColor: '#DC2626' }]}>
-              <Text style={styles.stepBulletText}>3</Text>
-            </View>
-            <Text style={styles.protocolStepText}>
-              <Text style={{ fontWeight: '700', color: '#991B1B' }}>Minuto 30:</Text> La app muestra el atraso. Puede abrir WhatsApp o llamar; no se envían mensajes automáticos.
+            <Text style={styles.caregiverPhoneText}>
+              {contact?.phone || 'Agregue un teléfono en Ajustes y Perfil'}
             </Text>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-          <TouchableOpacity
-            style={[styles.btnSimulateAlert, { flex: 1.3, marginTop: 0 }]}
-            onPress={onSimulateEscalationAlert}
-            disabled={!contact?.phone || !escalation.shouldEscalate}
-            accessibilityState={{ disabled: !contact?.phone || !escalation.shouldEscalate }}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir WhatsApp para alertar al cuidador"
-          >
-            <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
-            <Text style={styles.btnSimulateAlertText}>
-              Alertar por WhatsApp
-            </Text>
-          </TouchableOpacity>
+        {/* Acciones de contacto directo (WhatsApp y Llamada) */}
+        <View style={styles.actionButtonsRow}>
+          {onSendAlert && (
+            <TouchableOpacity
+              style={[
+                styles.btnAlertWhatsApp,
+                (!contact?.phone || !escalation.shouldEscalate) && styles.btnDisabled,
+              ]}
+              onPress={onSendAlert}
+              disabled={!contact?.phone || !escalation.shouldEscalate}
+              accessibilityState={{ disabled: !contact?.phone || !escalation.shouldEscalate }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Enviar aviso por WhatsApp sobre la dosis pendiente"
+            >
+              <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
+              <Text style={styles.btnAlertWhatsAppText}>
+                {escalation.shouldEscalate ? 'Avisar por WhatsApp' : 'WhatsApp al Paciente'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {onCallCaregiver && (
             <TouchableOpacity
-              style={styles.btnCallCaregiver}
+              style={[
+                styles.btnCallCaregiver,
+                !contact?.phone && styles.btnDisabled,
+              ]}
               onPress={onCallCaregiver}
               disabled={!contact?.phone}
               accessibilityState={{ disabled: !contact?.phone }}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Llamar al cuidador por teléfono"
+              accessibilityLabel="Llamar al teléfono de contacto"
             >
               <MaterialCommunityIcons name="phone" size={18} color="#FFFFFF" />
               <Text style={styles.btnCallCaregiverText}>Llamar</Text>
@@ -133,36 +121,22 @@ export const CaregiverDashboard: React.FC<Props> = ({
           )}
         </View>
 
-        <View style={styles.caregiverSecondaryActionsRow}>
-          {onOpenFamilyPairing && (
-            <TouchableOpacity
-              style={styles.btnPairingAction}
-              onPress={onOpenFamilyPairing}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Ver código de enlace familiar"
-            >
-              <MaterialCommunityIcons name="cellphone-link" size={16} color="#0284C7" />
-              <Text style={styles.btnPairingActionText}>Código de Enlace</Text>
-            </TouchableOpacity>
-          )}
-
-          {onTestNotification && (
-            <TouchableOpacity
-              style={styles.btnTestNotifAction}
-              onPress={onTestNotification}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Probar notificación local"
-            >
-              <MaterialCommunityIcons name="bell-ring-outline" size={16} color="#059669" />
-              <Text style={styles.btnTestNotifActionText}>Probar Notificación</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Acceso directo a vinculación familiar */}
+        {onOpenFamilyPairing && (
+          <TouchableOpacity
+            style={styles.btnPairingAction}
+            onPress={onOpenFamilyPairing}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Ver código de enlace familiar"
+          >
+            <MaterialCommunityIcons name="cellphone-link" size={16} color="#0284C7" />
+            <Text style={styles.btnPairingActionText}>Código de Enlace Familiar</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* 3. Dashboard Cuantitativo de Adherencia */}
+      {/* 2. Dashboard Cuantitativo de Adherencia */}
       <View style={styles.panelCard}>
         <Text style={styles.panelCardTitle}>Tasa de Adherencia Terapéutica</Text>
 
@@ -177,7 +151,9 @@ export const CaregiverDashboard: React.FC<Props> = ({
                   ? 'Excelente'
                   : adherence.statusRating === 'good'
                   ? 'Buena'
-                  : 'En Riesgo'}
+                  : adherence.statusRating === 'warning'
+                  ? 'En Riesgo'
+                  : 'Crítica'}
               </Text>
             </View>
           </View>
@@ -217,32 +193,38 @@ export const CaregiverDashboard: React.FC<Props> = ({
         </TouchableOpacity>
       </View>
 
-      {/* 4. Desglose Individual por Principio Activo */}
+      {/* 3. Desglose Individual por Principio Activo */}
       <View style={styles.panelCard}>
         <Text style={styles.panelCardTitle}>Desglose Individual por Principio Activo</Text>
-        <View style={styles.medicineBreakdownList}>
-          {clinicalReport.medicationBreakdown.map((item) => (
-            <View key={item.medicineId} style={styles.medBreakdownRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.medBreakdownName}>{item.medicineName}</Text>
-                <Text style={styles.medBreakdownDose}>{item.doseDescription}</Text>
+        {clinicalReport.medicationBreakdown.length === 0 ? (
+          <Text style={styles.emptyBreakdownText}>
+            No hay medicamentos registrados en el plan de hoy.
+          </Text>
+        ) : (
+          <View style={styles.medicineBreakdownList}>
+            {clinicalReport.medicationBreakdown.map((item) => (
+              <View key={item.medicineId} style={styles.medBreakdownRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.medBreakdownName}>{item.medicineName}</Text>
+                  <Text style={styles.medBreakdownDose}>{item.doseDescription}</Text>
+                </View>
+                <View style={styles.progressBarWrapper}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${item.adherenceRate}%`,
+                        backgroundColor:
+                          item.adherenceRate >= 80 ? '#059669' : '#D97706',
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.medBreakdownPercent}>{item.adherenceRate}%</Text>
               </View>
-              <View style={styles.progressBarWrapper}>
-                <View
-                  style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${item.adherenceRate}%`,
-                      backgroundColor:
-                        item.adherenceRate >= 80 ? '#059669' : '#D97706',
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.medBreakdownPercent}>{item.adherenceRate}%</Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -287,15 +269,19 @@ const styles = StyleSheet.create({
   },
   escalationMetricBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
     backgroundColor: '#F8FAFC',
-    padding: 8,
+    padding: 10,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   metricBarText: {
-    fontSize: 11,
+    flex: 1,
+    fontSize: 12,
     color: '#475569',
-    fontWeight: '500',
+    lineHeight: 16,
   },
   caregiverContactCard: {
     flexDirection: 'row',
@@ -322,47 +308,14 @@ const styles = StyleSheet.create({
   caregiverPhoneText: {
     fontSize: 12,
     color: '#475569',
-    marginTop: 1,
-  },
-  syncStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
     marginTop: 2,
   },
-  protocolList: {
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 8,
-  },
-  protocolStepRow: {
+  actionButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  stepBullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#0F172A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepBulletText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  protocolStepText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 16,
-  },
-  btnSimulateAlert: {
+  btnAlertWhatsApp: {
+    flex: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -371,9 +324,8 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderRadius: 6,
     gap: 8,
-    marginTop: 2,
   },
-  btnSimulateAlertText: {
+  btnAlertWhatsAppText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
@@ -394,13 +346,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  caregiverSecondaryActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
+  btnDisabled: {
+    opacity: 0.5,
   },
   btnPairingAction: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -408,6 +357,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BAE6FD',
     paddingVertical: 10,
+    minHeight: 42,
     borderRadius: 6,
     gap: 6,
   },
@@ -415,23 +365,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#0369A1',
-  },
-  btnTestNotifAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingVertical: 10,
-    borderRadius: 6,
-    gap: 6,
-  },
-  btnTestNotifActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#047857',
   },
   adherenceScoreContainer: {
     flexDirection: 'row',
@@ -502,6 +435,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  emptyBreakdownText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontStyle: 'italic',
+    paddingVertical: 8,
   },
   medicineBreakdownList: {
     gap: 10,

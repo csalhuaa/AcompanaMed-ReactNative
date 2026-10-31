@@ -1,6 +1,15 @@
-import { EmergencyProfile, EscalationResult } from './types';
+import { ActorRole, EmergencyProfile, EscalationResult } from './types';
 import { ScheduledDoseItem } from './ScheduleTimelineEngine';
 import { evaluateEscalation } from './EscalationEngine';
+
+export type AppNavTab = 'today' | 'caregiver' | 'stock' | 'emergency';
+
+export function getVisibleTabsForRole(role: ActorRole): AppNavTab[] {
+  if (role === 'patient') {
+    return ['today', 'emergency'];
+  }
+  return ['today', 'caregiver', 'stock', 'emergency'];
+}
 
 export function createEmptyProfile(patientName = ''): EmergencyProfile {
   return {

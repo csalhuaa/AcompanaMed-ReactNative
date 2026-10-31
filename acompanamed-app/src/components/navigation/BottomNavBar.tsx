@@ -2,12 +2,14 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActorRole, AppNavTab, getVisibleTabsForRole } from '../../domain';
 
-export type AppNavTab = 'today' | 'caregiver' | 'stock' | 'emergency';
+export type { AppNavTab };
 
 interface Props {
   activeTab: AppNavTab;
   onSelectTab: (tab: AppNavTab) => void;
+  activeRole?: ActorRole;
 }
 
 interface TabConfig {
@@ -44,18 +46,26 @@ const TABS: TabConfig[] = [
   },
 ];
 
-export const BottomNavBar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
+export const BottomNavBar: React.FC<Props> = ({ activeTab, onSelectTab, activeRole = 'caregiver' }) => {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
 
+  const allowedTabs = new Set(getVisibleTabsForRole(activeRole));
+  const visibleTabs = TABS.filter((tab) => allowedTabs.has(tab.key));
+  const isPatient = activeRole === 'patient';
+
   return (
     <View style={[styles.container, { paddingBottom: bottomPadding }]} accessibilityRole="tablist">
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
           <TouchableOpacity
             key={tab.key}
-            style={[styles.tabItem, isActive && styles.tabItemActive]}
+            style={[
+              styles.tabItem,
+              isPatient && styles.tabItemPatient,
+              isActive && styles.tabItemActive,
+            ]}
             onPress={() => onSelectTab(tab.key)}
             activeOpacity={0.8}
             accessibilityRole="tab"
@@ -64,10 +74,16 @@ export const BottomNavBar: React.FC<Props> = ({ activeTab, onSelectTab }) => {
           >
             <MaterialCommunityIcons
               name={tab.iconName}
-              size={22}
+              size={isPatient ? 26 : 22}
               color={isActive ? '#0F172A' : '#334155'}
             />
-            <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+            <Text
+              style={[
+                styles.tabLabel,
+                isPatient && styles.tabLabelPatient,
+                isActive && styles.tabLabelActive,
+              ]}
+            >
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -94,6 +110,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     minHeight: 48,
   },
+  tabItemPatient: {
+    minHeight: 54,
+    paddingVertical: 8,
+  },
   tabItemActive: {
     backgroundColor: '#F1F5F9',
   },
@@ -102,6 +122,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#334155',
     marginTop: 2,
+  },
+  tabLabelPatient: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 3,
   },
   tabLabelActive: {
     color: '#0F172A',
