@@ -213,7 +213,7 @@ export const AddMedicineModal: React.FC<Props> = ({
       instructions: instructions.trim() || 'Tomar según prescripción médica con agua.',
       shape,
       color,
-      photoUri: photoUri.trim() || undefined,
+      photoUri: photoUri.trim(),
       imprint: initialMedicine?.visualPill.imprint,
       canSplit: initialMedicine?.visualPill.canSplit ?? true,
     });

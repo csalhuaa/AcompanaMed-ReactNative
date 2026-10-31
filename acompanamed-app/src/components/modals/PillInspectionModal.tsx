@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -28,6 +28,14 @@ export const PillInspectionModal: React.FC<Props> = ({
   if (!medicine) return null;
 
   const realPhotoUri = medicine.visualPill.photoUri?.trim() || null;
+  const [activeView, setActiveView] = useState<'photo' | 'pill'>(realPhotoUri ? 'photo' : 'pill');
+
+  useEffect(() => {
+    if (visible && medicine) {
+      const hasPhoto = !!medicine.visualPill.photoUri?.trim();
+      setActiveView(hasPhoto ? 'photo' : 'pill');
+    }
+  }, [visible, medicine]);
 
   const handleSpeakDescription = async () => {
     const splitAdvice = medicine.visualPill.canSplit
@@ -73,71 +81,97 @@ export const PillInspectionModal: React.FC<Props> = ({
           </View>
 
           <ScrollView style={styles.scrollBody} showsVerticalScrollIndicator={false}>
-            {/* Inspección Visual */}
-            {realPhotoUri ? (
-              <View style={styles.comparisonGrid}>
-                {/* Panel 1: Render 3D */}
-                <View style={styles.visualCard}>
-                  <Text style={styles.cardSectionTag}>PASTILLA (FORMA Y COLOR)</Text>
-                  <View style={styles.renderShowcaseBox}>
-                    <PillVisualRenderer visualPill={medicine.visualPill} size="xlarge" />
-                  </View>
-                  <View style={styles.anatomyBadgeRow}>
-                    <Text style={styles.pillFormBadge}>
-                      {medicine.visualPill.shape.toUpperCase()}
-                    </Text>
-                    <Text style={styles.pillColorBadge}>
-                      {medicine.visualPill.colorName}
-                    </Text>
-                  </View>
-                  {medicine.visualPill.imprint && (
-                    <Text style={styles.imprintTag}>
-                      Grabado: &ldquo;{medicine.visualPill.imprint}&rdquo;
-                    </Text>
-                  )}
-                </View>
-
-                {/* Panel 2: Fotografía Real del Paciente */}
-                <View style={styles.visualCard}>
-                  <Text style={styles.cardSectionTag}>FOTO DE SU CAJA / BLÍSTER</Text>
-                  <View style={styles.realPhotoWrapper}>
-                    <Image
-                      source={{ uri: realPhotoUri }}
-                      style={styles.realPhotoImage}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.verifiedWatermark}>
-                      <MaterialCommunityIcons name="check-decagram" size={14} color="#0284C7" />
-                      <Text style={styles.watermarkText}>Caja de su botiquín</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.photoTipText}>
-                    Compare su pastilla contra su caja física.
+            {/* Si el medicamento tiene foto real, ofrecemos el selector de vista amplio */}
+            {realPhotoUri && (
+              <View style={styles.viewModeTabsRow} accessibilityRole="tablist">
+                <TouchableOpacity
+                  style={[styles.viewModeTab, activeView === 'photo' && styles.viewModeTabActive]}
+                  onPress={() => setActiveView('photo')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeView === 'photo' }}
+                  accessibilityLabel="Ver foto real del empaque"
+                >
+                  <MaterialCommunityIcons
+                    name="camera"
+                    size={16}
+                    color={activeView === 'photo' ? '#0284C7' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeTabText,
+                      activeView === 'photo' && styles.viewModeTabTextActive,
+                    ]}
+                  >
+                    Foto de su Caja / Blíster
                   </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.viewModeTab, activeView === 'pill' && styles.viewModeTabActive]}
+                  onPress={() => setActiveView('pill')}
+                  activeOpacity={0.8}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeView === 'pill' }}
+                  accessibilityLabel="Ver modelo volumétrico de la pastilla"
+                >
+                  <MaterialCommunityIcons
+                    name="pill"
+                    size={16}
+                    color={activeView === 'pill' ? '#0284C7' : '#64748B'}
+                  />
+                  <Text
+                    style={[
+                      styles.viewModeTabText,
+                      activeView === 'pill' && styles.viewModeTabTextActive,
+                    ]}
+                  >
+                    Pastilla 3D (Forma y Color)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Vista 1: Foto Real de la Caja en tamaño completo */}
+            {realPhotoUri && activeView === 'photo' ? (
+              <View style={styles.largeInspectionCard}>
+                <View style={styles.largePhotoWrapper}>
+                  <Image
+                    source={{ uri: realPhotoUri }}
+                    style={styles.largePhotoImage}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.verifiedWatermark}>
+                    <MaterialCommunityIcons name="check-decagram" size={15} color="#0284C7" />
+                    <Text style={styles.watermarkText}>Caja física de su botiquín</Text>
+                  </View>
                 </View>
+                <Text style={styles.photoTipText}>
+                  Compare la caja o blíster físico que tiene en sus manos con la foto de arriba.
+                </Text>
               </View>
             ) : (
-              /* Si NO hay foto, muestra la pastilla destacada sin fotos falsas */
-              <View style={[styles.visualCard, styles.singleVisualCard]}>
-                <Text style={styles.cardSectionTag}>FORMA Y COLOR DE SU PASTILLA</Text>
-                <View style={[styles.renderShowcaseBox, { height: 110 }]}>
+              /* Vista 2: Modelo Anatómico 3D en tamaño completo */
+              <View style={styles.largeInspectionCard}>
+                <Text style={styles.cardSectionTag}>FORMA, COLOR Y RANURA DE SU PASTILLA</Text>
+                <View style={styles.largeRenderShowcaseBox}>
                   <PillVisualRenderer visualPill={medicine.visualPill} size="xlarge" />
                 </View>
                 <View style={styles.anatomyBadgeRow}>
-                  <Text style={[styles.pillFormBadge, { fontSize: 12, paddingHorizontal: 10, paddingVertical: 4 }]}>
+                  <Text style={styles.pillFormBadge}>
                     Forma: {medicine.visualPill.shape.toUpperCase()}
                   </Text>
-                  <Text style={[styles.pillColorBadge, { fontSize: 12, paddingHorizontal: 10, paddingVertical: 4 }]}>
+                  <Text style={styles.pillColorBadge}>
                     Color: {medicine.visualPill.colorName}
                   </Text>
                 </View>
                 {medicine.visualPill.imprint && (
-                  <Text style={[styles.imprintTag, { fontSize: 13, marginTop: 8 }]}>
+                  <Text style={styles.imprintTag}>
                     Grabado en la pastilla: &ldquo;{medicine.visualPill.imprint}&rdquo;
                   </Text>
                 )}
-                <Text style={[styles.photoTipText, { marginTop: 8, fontSize: 11.5 }]}>
-                  Verifique que su comprimido coincida con el color y la forma de la imagen.
+                <Text style={styles.photoTipText}>
+                  Verifique que su comprimido coincida con el color y la forma mostrados.
                 </Text>
               </View>
             )}
@@ -230,7 +264,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: '100%',
-    maxWidth: 540,
+    maxWidth: 520,
     maxHeight: '92%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
@@ -248,6 +282,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   headerTitleBox: {
     flexDirection: 'row',
@@ -284,103 +319,134 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  comparisonGrid: {
+  viewModeTabsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 14,
+    gap: 4,
   },
-  visualCard: {
+  viewModeTab: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  viewModeTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  viewModeTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  viewModeTabTextActive: {
+    fontWeight: '800',
+    color: '#0284C7',
+  },
+  largeInspectionCard: {
     backgroundColor: '#F8FAFC',
     borderRadius: 16,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     alignItems: 'center',
-  },
-  singleVisualCard: {
     marginBottom: 16,
     width: '100%',
-    paddingVertical: 18,
   },
   cardSectionTag: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#64748B',
     letterSpacing: 0.5,
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  renderShowcaseBox: {
-    height: 105,
+  largeRenderShowcaseBox: {
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  anatomyBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-    justifyContent: 'center',
-  },
-  pillFormBadge: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#0369A1',
-    backgroundColor: '#E0F2FE',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  pillColorBadge: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#334155',
-    backgroundColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  imprintTag: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginTop: 6,
-  },
-  realPhotoWrapper: {
     width: '100%',
-    height: 105,
+  },
+  largePhotoWrapper: {
+    width: '100%',
+    height: 200,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  realPhotoImage: {
+  largePhotoImage: {
     width: '100%',
     height: '100%',
   },
   verifiedWatermark: {
     position: 'absolute',
-    bottom: 4,
-    left: 4,
-    right: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   watermarkText: {
-    fontSize: 9.5,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#0369A1',
   },
   photoTipText: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     color: '#64748B',
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 10,
+    lineHeight: 16,
+  },
+  anatomyBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+    justifyContent: 'center',
+  },
+  pillFormBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0369A1',
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  pillColorBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  imprintTag: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 8,
   },
   safetyCard: {
     backgroundColor: '#F8FAFC',
@@ -399,7 +465,7 @@ const styles = StyleSheet.create({
   splitRuleBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 12,
     borderRadius: 12,
     marginBottom: 10,
   },
@@ -414,13 +480,13 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
   },
   splitRuleTitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
   },
   splitRuleDescription: {
     fontSize: 11.5,
     color: '#334155',
-    marginTop: 2,
+    marginTop: 3,
     lineHeight: 16,
   },
   intakeAdviceBox: {
@@ -428,7 +494,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F0F9FF',
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#BAE6FD',
   },
@@ -438,7 +504,7 @@ const styles = StyleSheet.create({
     color: '#0369A1',
   },
   intakeAdviceText: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '600',
     color: '#0F172A',
     marginTop: 2,
