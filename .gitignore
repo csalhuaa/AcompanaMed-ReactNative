@@ -32,6 +32,7 @@ pnpm-debug.log*
 *.docx
 *.pdf
 figures/
+*.py
 
 # AI Tools, Skills & Internal Metadata
 .atl/

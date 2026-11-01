@@ -1,12 +1,5 @@
 # AcompañaMed — Documento Maestro de Diseño y Especificación Técnica
 
-> **Asistente Multiplataforma de Acompañamiento y Adherencia Farmacoterapéutica Geriátrica con Red de Apoyo Familiar**  
-> **Asignatura**: Plataformas Emergentes (E) — Semestre 2024B  
-> **Institución**: Universidad Nacional de San Agustín de Arequipa (UNSA)  
-> **Docente**: M. Sc. Ing. R. Fabrizio Calienes Rodríguez  
-
----
-
 ## 1. Identidad del Proyecto
 
 * **Nombre Oficial**: **AcompañaMed**
